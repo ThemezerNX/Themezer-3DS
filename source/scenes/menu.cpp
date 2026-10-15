@@ -295,7 +295,7 @@ public:
                  color::kText, Align::Center);
         drawText(trf("Version {}", APP_VERSION), metric::kTopWidth / 2, textTop(124, metric::kTextSmall),
                  metric::kTextSmall, color::kTextDim, Align::Center);
-        drawWrapped(tr("A fork of Anemone3DS, rewritten. Free software under the GNU General Public License, "
+        drawWrapped(tr("Based on Anemone3DS. Free software under the GNU General Public License, "
                        "version 3 or later, with ABSOLUTELY NO WARRANTY. You may share and change it under that "
                        "license. Source code: github.com/ThemezerNX/themezer-3ds"),
                     32, 142, metric::kTopWidth - 64, metric::kTextSmall, color::kTextDim, 6, Align::Center);
@@ -323,7 +323,7 @@ public:
 private:
     static std::string credits()
     {
-        return std::string(tr("Themezer-3DS is made by Themezer. It is a fork of Anemone3DS by Alex Taber (astronautlevel2) and "
+        return std::string(tr("Themezer-3DS is made by Themezer, based on Anemone3DS by Alex Taber (astronautlevel2) and "
                   "the Anemone3DS contributors: LiquidFenrir, daedreth, helloman892, ZetaDesigns, KennLDN, Wizzrobes, "
                   "saibotu, TurtleP, FrozenChen, luigoalma, uyuiyu, GreatWizard, joel16, thedax, Wryyyong, and the "
                   "translators cooolgamer, iveurne, Tristanabs and Angelpro09_xd. Thank you.")) +

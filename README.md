@@ -5,7 +5,7 @@
 The theme manager for the Nintendo 3DS by [Themezer](https://themezer.net). Install themes, splash screens and
 badges from your SD card, or find new ones on Themezer and install them straight away.
 
-Themezer-3DS is a fork of [Anemone3DS](https://github.com/astronautlevel2/Anemone3DS), rewritten from scratch.
+Themezer-3DS is based on [Anemone3DS](https://github.com/astronautlevel2/Anemone3DS), rewritten from scratch.
 
 ## Installing
 
@@ -40,8 +40,7 @@ through its screens and takes screenshots.
 ## License
 
 Themezer-3DS is free software: you can redistribute it and/or modify it under the terms of the
-[GNU General Public License](LICENSE), version 3 or (at your option) any later version. Anemone3DS, which it is a fork
-of, is licensed the same way.
+[GNU General Public License](LICENSE), version 3 or (at your option) any later version, like Anemone3DS.
 
 The libraries the app is built with keep their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 The app shows these notices on its About screen.
