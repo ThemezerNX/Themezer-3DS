@@ -7,6 +7,7 @@
 
 #include "core/io.hpp"
 #include "domain/library.hpp"
+#include "services/catalog.hpp"
 
 namespace tz
 {
@@ -19,7 +20,9 @@ constexpr const char* kBadgeBackupFolder = "/3ds/Themezer/badge-backup";
 struct Config
 {
     bool backgroundMusic = true;
+    bool previewMusic = true; // a theme's music plays in its preview
     bool checkForUpdates = true;
+    catalog::Source browseSource = catalog::Source::Themezer;
     library::Sort themeSort = library::Sort::Name;
     library::Sort splashSort = library::Sort::Name;
     int lastTab = 0;

@@ -7,27 +7,26 @@
 #include "scenes/page.hpp"
 #include "scenes/previews.hpp"
 #include "scenes/qr_view.hpp"
-#include "services/themezer.hpp"
+#include "services/catalog.hpp"
 #include "sys/jobs.hpp"
 #include "sys/net.hpp"
 #include "ui/list_view.hpp"
 
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 namespace tz::scenes
 {
 
-// Themezer's catalogue: themes, splash screens and badge sets, searched and browsed a page at a time (the next page
-// loads as the list nears its end), with icons and previews downloaded as they're looked at. A last tab scans the QR
-// codes on themezer.net.
-class ThemezerPage final : public Page
+// A site's catalogue, Themezer's or ThemePlaza's: themes, splash screens and badge sets, searched and browsed a page
+// at a time (the next page loads as the list nears its end), with icons and previews downloaded as they're looked at.
+// A last tab scans QR codes, or takes an item's ID typed in. SELECT switches between the sites.
+class BrowsePage final : public Page
 {
 public:
-    ThemezerPage();
-    ~ThemezerPage() override;
+    BrowsePage();
+    ~BrowsePage() override;
 
     ui::Tab tab() const override;
     gfx::Accent accent() const override;
@@ -45,10 +44,11 @@ public:
 private:
     struct Entry
     {
-        themezer::Item item;
+        catalog::Item item;
         uint64_t key = 0;
-        bool iconRequested = false;
-        bool onSd = false; // already downloaded
+        bool iconRequested = false;  // the icon, or the details with it
+        uint8_t detailsFailures = 0; // tried again when it comes into view, a few times
+        bool onSd = false;           // already downloaded
     };
 
     enum class State : uint8_t
@@ -64,18 +64,22 @@ private:
     void requestIcons();
     void checkOnSd(size_t from);
     void search();
-    void switchKind(themezer::Kind kind);
+    void switchKind(catalog::Kind kind);
+    void switchSource(catalog::Source source);
     void openActions();
     void download(Entry& entry, bool install);
     void openPreview(Entry& entry);
     void drawDetails(const Entry& entry);
     bool scanningTab() const;
     void downloadScanned(const std::string& text);
+    void enterId();
     // Where the list starts, below the kinds and the search.
     float listTop(float top) const;
     Entry* selected();
+    Entry* find(uint64_t key);
 
-    themezer::Kind kind_ = themezer::Kind::Themes;
+    catalog::Source source_;
+    catalog::Kind kind_ = catalog::Kind::Themes;
     std::string query_;
     State state_ = State::Idle;
     std::string error_;
@@ -92,6 +96,8 @@ private:
     std::shared_ptr<net::Client> client_ = std::make_shared<net::Client>();
     ui::TabBar kinds_{KEY_LEFT, KEY_RIGHT};
     QrView qr_;
+    // the folders' generations last checked for downloads, by App::Folder
+    uint32_t seenGenerations_[3] = {};
 };
 
 } // namespace tz::scenes

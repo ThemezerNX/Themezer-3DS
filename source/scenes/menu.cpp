@@ -16,6 +16,7 @@
 #include "ui/widgets.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace tz::scenes
@@ -166,13 +167,16 @@ namespace
 class SettingsScene final : public ui::Scene
 {
 public:
-    SettingsScene() { list_.setRowHeight(48); }
+    SettingsScene()
+    {
+        list_.setRowHeight(48);
+        list_.setCount(static_cast<int>(kRows.size()));
+    }
 
     void update(ui::Input& input, float dt) override
     {
         hintBar_.update(input, hints_);
         list_.setBounds(0, kHeader, metric::kBottomWidth, metric::kHeight - kHeader - metric::kHintBarHeight);
-        list_.setCount(2);
         const auto event = list_.update(input, dt);
         if (input.pressed(KEY_B))
         {
@@ -181,7 +185,7 @@ public:
             return;
         }
         if (event == ui::ListView::Event::Activated)
-            toggle(list_.selected());
+            change(kRows[list_.selected()].setting);
     }
 
     void drawTop() override
@@ -202,19 +206,30 @@ public:
         drawText(tr("Settings"), 16, textTop(kHeader / 2, metric::kTextNormal), metric::kTextNormal, color::kText);
         const Config& config = App::get().config();
         list_.draw([&](int index, float x, float y, float w, float h, bool selected) {
+            const Row& row = kRows[index];
             if (selected)
                 roundedRect(x + 6, y + 2, w - 12, h - 4, metric::kRadius, color::kSelection);
-            const bool on = index == 0 ? config.backgroundMusic : config.checkForUpdates;
-            const char* label = index == 0 ? "Background music" : "Check for updates";
-            const char* detail = index == 0 ? "Themezer's own tune while you browse"
-                                            : "When the app starts, it looks for a new version";
             const float middle = y + h / 2;
-            icon(on ? Icon::SquareCheck : Icon::Square, x + 18, std::round(middle - metric::kIcon / 2), metric::kIcon,
-                 on ? color::kPrimaryLight : color::kTextDim);
-            drawText(tr(label), x + 44, textTop(middle - 7.5f, metric::kTextNormal), metric::kTextNormal,
-                     color::kText, Align::Left, w - 60);
-            drawText(tr(detail), x + 44, textTop(middle + 8, metric::kTextSmall), metric::kTextSmall,
-                     color::kTextDim, Align::Left, w - 60);
+            float right = x + w - 18;
+            if (row.setting == Setting::BrowseSource)
+            {
+                // a choice: the site, on the right
+                icon(Icon::Globe, x + 18, std::round(middle - metric::kIcon / 2), metric::kIcon, color::kPrimaryLight);
+                right -= drawText(catalog::sourceName(config.browseSource), right,
+                                  textTop(middle, metric::kTextNormal), metric::kTextNormal, color::kPrimaryLight,
+                                  Align::Right) +
+                         12;
+            }
+            else
+            {
+                const bool on = isOn(config, row.setting);
+                icon(on ? Icon::SquareCheck : Icon::Square, x + 18, std::round(middle - metric::kIcon / 2),
+                     metric::kIcon, on ? color::kPrimaryLight : color::kTextDim);
+            }
+            drawText(tr(row.label), x + 44, textTop(middle - 7.5f, metric::kTextNormal), metric::kTextNormal,
+                     color::kText, Align::Left, right - x - 44);
+            drawText(tr(row.detail), x + 44, textTop(middle + 8, metric::kTextSmall), metric::kTextSmall,
+                     color::kTextDim, Align::Left, right - x - 44);
         });
         hintBar_.draw(hints_);
     }
@@ -222,20 +237,66 @@ public:
 private:
     static constexpr float kHeader = 32;
 
-    void toggle(int index)
+    enum class Setting : uint8_t
+    {
+        BackgroundMusic,
+        PreviewMusic,
+        BrowseSource,
+        CheckForUpdates,
+    };
+
+    struct Row
+    {
+        Setting setting;
+        const char* label;
+        const char* detail;
+    };
+
+    static constexpr std::array<Row, 4> kRows{{
+        {Setting::BackgroundMusic, "Background music", "Themezer's own tune while you browse"},
+        {Setting::PreviewMusic, "Music in previews", "A theme's music plays with its preview"},
+        {Setting::BrowseSource, "Browse", "Or SELECT on the globe tab"},
+        {Setting::CheckForUpdates, "Check for updates", "When the app starts, it looks for a new version"},
+    }};
+
+    static bool isOn(const Config& config, Setting setting)
+    {
+        switch (setting)
+        {
+        case Setting::BackgroundMusic:
+            return config.backgroundMusic;
+        case Setting::PreviewMusic:
+            return config.previewMusic;
+        case Setting::CheckForUpdates:
+            return config.checkForUpdates;
+        case Setting::BrowseSource:
+            break;
+        }
+        return false;
+    }
+
+    void change(Setting setting)
     {
         Config& config = App::get().config();
-        if (index == 0)
+        switch (setting)
         {
+        case Setting::BackgroundMusic:
             config.backgroundMusic = !config.backgroundMusic;
             if (config.backgroundMusic && audio::available())
                 audio::startBackgroundMusic("romfs:/bgm.bcstm");
             else
                 audio::pauseBackgroundMusic();
-        }
-        else
-        {
+            break;
+        case Setting::PreviewMusic:
+            config.previewMusic = !config.previewMusic;
+            break;
+        case Setting::BrowseSource:
+            config.browseSource = config.browseSource == catalog::Source::Themezer ? catalog::Source::ThemePlaza
+                                                                                   : catalog::Source::Themezer;
+            break;
+        case Setting::CheckForUpdates:
             config.checkForUpdates = !config.checkForUpdates;
+            break;
         }
     }
 

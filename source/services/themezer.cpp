@@ -28,6 +28,10 @@ struct JsonDelete
 };
 using JsonPtr = std::unique_ptr<json_t, JsonDelete>;
 
+using catalog::Item;
+using catalog::Kind;
+using catalog::Page;
+
 const char* kindPath(Kind kind)
 {
     switch (kind)
@@ -40,6 +44,14 @@ const char* kindPath(Kind kind)
         return "badges";
     }
     return "themes";
+}
+
+std::optional<Kind> parseKind(std::string_view path)
+{
+    for (Kind kind : {Kind::Themes, Kind::Splashes, Kind::Badges})
+        if (path == kindPath(kind))
+            return kind;
+    return std::nullopt;
 }
 
 std::string_view trim(std::string_view text)
@@ -165,6 +177,38 @@ Expected<Page> fetchPage(net::Client& client, Kind kind, int page, std::string_v
     request.cancel = &cancel;
     const net::Response response = TZ_TRY(client.get(request));
     return parsePage(response.body);
+}
+
+Expected<Found> parseQuickId(ByteSpan json)
+{
+    json_error_t error;
+    const JsonPtr root(json_loadb(reinterpret_cast<const char*>(json.data()), json.size(), 0, &error));
+    if (!root)
+        return fail(Errc::InvalidData, std::string("quick ID: ") + error.text);
+    const std::optional<Kind> kind = parseKind(text(root.get(), "kind"));
+    if (!kind)
+        return fail(Errc::InvalidData, "quick ID without a kind");
+    std::optional<Item> item = parseItem(json_object_get(root.get(), "item"));
+    if (!item)
+        return fail(Errc::NotFound, "quick ID without an item");
+    return Found{*kind, std::move(*item)};
+}
+
+Expected<Found> findQuickId(net::Client& client, std::string_view quickId, const CancelToken& cancel)
+{
+    net::Request request;
+    request.url = std::string(kApiUrl) + "/quickid/" + net::urlEncode(quickId);
+    request.accept = {"application/json"};
+    request.maxSize = 64 * 1024;
+    request.cancel = &cancel;
+    auto response = client.get(request);
+    if (!response)
+    {
+        if (response.error().code == Errc::Http && response.error().system == 404)
+            return fail(Errc::NotFound, std::string(quickId));
+        return std::unexpected(response.error());
+    }
+    return parseQuickId(response->body);
 }
 
 } // namespace tz::themezer

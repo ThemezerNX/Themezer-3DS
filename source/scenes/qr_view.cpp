@@ -115,7 +115,8 @@ void QrView::drawBottom(float top, float bottom)
 {
     if (problem_)
     {
-        drawEmptyState(Icon::Qr, color::kTextDim, problem_->title, problem_->message, top, bottom);
+        drawEmptyState(Icon::Qr, color::kTextDim, problem_->title,
+                       problem_->message + " " + tr("You can press X to type the item's ID instead."), top, bottom);
         return;
     }
     if (scanned_)
@@ -125,8 +126,8 @@ void QrView::drawBottom(float top, float bottom)
         return;
     }
     drawEmptyState(Icon::Qr, color::kPrimaryLight, tr("Scan a QR code"),
-                   tr("Point the outer camera at the QR code of a theme, splash screen or badge set on themezer.net. "
-                      "It downloads as soon as the camera reads it."),
+                   tr("Point the outer camera at the QR code of a theme, splash screen or badge set on Themezer or "
+                      "ThemePlaza. It downloads as soon as the camera reads it. Or press X to type its ID."),
                    top, bottom);
 }
 

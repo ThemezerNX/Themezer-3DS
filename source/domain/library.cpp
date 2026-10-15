@@ -146,15 +146,29 @@ const char* root(Kind kind)
     return kind == Kind::Theme ? kThemesRoot : kSplashesRoot;
 }
 
-std::optional<DownloadName> parseDownloadName(std::string_view stem)
+namespace
 {
-    // a second download of the same file is saved as "... (2)"
-    if (const size_t open = stem.rfind(" ("); open != std::string_view::npos && stem.ends_with(')'))
-    {
-        const std::string_view number = stem.substr(open + 2, stem.size() - open - 3);
-        if (!number.empty() && number.find_first_not_of("0123456789") == std::string_view::npos)
-            stem = stem.substr(0, open);
-    }
+
+// " (<digits>)" at the end: the number, else nothing.
+std::optional<std::string_view> trailingNumber(std::string_view stem)
+{
+    const size_t open = stem.rfind(" (");
+    if (open == std::string_view::npos || !stem.ends_with(')'))
+        return std::nullopt;
+    const std::string_view number = stem.substr(open + 2, stem.size() - open - 3);
+    if (number.empty() || number.find_first_not_of("0123456789") != std::string_view::npos)
+        return std::nullopt;
+    return number;
+}
+
+std::string_view withoutTrailingNumber(std::string_view stem)
+{
+    const auto number = trailingNumber(stem);
+    return number ? stem.substr(0, stem.size() - number->size() - 3) : stem;
+}
+
+std::optional<DownloadName> parseThemezerName(std::string_view stem)
+{
     // "... (Themezer-T1ED6C)" at the end
     constexpr std::string_view kTag = " (Themezer-";
     const size_t tag = stem.rfind(kTag);
@@ -176,6 +190,32 @@ std::optional<DownloadName> parseDownloadName(std::string_view stem)
         return parts;
     }
     return std::nullopt;
+}
+
+std::optional<DownloadName> parseThemePlazaName(std::string_view stem)
+{
+    // "<name> by <author> (<id>)": the number is the id, unless another one comes before it (a copy)
+    if (const std::string_view first = withoutTrailingNumber(stem); first != stem && trailingNumber(first))
+        stem = first;
+    if (!trailingNumber(stem))
+        return std::nullopt;
+    const std::string_view rest = withoutTrailingNumber(stem);
+    const size_t by = rest.rfind(" by ");
+    if (by == std::string_view::npos || by == 0 || by + 4 == rest.size())
+        return std::nullopt;
+    return DownloadName{std::string(rest.substr(0, by)), std::string(rest.substr(by + 4))};
+}
+
+} // namespace
+
+std::optional<DownloadName> parseDownloadName(std::string_view stem)
+{
+    // a second download of the same file is saved as "... (2)"
+    if (auto themezer = parseThemezerName(withoutTrailingNumber(stem)))
+        return themezer;
+    if (stem.find(" (Themezer-") != std::string_view::npos)
+        return std::nullopt;
+    return parseThemePlazaName(stem);
 }
 
 std::string Item::displayName() const

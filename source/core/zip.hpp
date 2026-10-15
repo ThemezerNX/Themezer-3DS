@@ -53,6 +53,12 @@ private:
     std::vector<ZipEntry> entries_;
 };
 
+// A file in a zip that can only be read from front to back, like a download: on its first read, the zip's local
+// headers are read up to the file, which is then read (and inflated) as the zip comes in. Only for zips whose local
+// headers hold the files' sizes, as nearly all do. Reading fails with NotFound when the zip has no file of that name
+// (or path), and Unsupported for a zip whose sizes come after each file's data. It can seek forward only.
+std::unique_ptr<StreamReader> streamFromZipInOrder(std::unique_ptr<StreamReader> zip, std::string name);
+
 // The CRC-32 zips use.
 uint32_t crc32(ByteSpan data, uint32_t crc = 0);
 

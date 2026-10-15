@@ -11,7 +11,7 @@
 #include "scenes/frame.hpp"
 #include "scenes/library_page.hpp"
 #include "scenes/menu.hpp"
-#include "scenes/themezer_page.hpp"
+#include "scenes/browse_page.hpp"
 
 #include <algorithm>
 
@@ -29,7 +29,7 @@ public:
         pages_.push_back(std::make_unique<LibraryPage>(library::Kind::Theme));
         pages_.push_back(std::make_unique<LibraryPage>(library::Kind::Splash));
         pages_.push_back(std::make_unique<BadgesPage>());
-        pages_.push_back(std::make_unique<ThemezerPage>());
+        pages_.push_back(std::make_unique<BrowsePage>());
 
         std::vector<ui::Tab> tabs;
         for (const auto& page : pages_)

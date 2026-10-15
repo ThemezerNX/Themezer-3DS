@@ -100,6 +100,8 @@ struct Shared
     ConditionVariable wake;
     bool woken = false;
     Error error;
+    // The source the thread reads from, for stopping to cancel a read that waits for a download.
+    StreamReader* reading = nullptr;
     // The NDSP channels it holds. Whichever stops first, the thread or ~Player, gives them back, and the thread only
     // touches them with the mutex held, so a channel is never used once another player may have it.
     std::array<int, 2> channels{};
@@ -284,6 +286,8 @@ void requestStop(Shared& shared)
 {
     std::lock_guard lock(shared.mutex);
     shared.stopping = true;
+    if (shared.reading)
+        shared.reading->cancel();
     releaseChannels(shared);
     shared.woken = true;
     shared.wake.notifyAll();
@@ -370,7 +374,14 @@ const char* encodingName(bcstm::Encoding encoding)
 class Playback
 {
 public:
-    Playback(Shared& shared, std::unique_ptr<StreamReader> source) : shared_(shared), source_(std::move(source)) {}
+    Playback(Shared& shared, std::unique_ptr<StreamReader> source) : shared_(shared), source_(std::move(source))
+    {
+        std::lock_guard lock(shared_.mutex);
+        shared_.reading = source_.get();
+        // stopped before it began
+        if (shared_.stopping && source_)
+            source_->cancel();
+    }
     ~Playback();
     Playback(const Playback&) = delete;
     Playback& operator=(const Playback&) = delete;
@@ -439,6 +450,7 @@ Playback::~Playback()
 {
     {
         std::lock_guard lock(shared_.mutex);
+        shared_.reading = nullptr;
         releaseChannels(shared_);
     }
     if (memory_)
@@ -799,7 +811,8 @@ void finish(Shared& shared, const Expected<void>& result)
     {
         shared.error = result.error();
         shared.state = State::Failed;
-        if (!shared.stopping)
+        // (a theme without music is no error)
+        if (!shared.stopping && shared.error.code != Errc::NotFound)
             log::writeError("music", shared.error);
     }
     shared.exited = true;
@@ -851,6 +864,11 @@ void reapOrphans(bool all)
     std::vector<Orphan> done;
     {
         std::lock_guard lock(orphansMutex);
+        // one that has faded out but still waits for its download is stopped
+        const u64 now = svcGetSystemTick();
+        for (Orphan& orphan : orphans)
+            if (!orphan.shared->exited && orphan.shared->fadingOut && now > orphan.shared->stopTick + SYSCLOCK_ARM11 / 2)
+                requestStop(*orphan.shared);
         for (size_t i = 0; i < orphans.size();)
         {
             if (!all && !orphans[i].shared->exited)

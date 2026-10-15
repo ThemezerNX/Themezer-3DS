@@ -182,6 +182,23 @@ TEST(library_download_names)
     CHECK(!library::parseDownloadName("Theme by someone (Themezer-T1)").has_value());
     CHECK(!library::parseDownloadName("A Theme by  (Themezer-T1)").has_value());
 
+    // ThemePlaza's
+    auto plaza = library::parseDownloadName("Pokemon Soulsilver (Ethan+Lyra) by SonicBoom37 (152151)");
+    REQUIRE(plaza.has_value());
+    CHECK_EQ(plaza->name, std::string("Pokemon Soulsilver (Ethan+Lyra)"));
+    CHECK_EQ(plaza->author, std::string("SonicBoom37"));
+    auto plazaCopy = library::parseDownloadName("Disney Tsum Tsum by s4turnmms (152039) (2)");
+    REQUIRE(plazaCopy.has_value());
+    CHECK_EQ(plazaCopy->name, std::string("Disney Tsum Tsum"));
+    CHECK_EQ(plazaCopy->author, std::string("s4turnmms"));
+    auto plazaBy = library::parseDownloadName("Stand by Me by someone (12)");
+    REQUIRE(plazaBy.has_value());
+    CHECK_EQ(plazaBy->name, std::string("Stand by Me"));
+    CHECK(!library::parseDownloadName("Theme by (152151)").has_value());
+    CHECK(!library::parseDownloadName("Theme by  (152151)").has_value());
+    CHECK(!library::parseDownloadName("Theme (152151)").has_value());
+    CHECK(!library::parseDownloadName("Theme by someone (Themezer-T1) (2)").has_value());
+
     library::Item item;
     item.source = {"/Themes/Korn Theme by isaac-rizzi (Themezer-T1ED6C).zip",
                    "Korn Theme by isaac-rizzi (Themezer-T1ED6C).zip", true, 1};

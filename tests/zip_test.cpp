@@ -6,6 +6,7 @@
 
 #include <zlib.h>
 
+#include <algorithm>
 #include <random>
 #include <string>
 
@@ -389,6 +390,64 @@ TEST(zip_stream)
         CHECK(atEnd.has_value() && *atEnd == 0);
         CHECK(!stream.seek(body.size() + 1).has_value());
     }
+}
+
+// A stream that only goes forward, a little at a time, like a download.
+class Trickle final : public StreamReader
+{
+public:
+    explicit Trickle(Bytes data) : data_(std::move(data)) {}
+    uint64_t size() const override { return data_.size(); }
+    uint64_t position() const override { return position_; }
+    Expected<size_t> read(MutableByteSpan out) override
+    {
+        const size_t count = std::min<size_t>({out.size(), data_.size() - position_, 777});
+        std::copy_n(data_.begin() + static_cast<ptrdiff_t>(position_), count, out.begin());
+        position_ += count;
+        return count;
+    }
+
+private:
+    Bytes data_;
+    size_t position_ = 0;
+};
+
+TEST(zip_stream_in_order)
+{
+    const Bytes music = compressible(200000, 7);
+    const Bytes zip = makeZip({{"body_LZ.bin", compressible(90000, 3)},
+                               {"preview.png", compressible(50000, 4), false},
+                               {"Theme/BGM.bcstm", music},
+                               {"stored.bin", music, false}});
+    for (const char* name : {"bgm.bcstm", "Theme/bgm.bcstm", "stored.bin"})
+    {
+        auto stream = streamFromZipInOrder(std::make_unique<Trickle>(zip), name);
+        Bytes read(music.size());
+        REQUIRE(stream->readExactly(read).has_value());
+        CHECK(read == music);
+        CHECK_EQ(stream->size(), uint64_t(music.size()));
+        uint8_t byte;
+        auto end = stream->read(MutableByteSpan(&byte, 1));
+        CHECK(end.has_value() && *end == 0);
+    }
+
+    // forward only
+    auto stream = streamFromZipInOrder(std::make_unique<Trickle>(zip), "bgm.bcstm");
+    REQUIRE(stream->seek(1000).has_value());
+    CHECK(!stream->seek(10).has_value());
+
+    auto missing = streamFromZipInOrder(std::make_unique<Trickle>(zip), "bgm.ogg");
+    uint8_t buffer[16];
+    auto got = missing->read(MutableByteSpan(buffer, sizeof(buffer)));
+    REQUIRE(!got.has_value());
+    CHECK(got.error().code == Errc::NotFound);
+
+    // sizes after the data: can't be skipped
+    const Bytes streamed = makeZip({{"a.bin", compressible(1000, 1), true, 1 << 3}, {"bgm.bcstm", music}});
+    auto unsupported = streamFromZipInOrder(std::make_unique<Trickle>(streamed), "bgm.bcstm");
+    got = unsupported->read(MutableByteSpan(buffer, sizeof(buffer)));
+    REQUIRE(!got.has_value());
+    CHECK(got.error().code == Errc::Unsupported);
 }
 
 TEST(zip_stream_detects_corruption)

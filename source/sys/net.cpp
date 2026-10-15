@@ -521,8 +521,16 @@ void setCertificates(CURL* easy)
     curl_easy_setopt(easy, CURLOPT_CAPATH, static_cast<char*>(nullptr));
 }
 
+// ThemePlaza serves its API to Anemone3DS's user agent alone over HTTPS (others get a Cloudflare challenge), and to
+// anyone over plain HTTP, as Anemone3DS has always used it. Every other site is HTTPS only.
+bool plainHttpAllowed(std::string_view url)
+{
+    return url.starts_with("http://themeplaza.art/");
+}
+
 void configure(CURL* easy, Transfer& transfer, curl_slist* headers, char* errorText, bool verify)
 {
+    const char* protocols = plainHttpAllowed(transfer.request.url) ? "http,https" : "https";
     // back to curl's defaults; the handle keeps its connections, DNS cache and TLS sessions
     curl_easy_reset(easy);
     errorText[0] = '\0';
@@ -532,10 +540,10 @@ void configure(CURL* easy, Transfer& transfer, curl_slist* headers, char* errorT
     curl_easy_setopt(easy, CURLOPT_USERAGENT, APP_TITLE "/" APP_VERSION);
     curl_easy_setopt(easy, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(easy, CURLOPT_NOSIGNAL, 1L);
-    curl_easy_setopt(easy, CURLOPT_PROTOCOLS_STR, "https");
+    curl_easy_setopt(easy, CURLOPT_PROTOCOLS_STR, protocols);
     curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(easy, CURLOPT_MAXREDIRS, kMaxRedirects);
-    curl_easy_setopt(easy, CURLOPT_REDIR_PROTOCOLS_STR, "https");
+    curl_easy_setopt(easy, CURLOPT_REDIR_PROTOCOLS_STR, protocols);
     curl_easy_setopt(easy, CURLOPT_CONNECTTIMEOUT, kConnectTimeoutSeconds);
     curl_easy_setopt(easy, CURLOPT_LOW_SPEED_LIMIT, 1L);
     curl_easy_setopt(easy, CURLOPT_LOW_SPEED_TIME, kStallSeconds);
@@ -607,7 +615,7 @@ Error curlError(CURLcode code, const char* errorText, const Transfer& transfer)
     case CURLE_SSL_ISSUER_ERROR:
         error.code = Errc::Tls;
         break;
-    // only HTTPS is allowed, also where a redirect leads
+    // only HTTPS is allowed (plain HTTP too for ThemePlaza), also where a redirect leads
     case CURLE_UNSUPPORTED_PROTOCOL:
         error.code = Errc::Unsupported;
         break;
@@ -885,11 +893,14 @@ namespace
 Mutex streamClientMutex;
 std::unique_ptr<Client> idleStreamClient;
 
-// A download on its own thread, kept whole in memory while it is read.
+// A download on its own thread, kept whole in memory while it is read; or, forward only, only what's still to read,
+// the download waiting while that's kForwardAhead.
 class DownloadStream final : public StreamReader
 {
 public:
-    DownloadStream(std::string url, uint64_t maxSize) : maxSize_(maxSize)
+    static constexpr size_t kForwardAhead = 512 * 1024;
+
+    DownloadStream(std::string url, uint64_t maxSize, bool forwardOnly) : maxSize_(maxSize), forwardOnly_(forwardOnly)
     {
         // not on the Network lane, so that pages and icons keep loading meanwhile
         thread_ = Thread::start([this, url = std::move(url)] { download(url); }, priority::kNetwork, -2,
@@ -904,6 +915,11 @@ public:
     ~DownloadStream() override
     {
         cancel_.cancel();
+        {
+            // a download waiting for the reader goes on to see it's cancelled
+            std::lock_guard lock(mutex_);
+            changed_.notifyAll();
+        }
         thread_.join();
     }
 
@@ -913,18 +929,35 @@ public:
     // The size the server announced, and once complete the size received; 0 until then.
     uint64_t size() const override { return progress_.total.load(std::memory_order_relaxed); }
 
+    void cancel() override
+    {
+        cancel_.cancel();
+        std::lock_guard lock(mutex_);
+        changed_.notifyAll();
+    }
+
     Expected<size_t> read(MutableByteSpan out) override
     {
         if (out.empty())
             return size_t{0};
         std::lock_guard lock(mutex_);
-        while (position_ >= data_.size() && !done_)
+        while (position_ >= data_.size() && !done_ && !cancel_.cancelled())
             changed_.wait(mutex_);
+        if (cancel_.cancelled())
+            return fail(Errc::Cancelled, "music stream stopped");
         if (position_ < data_.size())
         {
             const size_t length = static_cast<size_t>(std::min<uint64_t>(out.size(), data_.size() - position_));
             std::copy_n(data_.begin() + static_cast<ptrdiff_t>(position_), length, out.begin());
             position_ += length;
+            if (forwardOnly_ && position_ >= kForwardAhead / 4)
+            {
+                // what's read is forgotten, and the download may go on
+                data_.erase(data_.begin(), data_.begin() + static_cast<ptrdiff_t>(position_));
+                dropped_ += position_;
+                position_ = 0;
+                changed_.notifyAll();
+            }
             return length;
         }
         if (error_)
@@ -932,12 +965,16 @@ public:
         return size_t{0};
     }
 
-    // Forward waits for the data; back is always possible, as everything received is kept.
+    // Forward waits for the data; back is possible when everything received is kept.
     Expected<void> seek(uint64_t target) override
     {
+        if (forwardOnly_)
+            return StreamReader::seek(target);
         std::lock_guard lock(mutex_);
-        while (data_.size() < target && !done_)
+        while (data_.size() < target && !done_ && !cancel_.cancelled())
             changed_.wait(mutex_);
+        if (cancel_.cancelled())
+            return fail(Errc::Cancelled, "music stream stopped");
         if (target <= data_.size())
         {
             position_ = target;
@@ -948,7 +985,7 @@ public:
         return fail(Errc::InvalidData, "seek past the end");
     }
 
-    uint64_t position() const override { return position_; }
+    uint64_t position() const override { return dropped_ + position_; }
 
 private:
     void download(const std::string& url)
@@ -989,9 +1026,14 @@ private:
     bool append(ByteSpan data)
     {
         std::lock_guard lock(mutex_);
+        // forward only, it waits for the reader to catch up (a reader that stops lets curl time the download out)
+        while (forwardOnly_ && data_.size() - position_ >= kForwardAhead && !cancel_.cancelled())
+            changed_.waitFor(mutex_, 100 * 1000000LL);
         if (cancel_.cancelled())
             return false;
-        if (!appendBytes(data_, data, progress_.total.load(std::memory_order_relaxed), maxSize_))
+        const uint64_t total = progress_.total.load(std::memory_order_relaxed);
+        const uint64_t room = forwardOnly_ ? data_.size() + kForwardAhead + data.size() : total;
+        if (!appendBytes(data_, data, forwardOnly_ ? room : total, forwardOnly_ ? room : maxSize_))
         {
             error_ = Error{Errc::OutOfMemory, 0, std::to_string(data_.size() + data.size()) + " bytes to stream"};
             return false;
@@ -1001,6 +1043,7 @@ private:
     }
 
     const uint64_t maxSize_;
+    const bool forwardOnly_;
     CancelToken cancel_;
     Progress progress_;
 
@@ -1011,8 +1054,9 @@ private:
     bool done_ = false;
     std::optional<Error> error_;
 
-    // the reader's
+    // the reader's: in data_, after what was dropped from its front
     uint64_t position_ = 0;
+    uint64_t dropped_ = 0;
 
     Thread thread_;
 };
@@ -1021,7 +1065,12 @@ private:
 
 std::unique_ptr<StreamReader> stream(std::string url, uint64_t maxSize)
 {
-    return std::make_unique<DownloadStream>(std::move(url), maxSize);
+    return std::make_unique<DownloadStream>(std::move(url), maxSize, false);
+}
+
+std::unique_ptr<StreamReader> streamForward(std::string url, uint64_t maxSize)
+{
+    return std::make_unique<DownloadStream>(std::move(url), maxSize, true);
 }
 
 bool init()

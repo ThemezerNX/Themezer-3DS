@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Themezer-3DS contributors
 
-// HTTPS downloads with curl. Servers are verified against the CA certificates in romfs:/cacert.pem.
+// HTTPS downloads with curl. Servers are verified against the CA certificates in romfs:/cacert.pem. ThemePlaza alone
+// is reached over plain HTTP (see plainHttpAllowed() in net.cpp).
 
 #pragma once
 
@@ -73,6 +74,9 @@ private:
 // A download read while it continues, for music previews. It runs on a thread of its own, so that the Network lane's
 // pages and icons keep loading; read() waits for data. Destroying the stream cancels the download.
 std::unique_ptr<StreamReader> stream(std::string url, uint64_t maxSize);
+// stream(), forward only, for a big download read once from front to back: what's read is forgotten, and the download
+// waits while half a megabyte is still to read. It can't go back.
+std::unique_ptr<StreamReader> streamForward(std::string url, uint64_t maxSize);
 
 // Percent-encodes everything but unreserved characters, for query parameters.
 std::string urlEncode(std::string_view text);

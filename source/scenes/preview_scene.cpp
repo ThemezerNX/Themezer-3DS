@@ -3,6 +3,7 @@
 
 #include "scenes/preview_scene.hpp"
 
+#include "app/app.hpp"
 #include "app/strings.hpp"
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
@@ -85,6 +86,9 @@ public:
 private:
     void startMusic()
     {
+        // turned off in the settings
+        if (!App::get().config().previewMusic)
+            return;
         if (source_.music && !audio::available())
             ui::toast(tr("No sound: the DSP firmware is missing"), ui::ToastKind::Warning);
         if (!source_.music || !audio::available())

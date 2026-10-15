@@ -624,6 +624,149 @@ Expected<std::unique_ptr<StreamReader>> ZipArchive::openStream(const ZipEntry& e
     return std::unique_ptr<StreamReader>(std::move(stream));
 }
 
+namespace
+{
+
+constexpr uint16_t kFlagSizesAfterData = 1 << 3;
+
+// A stream read like a Reader, only ever forward: what an EntryStream needs of it.
+class ForwardReader final : public Reader
+{
+public:
+    explicit ForwardReader(std::unique_ptr<StreamReader> stream) : stream_(std::move(stream)) {}
+
+    uint64_t size() const override { return stream_->size(); }
+    uint64_t position() const { return position_; }
+
+    Expected<void> readAt(uint64_t offset, MutableByteSpan out) override
+    {
+        if (offset < position_)
+            return fail(Errc::Unsupported, "going back in a zip read from front to back");
+        TZ_CHECK(skip(offset - position_));
+        TZ_CHECK(stream_->readExactly(out));
+        position_ += out.size();
+        return {};
+    }
+
+    Expected<void> skip(uint64_t count)
+    {
+        uint8_t scratch[16 * 1024];
+        while (count > 0)
+        {
+            const size_t chunk = static_cast<size_t>(std::min<uint64_t>(sizeof(scratch), count));
+            TZ_CHECK(stream_->readExactly(MutableByteSpan(scratch, chunk)));
+            position_ += chunk;
+            count -= chunk;
+        }
+        return {};
+    }
+
+private:
+    std::unique_ptr<StreamReader> stream_;
+    uint64_t position_ = 0;
+};
+
+class InOrderEntryStream final : public StreamReader
+{
+public:
+    InOrderEntryStream(std::unique_ptr<StreamReader> zip, std::string name)
+        : zip_(std::move(zip)), name_(std::move(name)), source_(zip_.get())
+    {
+    }
+
+    // the zip itself is what waits, wherever open() has put it by now
+    void cancel() override
+    {
+        if (source_)
+            source_->cancel();
+    }
+
+    uint64_t size() const override { return entry_ ? entry_->size() : 0; }
+    uint64_t position() const override { return entry_ ? entry_->position() : 0; }
+
+    Expected<size_t> read(MutableByteSpan out) override
+    {
+        TZ_CHECK(open());
+        return entry_->read(out);
+    }
+
+    Expected<void> seek(uint64_t target) override
+    {
+        TZ_CHECK(open());
+        if (target < entry_->position())
+            return fail(Errc::Unsupported, "going back in a zip read from front to back");
+        return entry_->seek(target);
+    }
+
+private:
+    bool matches(std::string_view entryName) const
+    {
+        return path::equalsIgnoreCase(entryName, name_) || path::equalsIgnoreCase(path::filename(entryName), name_);
+    }
+
+    Expected<void> open()
+    {
+        if (entry_)
+            return {};
+        if (reader_)
+            return fail(Errc::NotFound, name_ + " isn't in the zip"); // looked for already
+        // kept as long as this is, so that cancel() always has the zip to reach
+        reader_ = std::make_shared<ForwardReader>(std::move(zip_));
+        ForwardReader* const reader = reader_.get();
+        for (;;)
+        {
+            uint8_t header[kLocalSize];
+            TZ_CHECK(reader->readAt(reader->position(), MutableByteSpan(header, sizeof(header))));
+            // the central directory: every file has gone by
+            if (readU32(header) != kLocalSignature)
+                return fail(Errc::NotFound, name_ + " isn't in the zip");
+            const uint16_t flags = readU16(header + 6);
+            ZipEntry entry;
+            entry.method = readU16(header + 8);
+            entry.crc32 = readU32(header + 14);
+            entry.compressedSize = readU32(header + 18);
+            entry.size = readU32(header + 22);
+            std::string name(readU16(header + 26), '\0');
+            TZ_CHECK(reader->readAt(reader->position(),
+                                    MutableByteSpan(reinterpret_cast<uint8_t*>(name.data()), name.size())));
+            TZ_CHECK(reader->skip(readU16(header + 28)));
+            if (flags & kFlagSizesAfterData)
+                return fail(Errc::Unsupported, "a zip with the sizes after the data");
+            if (entry.compressedSize == 0xFFFFFFFF || entry.size == 0xFFFFFFFF)
+                return fail(Errc::Unsupported, "a zip64 file read from front to back");
+            if (!matches(name))
+            {
+                TZ_CHECK(reader->skip(entry.compressedSize));
+                continue;
+            }
+            if (flags & kFlagEncrypted)
+                return fail(Errc::Unsupported, "encrypted zip entry");
+            if (entry.method != kMethodStored && entry.method != kMethodDeflated)
+                return fail(Errc::Unsupported, "compression method " + std::to_string(entry.method));
+            if (entry.method == kMethodStored && entry.compressedSize != entry.size)
+                return fail(Errc::InvalidData, "stored zip entry with two sizes");
+            entry.name = std::move(name);
+            auto stream = std::make_unique<EntryStream>(reader_, entry, reader->position());
+            TZ_CHECK(stream->init());
+            entry_ = std::move(stream);
+            return {};
+        }
+    }
+
+    std::unique_ptr<StreamReader> zip_; // until open() hands it to reader_
+    std::string name_;
+    StreamReader* const source_; // the zip, which this owns all along
+    std::shared_ptr<ForwardReader> reader_;
+    std::unique_ptr<EntryStream> entry_;
+};
+
+} // namespace
+
+std::unique_ptr<StreamReader> streamFromZipInOrder(std::unique_ptr<StreamReader> zip, std::string name)
+{
+    return std::make_unique<InOrderEntryStream>(std::move(zip), std::move(name));
+}
+
 uint32_t crc32(ByteSpan data, uint32_t crc)
 {
     const uint8_t* bytes = data.data();

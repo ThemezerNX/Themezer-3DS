@@ -49,6 +49,9 @@ public:
     // Skips ahead (or back, when the source allows). The default reads and drops.
     virtual Expected<void> seek(uint64_t position);
     virtual uint64_t position() const = 0;
+    // From any thread: a read that waits (for a download) fails with Cancelled now, and every read from then on. Nothing
+    // for sources that never wait.
+    virtual void cancel() {}
 
     // Fills out completely, or fails (InvalidData when the stream ends first).
     Expected<void> readExactly(MutableByteSpan out);

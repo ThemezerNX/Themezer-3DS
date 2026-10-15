@@ -69,8 +69,8 @@ struct Info
 };
 
 // Themezer names its downloads "<name> Theme by <author> (Themezer-<id>)", or Splash or Badge Set for the others,
-// and a second copy gets " (2)" after that: the name and the author in such a file name (without .zip), for items
-// whose files don't name them.
+// ThemePlaza "<name> by <author> (<id>)", and a second copy gets " (2)" after that: the name and the author in such a
+// file name (without .zip), for items whose files don't name them.
 struct DownloadName
 {
     std::string name;

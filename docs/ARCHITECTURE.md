@@ -9,7 +9,7 @@ source/
   core/      portable: formats and helpers, no 3DS headers (zip, LZ11, PNG, SMDH, BCSTM, UTF-8, paths, versions)
   domain/    portable: what the app does to the SD card and the HOME Menu's storage (themes, splashes, badges, the library)
   sys/       the 3DS: files, threads and jobs, network, audio, the system
-  services/  built on sys: Themezer's catalogue, updates, QR codes
+  services/  built on sys: Themezer's and ThemePlaza's catalogues, updates, QR codes
   gfx/       drawing: the renderer, text, textures, icons
   ui/        input and the widgets screens are made of
   scenes/    the screens

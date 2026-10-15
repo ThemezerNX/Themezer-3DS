@@ -63,7 +63,10 @@ Config Config::load(FileSystem& sd)
         return config;
     }
     readBool(root, "backgroundMusic", config.backgroundMusic);
+    readBool(root, "previewMusic", config.previewMusic);
     readBool(root, "checkForUpdates", config.checkForUpdates);
+    if (const char* source = json_string_value(json_object_get(root, "browse")))
+        config.browseSource = catalog::parseSource(source).value_or(config.browseSource);
     // the names the app used before this version
     readBool(root, "Background Music", config.backgroundMusic);
     readBool(root, "Check For Updates", config.checkForUpdates);
@@ -79,7 +82,9 @@ Expected<void> Config::save(FileSystem& sd) const
 {
     json_t* root = json_object();
     json_object_set_new(root, "backgroundMusic", json_boolean(backgroundMusic));
+    json_object_set_new(root, "previewMusic", json_boolean(previewMusic));
     json_object_set_new(root, "checkForUpdates", json_boolean(checkForUpdates));
+    json_object_set_new(root, "browse", json_string(catalog::sourceKey(browseSource)));
     json_object_set_new(root, "themeSort", json_string(sortName(themeSort)));
     json_object_set_new(root, "splashSort", json_string(sortName(splashSort)));
     json_object_set_new(root, "lastTab", json_integer(lastTab));
