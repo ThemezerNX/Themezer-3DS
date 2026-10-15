@@ -148,6 +148,13 @@ const char* root(Kind kind)
 
 std::optional<DownloadName> parseDownloadName(std::string_view stem)
 {
+    // a second download of the same file is saved as "... (2)"
+    if (const size_t open = stem.rfind(" ("); open != std::string_view::npos && stem.ends_with(')'))
+    {
+        const std::string_view number = stem.substr(open + 2, stem.size() - open - 3);
+        if (!number.empty() && number.find_first_not_of("0123456789") == std::string_view::npos)
+            stem = stem.substr(0, open);
+    }
     // "... (Themezer-T1ED6C)" at the end
     constexpr std::string_view kTag = " (Themezer-";
     const size_t tag = stem.rfind(kTag);

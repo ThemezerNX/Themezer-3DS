@@ -173,7 +173,12 @@ TEST(library_download_names)
     CHECK_EQ(splash->name, std::string("Jokers Mask"));
     CHECK_EQ(splash->author, std::string(".c.e.n.t.u.r.i.o.n."));
 
+    auto copy = library::parseDownloadName("Jokers Mask Splash by .c.e.n.t.u.r.i.o.n. (Themezer-S1EB59) (2)");
+    REQUIRE(copy.has_value());
+    CHECK_EQ(copy->name, std::string("Jokers Mask"));
+
     CHECK(!library::parseDownloadName("My theme").has_value());
+    CHECK(!library::parseDownloadName("My theme (2)").has_value());
     CHECK(!library::parseDownloadName("Theme by someone (Themezer-T1)").has_value());
     CHECK(!library::parseDownloadName("A Theme by  (Themezer-T1)").has_value());
 

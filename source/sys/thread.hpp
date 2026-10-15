@@ -6,6 +6,7 @@
 #include <3ds.h>
 #include <functional>
 #include <memory>
+#include <mutex>
 
 namespace tz
 {

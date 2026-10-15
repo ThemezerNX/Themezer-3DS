@@ -68,8 +68,9 @@ struct Info
     bool usable(Kind kind) const { return kind == Kind::Theme ? body.size != 0 : (top.size != 0 || bottom.size != 0); }
 };
 
-// Themezer names its downloads "<name> Theme by <author> (Themezer-<id>)", or Splash or Badge Set for the others:
-// the name and the author in such a file name (without .zip), for items whose files don't name them.
+// Themezer names its downloads "<name> Theme by <author> (Themezer-<id>)", or Splash or Badge Set for the others,
+// and a second copy gets " (2)" after that: the name and the author in such a file name (without .zip), for items
+// whose files don't name them.
 struct DownloadName
 {
     std::string name;

@@ -8,6 +8,7 @@
 #include <3ds.h>
 #include <array>
 #include <cstdio>
+#include <mutex>
 #include <string>
 
 namespace tz::log
