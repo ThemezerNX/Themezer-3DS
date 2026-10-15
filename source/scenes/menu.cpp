@@ -231,7 +231,7 @@ private:
             if (config.backgroundMusic && audio::available())
                 audio::startBackgroundMusic("romfs:/bgm.bcstm");
             else
-                audio::stopBackgroundMusic();
+                audio::pauseBackgroundMusic();
         }
         else
         {

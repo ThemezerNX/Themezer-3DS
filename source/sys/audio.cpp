@@ -52,8 +52,8 @@ constexpr uint64_t kMinBuffers = 4;
 constexpr uint64_t kMaxBuffers = 16;
 // Encoders write blocks of 0x2000 bytes; much bigger ones would make the queue take too much linear memory.
 constexpr uint32_t kMaxBlockSize = 0x10000;
-// The most kept in memory for a loop: a theme's whole music. Longer loops play once.
-constexpr uint64_t kMaxLoopMemory = bcstm::kMaxSize;
+// The most kept in memory for a loop: a theme's whole music, with its blocks' padding. Longer loops play once.
+constexpr uint64_t kMaxLoopMemory = bcstm::kMaxSize + 2 * kMaxBlockSize;
 
 // How often the thread looks for played buffers. A block lasts almost half a second.
 constexpr s64 kPollNs = 10 * 1000000LL;
@@ -830,6 +830,21 @@ void adopt(Thread thread, std::shared_ptr<Shared> shared)
     orphans.push_back(Orphan{std::move(thread), std::move(shared)});
 }
 
+// Silences the orphaned players still fading out but the last few, so they free their memory now: music opened and
+// closed quickly would otherwise keep many of them at once, each holding blocks and maybe a whole loop.
+void trimOrphans(size_t keep)
+{
+    std::lock_guard lock(orphansMutex);
+    size_t fading = 0;
+    for (size_t i = orphans.size(); i-- > 0;)
+    {
+        if (orphans[i].shared->exited)
+            continue;
+        if (++fading > keep)
+            requestStop(*orphans[i].shared);
+    }
+}
+
 // Joins the orphaned threads that are done, or all of them, waiting.
 void reapOrphans(bool all)
 {
@@ -939,6 +954,7 @@ std::unique_ptr<Player> Player::Impl::start(std::unique_ptr<StreamReader> source
     if (!ready)
         return nullptr;
     reapOrphans(false);
+    trimOrphans(1);
 
     auto impl = std::make_unique<Impl>();
     impl->shared = std::make_shared<Shared>();
@@ -1058,6 +1074,15 @@ bool available()
 
 void startBackgroundMusic(const char* path)
 {
+    {
+        // there already, maybe paused: it only needs to play
+        std::lock_guard lock(backgroundMutex);
+        if (backgroundPlayer && backgroundPlayer->state() != State::Failed)
+        {
+            backgroundPlayer->setPaused(false);
+            return;
+        }
+    }
     stopBackgroundMusic();
     Player::Options options;
     options.volume = kBackgroundVolume;
@@ -1065,6 +1090,13 @@ void startBackgroundMusic(const char* path)
     std::unique_ptr<Player> player = Player::Impl::start(std::make_unique<FileInMemory>(path), options, true);
     std::lock_guard lock(backgroundMutex);
     backgroundPlayer = std::move(player);
+}
+
+void pauseBackgroundMusic()
+{
+    std::lock_guard lock(backgroundMutex);
+    if (backgroundPlayer)
+        backgroundPlayer->setPaused(true);
 }
 
 void stopBackgroundMusic()

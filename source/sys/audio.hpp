@@ -59,7 +59,11 @@ private:
 
 // Themezer's own music, from a BCSTM in the RomFS, looping at half volume. It pauses while a Player with
 // interruptsBackground plays, and carries on a moment after the last one stops.
+// Starting it again while it's there (paused or not) only resumes it.
 void startBackgroundMusic(const char* path);
+// Fades it out and keeps it ready, so that turning it off and on, however quickly, starts nothing new.
+void pauseBackgroundMusic();
+// Stops it and frees it.
 void stopBackgroundMusic();
 bool backgroundMusicRunning();
 
