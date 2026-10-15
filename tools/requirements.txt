@@ -1,0 +1,8 @@
+# Python packages for the asset build scripts (tools/*/build.sh), pinned to the versions the committed assets were made
+# with: other versions can round or resample a little differently.
+gltflib==1.0.13
+mapbox_earcut==2.1.0
+numpy==2.5.4
+pillow==12.3.0
+shapely==2.2.0
+svgelements==1.9.6

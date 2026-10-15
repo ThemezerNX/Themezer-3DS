@@ -61,4 +61,4 @@ The file formats the app works with were documented by others before it:
 - [Luma3DS](https://github.com/LumaTeam/Luma3DS), for its splash screens.
 
 The banner, boot animation, tune and background music are Themezer's own; [meta/README.md](meta/README.md) describes
-how they were made.
+how they were made and how to rebuild them.

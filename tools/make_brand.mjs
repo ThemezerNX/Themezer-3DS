@@ -7,26 +7,11 @@
 //     node tools/make_brand.mjs [path/to/themezer-monorepo]
 
 import path from 'node:path';
-import os from 'node:os';
 import fs from 'node:fs';
-import { createRequire } from 'node:module';
+import { defaultMonorepo, loadSharp } from './sharp.mjs';
 
-const monorepo = process.argv[2] ?? path.join(os.homedir(), 'dev/themezer/themezer-monorepo');
-
-// sharp from the monorepo: a normal install, or bun's package store
-function loadSharp() {
-    const require = createRequire(path.join(monorepo, 'package.json'));
-    try {
-        return require('sharp');
-    } catch {
-        const store = path.join(monorepo, 'node_modules', '.bun');
-        const found = fs.readdirSync(store).filter((name) => name.startsWith('sharp@')).sort().pop();
-        if (!found)
-            throw new Error(`sharp isn't installed in ${monorepo}`);
-        return require(path.join(store, found, 'node_modules', 'sharp'));
-    }
-}
-const sharp = loadSharp();
+const monorepo = process.argv[2] ?? defaultMonorepo;
+const sharp = loadSharp(monorepo);
 const out = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'gfx', 'brand');
 fs.mkdirSync(out, { recursive: true });
 

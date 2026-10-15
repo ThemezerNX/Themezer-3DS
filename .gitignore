@@ -12,3 +12,7 @@
 *.swp
 .DS_Store
 __pycache__/
+
+# the asset tools: their Python packages and pycgfx
+/tools/.venv/
+/tools/.cache/
