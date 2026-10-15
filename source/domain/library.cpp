@@ -397,34 +397,36 @@ int compareNatural(std::string_view a, std::string_view b)
     return 0;
 }
 
-void sort(std::vector<Item>& items, Sort order)
+bool comesBefore(const Item& x, const Item& y, Sort order)
 {
-    auto byName = [](const Item& x, const Item& y) {
-        const int c = compareNatural(x.displayName(), y.displayName());
-        return c != 0 ? c < 0 : compareNatural(x.source.fileName, y.source.fileName) < 0;
+    auto byName = [](const Item& a, const Item& b) {
+        const int c = compareNatural(a.displayName(), b.displayName());
+        return c != 0 ? c < 0 : compareNatural(a.source.fileName, b.source.fileName) < 0;
     };
     switch (order)
     {
     case Sort::Name:
-        std::stable_sort(items.begin(), items.end(), byName);
-        break;
+        return byName(x, y);
     case Sort::Author:
-        std::stable_sort(items.begin(), items.end(), [&](const Item& x, const Item& y) {
-            const std::string_view ax = x.info ? std::string_view(x.info->author) : std::string_view();
-            const std::string_view ay = y.info ? std::string_view(y.info->author) : std::string_view();
-            // items without an author go last
-            if (ax.empty() != ay.empty())
-                return !ax.empty();
-            const int c = compareNatural(ax, ay);
-            return c != 0 ? c < 0 : byName(x, y);
-        });
-        break;
+    {
+        const std::string_view ax = x.info ? std::string_view(x.info->author) : std::string_view();
+        const std::string_view ay = y.info ? std::string_view(y.info->author) : std::string_view();
+        // items without an author go last
+        if (ax.empty() != ay.empty())
+            return !ax.empty();
+        const int c = compareNatural(ax, ay);
+        return c != 0 ? c < 0 : byName(x, y);
+    }
     case Sort::FileName:
-        std::stable_sort(items.begin(), items.end(), [](const Item& x, const Item& y) {
-            return compareNatural(x.source.fileName, y.source.fileName) < 0;
-        });
         break;
     }
+    return compareNatural(x.source.fileName, y.source.fileName) < 0;
+}
+
+void sort(std::vector<Item>& items, Sort order)
+{
+    std::stable_sort(items.begin(), items.end(),
+                     [order](const Item& x, const Item& y) { return comesBefore(x, y, order); });
 }
 
 } // namespace tz::library

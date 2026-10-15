@@ -329,14 +329,9 @@ void LibraryPage::resort(bool keepSelection)
     const uint64_t selectedKey = keepSelection && selectedEntry() ? selectedEntry()->key : 0;
     const library::Sort order = kind_ == library::Kind::Theme ? App::get().config().themeSort
                                                               : App::get().config().splashSort;
-    std::vector<library::Item> items;
-    items.reserve(entries_.size());
     // sort the items, keeping each entry's state with it
-    std::stable_sort(entries_.begin(), entries_.end(), [&](const Entry& a, const Entry& b) {
-        std::vector<library::Item> pair{a.item, b.item};
-        library::sort(pair, order);
-        return pair.front().source.path == a.item.source.path && a.item.source.path != b.item.source.path;
-    });
+    std::stable_sort(entries_.begin(), entries_.end(),
+                     [order](const Entry& a, const Entry& b) { return library::comesBefore(a.item, b.item, order); });
     rebuildIndex();
     if (selectedKey)
         if (auto it = index_.find(selectedKey); it != index_.end())

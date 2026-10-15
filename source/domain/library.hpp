@@ -111,6 +111,8 @@ enum class Sort : uint8_t
 };
 
 void sort(std::vector<Item>& items, Sort sort);
+// Whether x comes before y in that order: sort()'s comparison, for sorting things that hold items.
+bool comesBefore(const Item& x, const Item& y, Sort sort);
 
 // Natural order: "Theme 2" before "Theme 10", ignoring case.
 int compareNatural(std::string_view a, std::string_view b);
