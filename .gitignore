@@ -1,0 +1,14 @@
+# build output
+/build/
+/out/
+
+# generated into the RomFS by the build
+/romfs/gfx/
+/romfs/licenses.txt
+
+# editors and systems
+.idea/
+.vscode/
+*.swp
+.DS_Store
+__pycache__/
