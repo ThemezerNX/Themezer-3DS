@@ -5,6 +5,7 @@
 
 #include "scenes/errors.hpp"
 #include "services/qr.hpp"
+#include "ui/input.hpp"
 
 #include <citro3d.h>
 #include <memory>
@@ -15,7 +16,8 @@
 namespace tz::scenes
 {
 
-// The QR code tab: the outer camera on the top screen, read until it sees a QR code.
+// The QR code tab: the outer camera on the top screen, read until it sees a QR code; on the bottom screen what to do,
+// and a field to type an item's ID instead, for when the camera can't read the code.
 class QrView
 {
 public:
@@ -33,6 +35,9 @@ public:
     // camera stops then, until start()).
     std::optional<std::string> update();
 
+    // Every frame while shown: whether the ID field was tapped (it shows pressed while touched).
+    bool idFieldTapped(const ui::Input& input);
+
     // The camera's picture fills the top screen.
     bool showsPicture() const { return scanner_ && hasFrame_; }
     void drawTop();
@@ -46,6 +51,9 @@ private:
     bool textureReady_ = false;
     bool hasFrame_ = false;
     std::vector<uint16_t> frame_;
+    // the ID field, where drawBottom last drew it
+    float fieldX_ = 0, fieldY_ = 0, fieldWidth_ = 0, fieldHeight_ = 0;
+    bool fieldTouched_ = false;
 };
 
 } // namespace tz::scenes

@@ -442,7 +442,7 @@ void BrowsePage::update(ui::Input& input, float dt)
     {
         if (auto text = qr_.update())
             downloadScanned(*text);
-        else if (input.pressed(KEY_X))
+        else if (qr_.idFieldTapped(input) || input.pressed(KEY_X))
             enterId();
         else if (!qr_.scanning() && input.pressed(KEY_A))
             qr_.start();
@@ -506,7 +506,7 @@ std::vector<ui::Hint> BrowsePage::hints() const
     {
         if (!qr_.scanning())
             hints.push_back({KEY_A, tr("Scan")});
-        hints.push_back({KEY_X, tr("Type ID")});
+        hints.push_back({KEY_X, tr("Quick ID")});
         return hints;
     }
     if (state_ == State::Failed)

@@ -50,6 +50,7 @@ enum class Icon : uint16_t
     Battery,
     BatteryCharging,
     Images,
+    Keyboard,
     Count,
 };
 

@@ -72,6 +72,7 @@ ICONS = {
     "battery": "battery",
     "battery_charging": "battery-charging",
     "images": "images",
+    "keyboard": "keyboard",
 }
 
 # The icons also drawn large.

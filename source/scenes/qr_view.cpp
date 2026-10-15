@@ -11,6 +11,7 @@
 #include "gfx/text.hpp"
 #include "gfx/texture.hpp"
 #include "scenes/frame.hpp"
+#include "ui/widgets.hpp"
 
 namespace tz::scenes
 {
@@ -111,24 +112,74 @@ void QrView::drawTop()
     rect(x + size - t, y + size - l, t, l, edge);
 }
 
+bool QrView::idFieldTapped(const ui::Input& input)
+{
+    const auto inside = [&](float x, float y) {
+        return x >= fieldX_ && x < fieldX_ + fieldWidth_ && y >= fieldY_ && y < fieldY_ + fieldHeight_;
+    };
+    fieldTouched_ = input.touching && !input.dragging && inside(input.x, input.y) && inside(input.startX, input.startY);
+    return input.tap && inside(input.x, input.y);
+}
+
 void QrView::drawBottom(float top, float bottom)
 {
+    const float width = metric::kBottomWidth;
+    constexpr float kMargin = 16;
+
+    // the ID field along the bottom, under an "or"
+    fieldHeight_ = 36;
+    fieldX_ = kMargin;
+    fieldWidth_ = width - 2 * kMargin;
+    fieldY_ = std::round(bottom - 12 - fieldHeight_);
+    const float orMiddle = fieldY_ - 13;
+
+    // what the camera is doing, above
+    std::string title;
+    std::string message;
+    Color tint = color::kPrimaryLight;
     if (problem_)
     {
-        drawEmptyState(Icon::Qr, color::kTextDim, problem_->title,
-                       problem_->message + " " + tr("You can press X to type the item's ID instead."), top, bottom);
-        return;
+        title = problem_->title;
+        message = problem_->message;
+        tint = color::kTextDim;
     }
-    if (scanned_)
+    else if (scanned_)
     {
-        drawEmptyState(Icon::Qr, color::kPrimaryLight, tr("Scanned"), tr("Press A to scan another QR code."), top,
-                       bottom);
-        return;
+        title = tr("Scanned");
+        message = tr("Press A to scan another QR code.");
     }
-    drawEmptyState(Icon::Qr, color::kPrimaryLight, tr("Scan a QR code"),
-                   tr("Point the outer camera at the QR code of a theme, splash screen or badge set on Themezer or "
-                      "ThemePlaza. It downloads as soon as the camera reads it. Or press X to type its ID."),
-                   top, bottom);
+    else
+    {
+        title = tr("Scan a QR code");
+        message = tr("For example from themezer.net or themeplaza.art");
+    }
+    const auto lines = wrap(message, width - 2 * kMargin, metric::kTextSmall, 3);
+    const float titleHeight = lineHeight(metric::kTextNormal);
+    const float blockHeight = titleHeight + 4 + static_cast<float>(lines.size()) * lineHeight(metric::kTextSmall);
+    float y = std::round((top + orMiddle - 8 - blockHeight) / 2);
+    const float titleWidth = textWidth(title, metric::kTextNormal);
+    const float titleX = std::round((width - metric::kIcon - 6 - titleWidth) / 2);
+    icon(Icon::Qr, titleX, std::round(y + titleHeight / 2 - metric::kIcon / 2), metric::kIcon, tint);
+    drawText(title, titleX + metric::kIcon + 6, textTop(y + titleHeight / 2, metric::kTextNormal), metric::kTextNormal,
+             color::kText);
+    y += titleHeight + 4;
+    drawWrapped(message, kMargin, y, width - 2 * kMargin, metric::kTextSmall, color::kTextDim, 3, Align::Center);
+
+    const std::string orText = tr("or");
+    const float orWidth = textWidth(orText, metric::kTextSmall);
+    rect(kMargin, std::round(orMiddle), (width - orWidth) / 2 - 8 - kMargin, 1, color::kDivider);
+    rect((width + orWidth) / 2 + 8, std::round(orMiddle), (width - orWidth) / 2 - 8 - kMargin, 1, color::kDivider);
+    drawText(orText, width / 2, textTop(orMiddle, metric::kTextSmall), metric::kTextSmall, color::kTextDim,
+             Align::Center);
+
+    roundedRect(fieldX_, fieldY_, fieldWidth_, fieldHeight_, metric::kRadius,
+                fieldTouched_ ? mix(color::kSurfaceRaised, color::kText, 0.12f) : color::kSurfaceRaised);
+    const float middle = fieldY_ + fieldHeight_ / 2;
+    icon(Icon::Keyboard, fieldX_ + 12, std::round(middle - metric::kIcon / 2), metric::kIcon, color::kPrimaryLight);
+    const float buttonX = fieldX_ + fieldWidth_ - 12 - ui::buttonWidth(KEY_X, metric::kButtonGlyph);
+    drawText(tr("Enter a Quick ID"), fieldX_ + 12 + metric::kIcon + 10, textTop(middle, metric::kTextNormal),
+             metric::kTextNormal, color::kText, Align::Left, buttonX - fieldX_ - 12 - metric::kIcon - 18);
+    ui::drawHint(KEY_X, {}, buttonX, middle, color::kText, color::kTextDim);
 }
 
 } // namespace tz::scenes
