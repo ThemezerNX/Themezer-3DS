@@ -29,7 +29,9 @@ std::string code(const Error& error)
 
 ErrorInfo describe(const Error& error)
 {
-    log::writeError("shown", error);
+    // cancelling is something the user did, not an error
+    if (error.code != Errc::Cancelled)
+        log::writeError("shown", error);
     switch (error.code)
     {
     case Errc::NotFound:

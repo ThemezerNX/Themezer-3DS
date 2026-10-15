@@ -7,6 +7,7 @@
 
 #include <3ds.h>
 #include <array>
+#include <atomic>
 #include <cstdio>
 #include <mutex>
 #include <string>
@@ -21,6 +22,18 @@ Mutex mutex;
 std::array<std::string, kKeptLines> lines;
 size_t next = 0;
 size_t count = 0;
+std::atomic<bool> errors{false};
+
+void writeLines(const char* path)
+{
+    FILE* file = std::fopen(path, "w");
+    if (!file)
+        return;
+    std::fprintf(file, "%s %s\n", APP_TITLE, APP_VERSION);
+    for (size_t i = 0; i < count; ++i)
+        std::fprintf(file, "%s\n", lines[(next + kKeptLines - count + i) % kKeptLines].c_str());
+    std::fclose(file);
+}
 } // namespace
 
 void init()
@@ -42,6 +55,8 @@ void write(const char* level, const char* format, ...)
     va_end(args);
 
     std::fprintf(stderr, "%s\n", text);
+    if (level[0] == 'E')
+        errors = true;
 
     std::lock_guard lock(mutex);
     lines[next] = text;
@@ -59,13 +74,21 @@ void writeError(const char* what, const Error& error)
 void save(const char* path)
 {
     std::lock_guard lock(mutex);
-    FILE* file = std::fopen(path, "w");
-    if (!file)
-        return;
-    std::fprintf(file, "%s %s\n", APP_TITLE, APP_VERSION);
-    for (size_t i = 0; i < count; ++i)
-        std::fprintf(file, "%s\n", lines[(next + kKeptLines - count + i) % kKeptLines].c_str());
-    std::fclose(file);
+    writeLines(path);
+}
+
+bool hadErrors()
+{
+    return errors;
+}
+
+void saveNow(const char* path)
+{
+    // without the lock when another thread holds it: a line may come out torn, but the rest is there
+    const bool locked = mutex.try_lock();
+    writeLines(path);
+    if (locked)
+        mutex.unlock();
 }
 
 } // namespace tz::log

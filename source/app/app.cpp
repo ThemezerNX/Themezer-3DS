@@ -310,6 +310,9 @@ void App::updateStatus()
 void App::shutdown()
 {
     saveConfig();
+    // what went wrong this time, for a bug report
+    if (log::hadErrors() && sd_)
+        log::save("sdmc:/3ds/Themezer/log.txt");
     scenes_ = ui::SceneStack();
     audio::stopBackgroundMusic();
     jobs::shutdown();
