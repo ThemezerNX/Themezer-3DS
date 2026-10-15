@@ -11,10 +11,12 @@
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
 #include "sys/log.hpp"
+#include "ui/keyboard.hpp"
 
 #include <3ds.h>
 #include <cctype>
 #include <charconv>
+#include <malloc.h>
 #include <optional>
 #include <string>
 #include <vector>
@@ -42,6 +44,9 @@ struct Step
         DumpFont,
         SaveLog,
         Quit,
+        Monkey,
+        Memory,
+        Type,
     };
     Kind kind = Kind::Wait;
     int frames = 0; // 0 for the steps that take no time
@@ -65,6 +70,9 @@ constexpr KeyName kKeys[] = {
     {"UP", KEY_DUP},    {"DOWN", KEY_DDOWN},  {"LEFT", KEY_DLEFT}, {"RIGHT", KEY_DRIGHT},
 };
 
+constexpr u32 kMonkeyKeys = KEY_A | KEY_B | KEY_X | KEY_Y | KEY_L | KEY_R | KEY_START | KEY_SELECT | KEY_DUP |
+                            KEY_DDOWN | KEY_DLEFT | KEY_DRIGHT;
+
 std::vector<Step> steps;
 size_t current = 0;
 int frame = 0;
@@ -72,6 +80,33 @@ bool running = false;
 bool finished = false; // the script has ended; the done file is still to write
 bool quit = false;
 std::vector<std::string> shots;
+// repeat blocks being read: how many times, and where their steps start
+std::vector<std::pair<int, size_t>> repeats;
+// what the keyboard answers next (type), nothing for cancel
+std::vector<std::optional<std::string>> typed;
+bool monkeying = false;
+
+// The monkey: what it does now, and for how many more frames.
+struct Monkey
+{
+    u32 random = 1;
+    u32 keys = 0;
+    bool touching = false;
+    float x = 0, y = 0, toX = 0, toY = 0;
+    int length = 0; // frames of the action
+    int left = 0;   // frames of it still to go
+    int gap = 0;    // frames of nothing before the next
+
+    u32 next()
+    {
+        // xorshift32
+        random ^= random << 13;
+        random ^= random >> 17;
+        random ^= random << 5;
+        return random;
+    }
+    int between(int low, int high) { return low + static_cast<int>(next() % static_cast<u32>(high - low + 1)); }
+} monkey;
 
 std::vector<std::string_view> words(std::string_view line)
 {
@@ -210,7 +245,134 @@ bool parse(std::string_view line, std::vector<Step>& out)
         out.push_back({Step::Kind::Quit});
         return true;
     }
+    if (command == "type" && w.size() >= 2)
+    {
+        // type <text>: the keyboard's next answer; "type -" cancels it
+        const size_t start = static_cast<size_t>(w[1].data() - line.data());
+        Step step{Step::Kind::Type};
+        step.text = std::string(line.substr(start));
+        while (!step.text.empty() && std::isspace(static_cast<unsigned char>(step.text.back())))
+            step.text.pop_back();
+        out.push_back(step);
+        return true;
+    }
+    if (command == "mem" && w.size() == 1)
+    {
+        out.push_back({Step::Kind::Memory});
+        return true;
+    }
+    if (command == "monkey" && w.size() >= 2 && w.size() <= 4)
+    {
+        // monkey <frames> [seed] [keys]: random presses, taps and drags
+        const auto frames = number<int>(w[1]);
+        const auto seed = w.size() >= 3 ? number<u32>(w[2]) : std::optional<u32>(1);
+        const auto pressed = w.size() == 4 ? keys(w[3]) : std::optional<u32>(kMonkeyKeys);
+        if (!frames || *frames < 1 || !seed || !pressed)
+            return false;
+        Step step{Step::Kind::Monkey, *frames, *pressed};
+        step.x = static_cast<float>(*seed);
+        out.push_back(step);
+        out.push_back(release);
+        return true;
+    }
+    if (command == "repeat" && w.size() == 2)
+    {
+        const auto times = number<int>(w[1]);
+        if (!times || *times < 1)
+            return false;
+        repeats.emplace_back(*times, out.size());
+        return true;
+    }
+    if (command == "end" && w.size() == 1 && !repeats.empty())
+    {
+        const auto [times, start] = repeats.back();
+        repeats.pop_back();
+        const std::vector<Step> block(out.begin() + static_cast<ptrdiff_t>(start), out.end());
+        for (int i = 1; i < times; ++i)
+            out.insert(out.end(), block.begin(), block.end());
+        return true;
+    }
     return false;
+}
+
+void logMemory()
+{
+    const struct mallinfo heap = mallinfo();
+    LOG_INFO("autopilot: memory: heap %u KB in use, %u KB free in the arena; linear %lu KB free; GPU commands at most "
+             "%d%%",
+             static_cast<unsigned>(heap.uordblks / 1024), static_cast<unsigned>(heap.fordblks / 1024),
+             static_cast<unsigned long>(linearSpaceFree() / 1024),
+             static_cast<int>(gfx::takePeakCommandUse() * 100));
+}
+
+// A frame of the monkey: carries on with what it's doing, or picks something new.
+void monkeyFrame(const Step& step, ui::RawInput& input)
+{
+    if (frame == 0)
+    {
+        monkey = Monkey{};
+        monkey.random = static_cast<u32>(step.x) * 2654435761u + 1;
+    }
+    if (frame % 600 == 599)
+        logMemory();
+    if (monkey.left == 0 && monkey.gap > 0)
+    {
+        --monkey.gap;
+        return;
+    }
+    if (monkey.left == 0)
+    {
+        const int kind = monkey.between(0, 99);
+        monkey.keys = 0;
+        monkey.touching = false;
+        if (kind < 12)
+        {
+            // a tap anywhere on the touch screen
+            monkey.touching = true;
+            monkey.x = monkey.toX = static_cast<float>(monkey.between(0, 319));
+            monkey.y = monkey.toY = static_cast<float>(monkey.between(0, 239));
+            monkey.length = monkey.between(1, 6);
+        }
+        else if (kind < 18)
+        {
+            // a drag, mostly up or down like scrolling a list
+            monkey.touching = true;
+            monkey.x = static_cast<float>(monkey.between(10, 309));
+            monkey.y = static_cast<float>(monkey.between(30, 210));
+            monkey.toX = monkey.x + static_cast<float>(monkey.between(-40, 40));
+            monkey.toY = static_cast<float>(monkey.between(0, 239));
+            monkey.length = monkey.between(4, 20);
+        }
+        else
+        {
+            // a button: mostly a press, sometimes held long enough to repeat, sometimes two together
+            std::vector<u32> allowed;
+            for (u32 bit = 1; bit != 0; bit <<= 1)
+                if (step.keys & bit)
+                    allowed.push_back(bit);
+            if (allowed.empty())
+                return;
+            monkey.keys = allowed[monkey.next() % allowed.size()];
+            if (monkey.between(0, 9) == 0)
+                monkey.keys |= allowed[monkey.next() % allowed.size()];
+            monkey.length = monkey.between(0, 9) == 0 ? monkey.between(20, 50) : monkey.between(1, 3);
+        }
+        monkey.left = monkey.length;
+        // mostly quick, now and then a pause to let things load
+        monkey.gap = monkey.between(0, 19) == 0 ? monkey.between(30, 120) : monkey.between(1, 6);
+    }
+    input.held |= monkey.keys;
+    if (monkey.touching)
+    {
+        const float t = monkey.length > 1 ? static_cast<float>(monkey.length - monkey.left) /
+                                                static_cast<float>(monkey.length - 1)
+                                          : 1.0f;
+        input.held |= KEY_TOUCH;
+        input.touching = true;
+        input.x = monkey.x + (monkey.toX - monkey.x) * t;
+        input.y = monkey.y + (monkey.toY - monkey.y) * t;
+    }
+    --monkey.left;
 }
 
 std::string outputPath(std::string_view name)
@@ -299,6 +461,12 @@ void run(const Step& step)
     case Step::Kind::Quit:
         quit = true;
         break;
+    case Step::Kind::Memory:
+        logMemory();
+        break;
+    case Step::Kind::Type:
+        typed.push_back(step.text == "-" ? std::nullopt : std::optional<std::string>(step.text));
+        break;
     default:
         break;
     }
@@ -340,10 +508,35 @@ void start()
             LOG_WARN("autopilot: line %d isn't a command: %.*s", number, static_cast<int>(line.size()), line.data());
         at = end + 1;
     }
+    if (!repeats.empty())
+        LOG_WARN("autopilot: %u repeat(s) without an end", static_cast<unsigned>(repeats.size()));
     (void)sd.createDirectories(kOutputDir);
     (void)sd.removeFile(outputPath("done"));
     running = !steps.empty();
     LOG_INFO("autopilot: %u steps", static_cast<unsigned>(steps.size()));
+    if (running)
+    {
+        // the keyboard answers from the script (type), or for the monkey at random, never opening the system's
+        ui::setKeyboardOverride([](const std::string& hint) -> std::optional<std::string> {
+            std::optional<std::string> answer;
+            if (!typed.empty())
+            {
+                answer = typed.front();
+                typed.erase(typed.begin());
+            }
+            else if (monkeying)
+            {
+                static const char* const kWords[] = {"zelda", "pokemon", "a", "  ", "T1ED69", "S1EBAA", "BS1B98F",
+                                                     "152151", "zzzzqqq", "\xc3\xa9t\xc3\xa9", "mario kart",
+                                                     "%20&q=1", "x"};
+                const u32 pick = monkey.next() % (std::size(kWords) + 2);
+                if (pick < std::size(kWords))
+                    answer = std::string(kWords[pick]);
+            }
+            LOG_INFO("autopilot: keyboard \"%s\" answers %s", hint.c_str(), answer ? answer->c_str() : "(cancel)");
+            return answer;
+        });
+    }
 }
 
 void drive(ui::RawInput& input)
@@ -370,6 +563,10 @@ void drive(ui::RawInput& input)
         input.touching = true;
         input.x = step.kind == Step::Kind::Drag ? step.x + (step.toX - step.x) * t : step.x;
         input.y = step.kind == Step::Kind::Drag ? step.y + (step.toY - step.y) * t : step.y;
+        break;
+    case Step::Kind::Monkey:
+        monkeying = frame + 1 < step.frames;
+        monkeyFrame(step, input);
         break;
     default:
         break;
@@ -400,6 +597,11 @@ void frameStarted()
     shots.clear();
     if (finished)
         writeDone();
+}
+
+bool keepsAppOpen()
+{
+    return running && monkeying;
 }
 
 bool quitting()

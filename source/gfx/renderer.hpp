@@ -41,6 +41,8 @@ float time();
 // The screens as the last frame left them, laid out as on the console: the top screen, the bottom one centred under
 // it. Call it after beginFrame, which waits for that frame to reach the screens.
 Image captureScreens();
+// The most of the GPU's command buffer a frame has used since the last call, from 0 to 1.
+float takePeakCommandUse();
 #endif
 
 } // namespace tz::gfx

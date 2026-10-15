@@ -29,6 +29,8 @@ u64 startTick = 0;
 #ifdef TZ_DEVTOOLS
 // the framebuffers the frame being drawn goes to, and those the last one went to
 u8* drawnTo[2] = {};
+// the most of the GPU's command buffer a frame used, since takePeakCommandUse()
+float peakCommandUse = 0;
 u8* shownIn[2] = {};
 #endif
 
@@ -122,6 +124,7 @@ void endFrame()
     // C3D_FrameEnd copies the frame into the framebuffers that aren't showing; they show once it's done
     drawnTo[0] = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, nullptr, nullptr);
     drawnTo[1] = gfxGetFramebuffer(GFX_BOTTOM, GFX_LEFT, nullptr, nullptr);
+    peakCommandUse = std::max(peakCommandUse, C3D_GetCmdBufUsage());
 #endif
     C3D_FrameEnd(0);
 }
@@ -163,6 +166,15 @@ float time()
 {
     return static_cast<float>(svcGetSystemTick() - startTick) / static_cast<float>(SYSCLOCK_ARM11);
 }
+
+#ifdef TZ_DEVTOOLS
+float takePeakCommandUse()
+{
+    const float peak = peakCommandUse;
+    peakCommandUse = 0;
+    return peak;
+}
+#endif
 
 #ifdef TZ_DEVTOOLS
 Image captureScreens()

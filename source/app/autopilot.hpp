@@ -20,11 +20,17 @@ void drive(ui::RawInput& input);
 void frameStarted();
 // The script has ended with quit.
 bool quitting();
+// The monkey is pressing buttons: closing the app from its menu would end the test early.
+bool keepsAppOpen();
 #else
 inline void start() {}
 inline void drive(ui::RawInput&) {}
 inline void frameStarted() {}
 inline bool quitting()
+{
+    return false;
+}
+inline bool keepsAppOpen()
 {
     return false;
 }

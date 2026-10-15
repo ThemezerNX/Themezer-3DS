@@ -231,6 +231,11 @@ void App::themeChanged(bool needsRestart)
 
 void App::requestExit()
 {
+    if (autopilot::keepsAppOpen())
+    {
+        LOG_INFO("autopilot: the app would close now; it stays open for the monkey");
+        return;
+    }
     if (!themeChanged_)
     {
         quit_ = true;

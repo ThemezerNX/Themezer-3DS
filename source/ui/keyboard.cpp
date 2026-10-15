@@ -9,9 +9,26 @@
 namespace tz::ui
 {
 
+namespace
+{
+KeyboardOverride keyboardOverride;
+} // namespace
+
+void setKeyboardOverride(KeyboardOverride answer)
+{
+    keyboardOverride = std::move(answer);
+}
+
 std::optional<std::string> keyboard(const std::string& hint, const std::string& initial, int maxLength,
                                     const std::string& cancel, const std::string& confirm)
 {
+    if (keyboardOverride)
+    {
+        std::optional<std::string> answer = keyboardOverride(hint);
+        if (answer && answer->size() > static_cast<size_t>(maxLength))
+            answer->resize(static_cast<size_t>(maxLength));
+        return answer;
+    }
     SwkbdState state;
     swkbdInit(&state, SWKBD_TYPE_NORMAL, 2, maxLength);
     swkbdSetHintText(&state, hint.c_str());

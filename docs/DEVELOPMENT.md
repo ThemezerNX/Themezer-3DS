@@ -60,8 +60,17 @@ A script has one command a line; `#` starts a comment. Times are in frames, 60 a
 | `dumpfont` | the console's system font, as `shared_font.bin` |
 | `savelog` | the app's last log lines, as `log.txt` |
 | `quit` | closes the app |
+| `mem` | a line in the log with the memory in use and free, and the most of the GPU's command buffer a frame used |
+| `type zelda`, `type -` | the next answer of the system keyboard (or cancelling it), which then doesn't open |
+| `repeat 20` ... `end` | the lines in between, 20 times |
+| `monkey 18000 [seed] [keys]` | random presses, taps and drags for 18000 frames, with the keys given (A+B+...) or all but HOME |
 
 When the script ends, the app writes an empty `done` file next to the screenshots, and goes on as usual.
+
+While the autopilot runs, the system keyboard never opens: emulators often don't have it, and it would stop the script.
+It answers what `type` gave it, or for the monkey something at random. The monkey can't close the app from its menu
+either. It does everything else the buttons do, deleting and installing included, so give it an SD card you don't mind
+losing: in Azahar, keep a copy of the SD card's `Themes`, `Splashes` and `Badges` folders to put back afterwards.
 
 ## The banner, boot animation, tune and music
 
