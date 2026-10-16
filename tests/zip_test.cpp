@@ -332,6 +332,35 @@ TEST(zip_zip64)
     CHECK(*plain == text("plain"));
 }
 
+TEST(zip_open_reads_only_the_end)
+{
+    // Counts what's read: a theme's end record and central directory are in its last few KiB, and that's all opening
+    // it reads.
+    class CountingReader final : public Reader
+    {
+    public:
+        explicit CountingReader(Bytes data) : inner_(std::move(data)) {}
+        uint64_t size() const override { return inner_.size(); }
+        Expected<void> readAt(uint64_t offset, MutableByteSpan out) override
+        {
+            read += out.size();
+            return inner_.readAt(offset, out);
+        }
+        uint64_t read = 0;
+
+    private:
+        MemoryReader inner_;
+    };
+    const Bytes zip = makeZip({{"body_LZ.bin", compressible(300000, 3)},
+                               {"info.smdh", text("smdh")},
+                               {"bgm.bcstm", compressible(100000, 4), false}});
+    auto reader = std::make_shared<CountingReader>(zip);
+    auto archive = ZipArchive::open(reader);
+    REQUIRE(archive.has_value());
+    CHECK_EQ(archive->entries().size(), size_t(3));
+    CHECK(reader->read <= 4096);
+}
+
 TEST(zip_big_directory)
 {
     // a central directory bigger than the end of the file read first

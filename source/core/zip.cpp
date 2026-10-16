@@ -35,6 +35,9 @@ constexpr size_t kEnd64LocatorSize = 20;
 constexpr size_t kCentralSize = 46;
 constexpr size_t kLocalSize = 30;
 constexpr size_t kMaxComment = 0xFFFF;
+// what's read of a zip's end first: its end record is in the last few bytes unless a comment follows it, and a theme's
+// central directory fits too
+constexpr size_t kFirstTail = 4096;
 
 // A central directory this big would list hundreds of thousands of files; no zip of themes or badges comes close.
 constexpr uint64_t kMaxDirectorySize = 16u << 20;
@@ -338,38 +341,46 @@ struct EndRecord
     uint64_t directoryEnd = 0;
 };
 
-// Finds the end of central directory record in the last 64 KiB of the zip (the most its comment can push it back),
-// and the zip64 record when there is one.
+// The end of central directory record in tail. The record is followed only by its comment: the last one whose comment
+// reaches exactly to the end of the file, else, with extra, the last one followed by something more (padding some
+// tools add). SIZE_MAX when there's none.
+size_t findEndRecord(ByteSpan tail, bool extra)
+{
+    size_t fallback = SIZE_MAX;
+    for (size_t i = tail.size() - kEndSize + 1; i-- > 0;)
+    {
+        if (readU32(tail.data() + i) != kEndSignature)
+            continue;
+        const size_t commentEnd = i + kEndSize + readU16(tail.data() + i + 20);
+        if (commentEnd == tail.size())
+            return i;
+        if (commentEnd < tail.size() && fallback == SIZE_MAX)
+            fallback = i;
+    }
+    return extra ? fallback : SIZE_MAX;
+}
+
+// Finds the end of central directory record, and the zip64 record when there is one: in the last 4 KiB of the zip,
+// else in the last 64 KiB, the most its comment can push it back.
 Expected<EndRecord> readEndRecord(Reader& reader, Bytes& tail, uint64_t& tailStart)
 {
     const uint64_t fileSize = reader.size();
     if (fileSize < kEndSize)
         return fail(Errc::InvalidData, "too small for a zip");
-    const auto tailSize =
-        static_cast<size_t>(std::min<uint64_t>(fileSize, kMaxComment + kEndSize + kEnd64LocatorSize));
-    tailStart = fileSize - tailSize;
-    tail.resize(tailSize);
-    TZ_CHECK(reader.readAt(tailStart, tail));
-
-    // The record is followed only by its comment. Prefer one whose comment reaches exactly to the end of the file;
-    // otherwise accept one followed by something extra (padding some tools add).
     size_t found = SIZE_MAX;
-    size_t fallback = SIZE_MAX;
-    for (size_t i = tailSize - kEndSize + 1; i-- > 0;)
+    for (const size_t most : {kFirstTail, kMaxComment + kEndSize + kEnd64LocatorSize})
     {
-        if (readU32(tail.data() + i) != kEndSignature)
-            continue;
-        const size_t commentEnd = i + kEndSize + readU16(tail.data() + i + 20);
-        if (commentEnd == tailSize)
-        {
-            found = i;
+        const auto tailSize = static_cast<size_t>(std::min<uint64_t>(fileSize, most));
+        tailStart = fileSize - tailSize;
+        tail.resize(tailSize);
+        TZ_CHECK(reader.readAt(tailStart, tail));
+        // all of where it can be, so what's found is the answer; the first look takes only a record that ends the
+        // file, with room before it for a zip64 locator
+        const bool everywhere = tailStart == 0 || most > kFirstTail;
+        found = findEndRecord(tail, everywhere);
+        if (everywhere || (found != SIZE_MAX && found >= kEnd64LocatorSize))
             break;
-        }
-        if (commentEnd < tailSize && fallback == SIZE_MAX)
-            fallback = i;
     }
-    if (found == SIZE_MAX)
-        found = fallback;
     if (found == SIZE_MAX)
         return fail(Errc::InvalidData, "no zip end of central directory");
 
