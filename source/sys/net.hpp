@@ -71,6 +71,11 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
+// A Client for a while on one thread, then given back: one kept from before when there is one, its connections still
+// open, else a new one.
+std::unique_ptr<Client> takeClient();
+void giveBack(std::unique_ptr<Client> client);
+
 // A download read while it continues, for music previews. It runs on a thread of its own, so that the Network lane's
 // pages and icons keep loading; read() waits for data. Destroying the stream cancels the download.
 std::unique_ptr<StreamReader> stream(std::string url, uint64_t maxSize);

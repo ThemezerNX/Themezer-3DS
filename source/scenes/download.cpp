@@ -58,14 +58,16 @@ void downloadToSd(std::string url, std::string title, std::string fallbackName, 
         {std::move(title), Lane::Network, true, false, gfx::color::kPrimary},
         [url, fallbackName](ui::TaskProgress& task, const CancelToken& token) -> Expected<Saved> {
             task.setStatus(tr("Downloading"));
-            net::Client client;
             net::Request request;
             request.url = url;
             request.accept = {"application/zip", "application/x-zip-compressed", "application/octet-stream"};
             request.maxSize = kMaxDownload;
             request.cancel = &token;
             request.progress = &task.download;
-            net::Response response = TZ_TRY(client.get(request));
+            std::unique_ptr<net::Client> client = net::takeClient();
+            Expected<net::Response> got = client->get(request);
+            net::giveBack(std::move(client));
+            net::Response response = TZ_TRY(std::move(got));
 
             task.setStatus(tr("Saving it to the SD card"));
             std::shared_ptr<Reader> reader = std::make_shared<MemoryReader>(std::move(response.body));

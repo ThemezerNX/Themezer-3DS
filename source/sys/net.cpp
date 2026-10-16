@@ -17,6 +17,8 @@
 #include <cstring>
 #include <ctime>
 #include <curl/curl.h>
+#include <mbedtls/ssl.h>
+#include <mbedtls/x509_crt.h>
 #include <malloc.h>
 #include <mutex>
 #include <optional>
@@ -68,12 +70,16 @@ struct State
     Mutex mutex;
     bool started = false;
     u32* socBuffer = nullptr;
-    // romfs:/cacert.pem, read once and handed to every transfer; curl still parses it for each new connection
-    Bytes caBundle;
+    // romfs:/cacert.pem, parsed once for every connection (see setUpTls())
+    mbedtls_x509_crt caChain;
+    bool caChainParsed = false;
     // when the list was made, from its header (or this build's date)
     int64_t caBundleTime = 0;
     // every Client, so that exit() can close their connections before curl and the socket service stop
     std::vector<Client::Impl*> clients;
+    // the TLS sessions and DNS answers every Client shares, with a lock for each kind of data
+    CURLSH* share = nullptr;
+    Mutex shareLocks[CURL_LOCK_DATA_LAST];
 };
 
 State state;
@@ -503,22 +509,38 @@ int onProgress(void* user, curl_off_t, curl_off_t, curl_off_t, curl_off_t)
     return cancel && cancel->cancelled() ? 1 : 0;
 }
 
-// The CA certificates curl verifies servers against.
+void lockShare(CURL*, curl_lock_data data, curl_lock_access, void*)
+{
+    state.shareLocks[data].lock();
+}
+
+void unlockShare(CURL*, curl_lock_data data, void*)
+{
+    state.shareLocks[data].unlock();
+}
+
+// curl's mbedTLS set-up of a connection, before its handshake, gets two things it doesn't do itself:
+// - the CA certificates parsed at start, which curl would parse again for every connection: a quarter of a second of
+//   the 3DS's CPU each time, and a copy each;
+// - session tickets, which curl 8.4 turns off with mbedTLS (for TLS 1.3, which mbedTLS 2 doesn't have). Cloudflare
+//   resumes a TLS 1.2 session only by its ticket, so without them every new connection is a full handshake, around a
+//   second of the 3DS's CPU; with them, one to a server some Client has been to is a short one (see state.share).
+CURLcode setUpTls(CURL*, void* config, void*)
+{
+    auto* conf = static_cast<mbedtls_ssl_config*>(config);
+    if (state.caChainParsed)
+        mbedtls_ssl_conf_ca_chain(conf, &state.caChain, nullptr);
+    mbedtls_ssl_conf_session_tickets(conf, MBEDTLS_SSL_SESSION_TICKETS_ENABLED);
+    return CURLE_OK;
+}
+
+// The CA certificates curl verifies servers against: the parsed ones, else romfs:/cacert.pem for curl to read.
 void setCertificates(CURL* easy)
 {
-    if (!state.caBundle.empty())
-    {
-        curl_blob blob{state.caBundle.data(), state.caBundle.size(), CURL_BLOB_NOCOPY};
-        if (curl_easy_setopt(easy, CURLOPT_CAINFO_BLOB, &blob) == CURLE_OK)
-        {
-            // only these: this build of curl would also read sdmc:/config/ssl/cacert.pem by default
-            curl_easy_setopt(easy, CURLOPT_CAINFO, static_cast<char*>(nullptr));
-            curl_easy_setopt(easy, CURLOPT_CAPATH, static_cast<char*>(nullptr));
-            return;
-        }
-    }
-    curl_easy_setopt(easy, CURLOPT_CAINFO, kCaBundlePath);
+    // never sdmc:/config/ssl/cacert.pem, which this build of curl would read by default
+    curl_easy_setopt(easy, CURLOPT_CAINFO, state.caChainParsed ? nullptr : kCaBundlePath);
     curl_easy_setopt(easy, CURLOPT_CAPATH, static_cast<char*>(nullptr));
+    curl_easy_setopt(easy, CURLOPT_SSL_CTX_FUNCTION, setUpTls);
 }
 
 // ThemePlaza serves its API to Anemone3DS's user agent alone over HTTPS (others get a Cloudflare challenge), and to
@@ -536,6 +558,9 @@ void configure(CURL* easy, Transfer& transfer, curl_slist* headers, char* errorT
     errorText[0] = '\0';
     curl_easy_setopt(easy, CURLOPT_ERRORBUFFER, errorText);
     curl_easy_setopt(easy, CURLOPT_URL, transfer.request.url.c_str());
+    // a new connection to a server some Client has been to resumes its TLS session: no full handshake, which takes the
+    // 3DS a second or more
+    curl_easy_setopt(easy, CURLOPT_SHARE, state.share);
     // GitHub's API refuses requests without one
     curl_easy_setopt(easy, CURLOPT_USERAGENT, APP_NAME "/" APP_VERSION);
     curl_easy_setopt(easy, CURLOPT_HTTPHEADER, headers);
@@ -773,8 +798,27 @@ Expected<void> start()
         state.socBuffer = nullptr;
         return fail(Errc::Network, std::string("curl_global_init: ") + curl_easy_strerror(code), code);
     }
-    state.caBundle = readCaBundle();
-    state.caBundleTime = caBundleTime(state.caBundle);
+    state.share = curl_share_init();
+    if (state.share)
+    {
+        curl_share_setopt(state.share, CURLSHOPT_LOCKFUNC, lockShare);
+        curl_share_setopt(state.share, CURLSHOPT_UNLOCKFUNC, unlockShare);
+        curl_share_setopt(state.share, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+        curl_share_setopt(state.share, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+    }
+    Bytes bundle = readCaBundle();
+    state.caBundleTime = caBundleTime(bundle);
+    mbedtls_x509_crt_init(&state.caChain);
+    if (!bundle.empty())
+    {
+        // PEM is read only with its terminating NUL counted
+        bundle.push_back(0);
+        // a positive count is of certificates mbedTLS can't use, which leaves the rest
+        const int failed = mbedtls_x509_crt_parse(&state.caChain, bundle.data(), bundle.size());
+        state.caChainParsed = failed >= 0 && state.caChain.version != 0;
+        if (!state.caChainParsed)
+            LOG_WARN("couldn't parse %s (-0x%04X): curl reads it itself", kCaBundlePath, -failed);
+    }
     state.started = true;
     return {};
 }
@@ -888,10 +932,10 @@ Expected<Response> Client::get(const Request& request)
 namespace
 {
 
-// The stream threads' Client, kept for the next stream: it can reuse the connection, or at least the TLS session,
-// which spares it a full TLS handshake, a slow thing for the 3DS.
-Mutex streamClientMutex;
-std::unique_ptr<Client> idleStreamClient;
+// Clients given back, kept for the next download or stream: it can reuse their connections.
+constexpr size_t kKeptClients = 2;
+Mutex idleClientsMutex;
+std::vector<std::unique_ptr<Client>> idleClients;
 
 // A download on its own thread, kept whole in memory while it is read; or, forward only, only what's still to read,
 // the download waiting while that's kForwardAhead.
@@ -990,13 +1034,7 @@ public:
 private:
     void download(const std::string& url)
     {
-        std::unique_ptr<Client> client;
-        {
-            std::lock_guard lock(streamClientMutex);
-            client = std::move(idleStreamClient);
-        }
-        if (!client)
-            client = std::make_unique<Client>();
+        std::unique_ptr<Client> client = takeClient();
 
         Request request;
         request.url = url;
@@ -1005,13 +1043,7 @@ private:
         request.progress = &progress_;
         request.sink = [this](ByteSpan data) { return append(data); };
         const Expected<Response> result = client->get(request);
-
-        {
-            std::lock_guard lock(streamClientMutex);
-            if (!idleStreamClient)
-                idleStreamClient = std::move(client);
-        }
-        client.reset();
+        giveBack(std::move(client));
 
         std::lock_guard lock(mutex_);
         if (!result && !error_)
@@ -1063,6 +1095,31 @@ private:
 
 } // namespace
 
+std::unique_ptr<Client> takeClient()
+{
+    {
+        std::lock_guard lock(idleClientsMutex);
+        if (!idleClients.empty())
+        {
+            std::unique_ptr<Client> client = std::move(idleClients.back());
+            idleClients.pop_back();
+            return client;
+        }
+    }
+    return std::make_unique<Client>();
+}
+
+void giveBack(std::unique_ptr<Client> client)
+{
+    {
+        std::lock_guard lock(idleClientsMutex);
+        if (client && idleClients.size() < kKeptClients)
+            idleClients.push_back(std::move(client));
+    }
+    // one too many closes here, outside the lock: it takes state.mutex
+    client.reset();
+}
+
 std::unique_ptr<StreamReader> stream(std::string url, uint64_t maxSize)
 {
     return std::make_unique<DownloadStream>(std::move(url), maxSize, false);
@@ -1083,13 +1140,13 @@ bool init()
 
 void exit()
 {
-    // the kept stream Client first: it takes state.mutex as it goes
-    std::unique_ptr<Client> idle;
+    // the kept Clients first: they take state.mutex as they go
+    std::vector<std::unique_ptr<Client>> idle;
     {
-        std::lock_guard lock(streamClientMutex);
-        idle = std::move(idleStreamClient);
+        std::lock_guard lock(idleClientsMutex);
+        idle = std::move(idleClients);
     }
-    idle.reset();
+    idle.clear();
 
     {
         std::lock_guard lock(state.mutex);
@@ -1098,11 +1155,16 @@ void exit()
             client->close();
         if (state.started)
         {
+            // after the Clients' handles, which use it
+            if (state.share)
+                curl_share_cleanup(state.share);
+            state.share = nullptr;
             curl_global_cleanup();
             socExit();
             std::free(state.socBuffer);
             state.socBuffer = nullptr;
-            state.caBundle = Bytes();
+            mbedtls_x509_crt_free(&state.caChain);
+            state.caChainParsed = false;
             state.started = false;
         }
     }

@@ -147,8 +147,10 @@ void downloadFromThemezer(const std::string& quickId)
         {trf("Looking up {}", quickId), Lane::Network, true, false, color::kPrimary},
         [quickId](ui::TaskProgress& task, const CancelToken& token) {
             task.setStatus(tr("Asking Themezer"));
-            net::Client client;
-            return themezer::findQuickId(client, quickId, token);
+            std::unique_ptr<net::Client> client = net::takeClient();
+            Expected<themezer::Found> found = themezer::findQuickId(*client, quickId, token);
+            net::giveBack(std::move(client));
+            return found;
         },
         [quickId](Expected<themezer::Found> found) {
             if (!found)
