@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Themezer-3DS contributors
 
-// Themezer's catalogue, through its remote API (v2):
+// Themezer's catalogue, through the API Themezer serves this app (app/v1; its lists answer as Anemone3DS's anemone/v2):
 //   GET <api>/themes|splashes|badges?page=<n>&q=<search>
 //   { "page": 1, "pages": 3, "items": [ { "id", "name", "author", "description", "iconUrl", "previewUrl",
 //     "downloadUrl", "audioUrl", "filename" } ] }
@@ -18,7 +18,7 @@
 namespace tz::themezer
 {
 
-constexpr const char* kApiUrl = "https://3ds.themezer.net/anemone/v2";
+constexpr const char* kApiUrl = "https://3ds.themezer.net/app/v1";
 constexpr const char* kWebsite = "https://themezer.net";
 
 std::string pageUrl(catalog::Kind kind, int page, std::string_view query);

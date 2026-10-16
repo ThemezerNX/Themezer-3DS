@@ -37,8 +37,8 @@ APP_DESCRIPTION  := Themes, splashes and badges for your 3DS
 APP_AUTHOR       := Themezer
 APP_UNIQUE_ID    := 0xC7E20
 APP_PRODUCT_CODE := CTR-P-TZ3D
-# where the update check reads the latest release, in the format of GitHub's releases API
-UPDATE_URL       ?= https://3ds.themezer.net/app/releases/latest
+# where the update check reads the latest release (GitHub's latest: never a prerelease or a draft)
+UPDATE_URL       ?= https://api.github.com/repos/ThemezerNX/themezer-3ds/releases/latest
 
 BASE_VERSION     := 4.0.0
 

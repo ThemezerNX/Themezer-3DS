@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Themezer-3DS contributors
 
-// Updates from the latest release, read in the format of GitHub's releases API from UPDATE_URL (Themezer redirects it
-// to the releases in use).
+// Updates from the latest release, read from GitHub's releases API at UPDATE_URL.
 
 #pragma once
 
