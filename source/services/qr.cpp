@@ -286,13 +286,15 @@ void QrScanner::Impl::capture()
 
 bool QrScanner::Impl::configureCamera(Handle& bufferError, s16& transferUnit)
 {
-    // The top screen's size, in the GPU's RGB565. The outer camera's pictures come upright and unmirrored, rows from
-    // the top, as latestFrame() promises.
-    if (!check(CAMU_SetSize(SELECT_OUT1, SIZE_CTR_TOP_LCD, CONTEXT_A), "set the picture size") ||
+    // The whole picture, in the GPU's RGB565. The outer camera's pictures come upright and unmirrored, rows from the
+    // top, as latestFrame() promises.
+    if (!check(CAMU_SetSize(SELECT_OUT1, SIZE_VGA, CONTEXT_A), "set the picture size") ||
         !check(CAMU_SetOutputFormat(SELECT_OUT1, OUTPUT_RGB_565, CONTEXT_A), "set the picture format"))
         return false;
 
-    // Picture quality: worth asking for, not worth giving up over.
+    // Picture quality: worth asking for, not worth giving up over. Letter mode as PKSM and Universal-Updater set it:
+    // what it changes isn't documented, and the settings after it may replace part of it.
+    check(CAMU_SetPhotoMode(SELECT_OUT1, PHOTO_MODE_LETTER), "set the photo mode");
     check(CAMU_SetFrameRate(SELECT_OUT1, FRAME_RATE_30), "set the frame rate");
     check(CAMU_SetNoiseFilter(SELECT_OUT1, true), "turn on the noise filter");
     check(CAMU_SetAutoExposure(SELECT_OUT1, true), "turn on auto exposure");

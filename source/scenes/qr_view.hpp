@@ -26,10 +26,10 @@ public:
     QrView(const QrView&) = delete;
     QrView& operator=(const QrView&) = delete;
 
-    // Turns the camera on, or says why it can't be; stop() turns it off.
+    // Turns the camera on, from the next update() (or says why it can't be); stop() turns it off.
     void start();
     void stop();
-    bool scanning() const { return scanner_ != nullptr; }
+    bool scanning() const { return scanner_ != nullptr || starting_; }
 
     // Every frame while shown: shows the newest picture, and returns the text of a QR code once one is read (the
     // camera stops then, until start()).
@@ -44,7 +44,12 @@ public:
     void drawBottom(float top, float bottom);
 
 private:
+    void open();
+
     std::unique_ptr<QrScanner> scanner_;
+    // start() was asked: the camera opens in the next update(), once a frame of the tab is on screen, as opening it
+    // holds the main thread up to a second
+    bool starting_ = false;
     std::optional<ErrorInfo> problem_; // why the camera can't be used
     bool scanned_ = false;            // a code was read: the camera waits to be started again
     C3D_Tex texture_{};

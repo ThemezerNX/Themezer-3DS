@@ -34,11 +34,16 @@ QrView::~QrView()
 
 void QrView::start()
 {
-    if (scanner_)
+    if (scanner_ || starting_)
         return;
     scanned_ = false;
     hasFrame_ = false;
     problem_.reset();
+    starting_ = true;
+}
+
+void QrView::open()
+{
     auto scanner = QrScanner::start();
     if (scanner)
     {
@@ -57,21 +62,36 @@ void QrView::start()
 
 void QrView::stop()
 {
+    starting_ = false;
     scanner_.reset();
     hasFrame_ = false;
 }
 
 std::optional<std::string> QrView::update()
 {
+    if (starting_)
+    {
+        starting_ = false;
+        open();
+        return std::nullopt;
+    }
     if (!scanner_)
         return std::nullopt;
     if (textureReady_ && scanner_->latestFrame(frame_))
     {
-        // rows of RGB565 into the GPU's tiles, a frame at a time
+        // the middle of the picture, in the top screen's shape, scaled down to it (640 to 400 pixels wide) as it goes
+        // into the GPU's tiles
+        constexpr int kShownWidth = static_cast<int>(metric::kTopWidth);
+        constexpr int kShownHeight = static_cast<int>(metric::kHeight);
+        constexpr int kTop = (QrScanner::kHeight - kShownHeight * QrScanner::kWidth / kShownWidth) / 2;
         auto* texels = static_cast<uint16_t*>(texture_.data);
-        for (int y = 0; y < QrScanner::kHeight; ++y)
-            for (int x = 0; x < QrScanner::kWidth; ++x)
-                texels[tiledIndex(x, y, 512)] = frame_[static_cast<size_t>(y) * QrScanner::kWidth + x];
+        for (int y = 0; y < kShownHeight; ++y)
+        {
+            const uint16_t* row =
+                frame_.data() + static_cast<size_t>(kTop + y * QrScanner::kWidth / kShownWidth) * QrScanner::kWidth;
+            for (int x = 0; x < kShownWidth; ++x)
+                texels[tiledIndex(x, y, 512)] = row[x * QrScanner::kWidth / kShownWidth];
+        }
         C3D_TexFlush(&texture_);
         hasFrame_ = true;
     }
@@ -88,11 +108,11 @@ void QrView::drawTop()
 {
     if (!showsPicture())
     {
-        if (scanner_)
+        if (scanner_ || starting_)
             spinner(metric::kTopWidth / 2, metric::kHeight / 2, 14, color::kText);
         return;
     }
-    drawTexturePart(&texture_, 0, 0, QrScanner::kWidth, QrScanner::kHeight, 0, 0, metric::kTopWidth, metric::kHeight,
+    drawTexturePart(&texture_, 0, 0, metric::kTopWidth, metric::kHeight, 0, 0, metric::kTopWidth, metric::kHeight,
                     1.0f);
 
     // corners to aim with

@@ -19,8 +19,10 @@ namespace tz
 class QrScanner
 {
 public:
-    static constexpr int kWidth = 400;
-    static constexpr int kHeight = 240;
+    // The camera's whole picture (VGA). The top screen's size would be a crop of it scaled down, giving a code's
+    // modules 1.6 times fewer pixels: it would read only from close by and straight on.
+    static constexpr int kWidth = 640;
+    static constexpr int kHeight = 480;
 
     // Starts the outer camera, and looks for QR codes in its pictures on a thread of its own.
     // Busy when the camera is in use, NotAllowed when the camera service can't be used (some ways of starting
