@@ -313,7 +313,7 @@ InstallKind installKind(const char* appPath)
     return InstallKind::None;
 }
 
-Expected<std::optional<Release>> check(net::Client& client, const CancelToken& cancel)
+Expected<std::optional<Release>> check(net::Client& client, InstallKind kind, const CancelToken& cancel)
 {
     // a development build would be "updated" to the release it was made after
     if (std::string_view(APP_VERSION).find("-dev") != std::string_view::npos)
@@ -346,6 +346,13 @@ Expected<std::optional<Release>> check(net::Client& client, const CancelToken& c
     // parseRelease() made sure the version parses
     if (!latest || !(*Version::parse(latest->version) > *current))
         return std::nullopt;
+    // a release without this build's file would be offered, then fail to install
+    if ((kind == InstallKind::Cia && latest->cia.url.empty()) ||
+        (kind == InstallKind::ThreeDsx && latest->threedsx.url.empty()))
+    {
+        LOG_INFO("version %s has no file for this install yet", latest->version.c_str());
+        return std::nullopt;
+    }
     return latest;
 }
 

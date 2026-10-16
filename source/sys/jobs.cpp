@@ -78,8 +78,11 @@ void init()
     {
         Worker& worker = workers[lane];
         worker.stopping = false;
-        // the 3DS doesn't share a core between threads of one priority: the icons go before a preview's decoding
-        const int priority = lane == static_cast<size_t>(Lane::Icons) ? priority::kIcons : priority::kWorker;
+        // the 3DS doesn't share a core between threads of one priority: the icons go before a preview's decoding,
+        // and the background errands after everything
+        const int priority = lane == static_cast<size_t>(Lane::Icons)        ? priority::kIcons
+                             : lane == static_cast<size_t>(Lane::Background) ? priority::kIdle
+                                                                             : priority::kWorker;
         worker.thread = Thread::start([&worker] { workerLoop(worker); }, priority, -2, 128 * 1024);
     }
 }

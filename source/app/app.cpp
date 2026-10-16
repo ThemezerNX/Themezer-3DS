@@ -202,11 +202,12 @@ void App::checkForUpdates()
 {
     if (!config_.checkForUpdates)
         return;
+    const update::InstallKind kind = update::installKind(appPath_);
     jobs::async(
-        Lane::Network,
-        [](const CancelToken& token) {
+        Lane::Background,
+        [kind](const CancelToken& token) {
             net::Client client;
-            return update::check(client, token);
+            return update::check(client, kind, token);
         },
         [this](Expected<std::optional<update::Release>> result) {
             if (result && *result)

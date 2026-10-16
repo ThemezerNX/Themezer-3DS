@@ -42,9 +42,10 @@ enum class InstallKind : uint8_t
 
 InstallKind installKind(const char* appPath);
 
-// The latest release, when it is newer than this build. Development builds (with "-dev" in their version) are
-// never offered updates.
-Expected<std::optional<Release>> check(net::Client& client, const CancelToken& cancel);
+// The latest release, when it is newer than this build and has the file this kind of install needs (any, for one that
+// can't update itself: the menu says where to get it). Development builds (with "-dev" in their version) are never
+// offered updates.
+Expected<std::optional<Release>> check(net::Client& client, InstallKind kind, const CancelToken& cancel);
 
 // Downloads the asset for this kind of install, checks its size and digest, and installs it: a CIA is streamed
 // into the system (cancelled without changes on any failure); a 3dsx is written next to the running one and swapped

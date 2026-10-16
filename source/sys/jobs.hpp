@@ -19,9 +19,10 @@ namespace tz
 
 enum class Lane : uint8_t
 {
-    Io,      // the SD card, zips, images
-    Network, // downloads, so a slow server never holds up the SD card work
-    Icons,   // a list's icons: small downloads each wanted at once, never kept waiting by a preview or a download
+    Io,         // the SD card, zips, images
+    Network,    // downloads, so a slow server never holds up the SD card work
+    Icons,      // a list's icons: small downloads each wanted at once, never kept waiting by a preview or a download
+    Background, // the app's own errands nothing on screen waits for (the update check), when nothing else runs
     Count,
 };
 
@@ -29,7 +30,7 @@ namespace jobs
 {
 
 void init();
-// Cancels what is queued, waits for the running jobs and stops the workers.
+// Cancels what is queued and what runs, waits for the running jobs to stop, and stops the workers.
 void shutdown();
 
 // Runs work on the lane's worker. Higher priorities run first, in the order they were queued.
