@@ -11,6 +11,7 @@
 #include "gfx/text.hpp"
 #include "scenes/errors.hpp"
 #include "scenes/frame.hpp"
+#include "scenes/preview_scene.hpp"
 #include "sys/act.hpp"
 #include "sys/log.hpp"
 
@@ -18,6 +19,7 @@
 #include <array>
 #include <cstdio>
 #include <ctime>
+#include <span>
 
 namespace tz::scenes
 {
@@ -31,6 +33,14 @@ constexpr int kPreviewColumns = 7;
 constexpr int kPreviewRows = 3;
 constexpr int kPreviewBadge = 48;
 constexpr int kPreviewGap = 6;
+// the full preview (Y): 4 rows of 7 on the top screen and of 5 on the bottom one, centred
+constexpr int kFullTopColumns = 7;
+constexpr int kFullBottomColumns = 5;
+constexpr int kFullRows = 4;
+constexpr int kFullTop = (240 - kFullRows * kPreviewBadge - (kFullRows - 1) * kPreviewGap) / 2;
+constexpr int kFullBadges = (kFullTopColumns + kFullBottomColumns) * kFullRows;
+// told apart from the list's picture of the same set, which is the top screen's alone
+constexpr uint64_t kFullPreviewKey = 0x9E3779B97F4A7C15ULL;
 
 uint64_t keyOf(const badges::SetSource& set)
 {
@@ -43,17 +53,15 @@ uint64_t keyOf(const badges::SetSource& set)
     return hash ? hash : 1;
 }
 
-// The first badges of a set in a grid on the top screen, under the status bar.
-preview::Screens grid(const std::vector<Image>& pictures)
+// A screen's picture: stone 900, a little lighter towards the top.
+Image backdrop(int width)
 {
-    preview::Screens screens;
-    screens.top = Image(400, 240);
-    for (int y = 0; y < 240; ++y)
+    Image screen(width, 240);
+    for (int y = 0; y < screen.height; ++y)
     {
-        for (int x = 0; x < 400; ++x)
+        for (int x = 0; x < screen.width; ++x)
         {
-            uint8_t* p = screens.top.at(x, y);
-            // stone 900, a little lighter towards the top
+            uint8_t* p = screen.at(x, y);
             const uint8_t shade = static_cast<uint8_t>(36 - y / 24);
             p[0] = shade;
             p[1] = static_cast<uint8_t>(shade - 3);
@@ -61,26 +69,52 @@ preview::Screens grid(const std::vector<Image>& pictures)
             p[3] = 255;
         }
     }
-    const int width = kPreviewColumns * kPreviewBadge + (kPreviewColumns - 1) * kPreviewGap;
-    const int left = (400 - width) / 2;
-    const int top = 30;
-    for (size_t i = 0; i < pictures.size() && i < kPreviewColumns * kPreviewRows; ++i)
+    return screen;
+}
+
+// As many of pictures as fit in a grid of rows of columns on screen, centred, from y = top. Returns how many it took.
+size_t placeBadges(Image& screen, std::span<const Image> pictures, int columns, int rows, int top)
+{
+    const int width = columns * kPreviewBadge + (columns - 1) * kPreviewGap;
+    const int left = (screen.width - width) / 2;
+    const size_t count = std::min(pictures.size(), static_cast<size_t>(columns * rows));
+    for (size_t i = 0; i < count; ++i)
     {
         const Image badge = resize(pictures[i], kPreviewBadge, kPreviewBadge);
-        const int ox = left + static_cast<int>(i % kPreviewColumns) * (kPreviewBadge + kPreviewGap);
-        const int oy = top + static_cast<int>(i / kPreviewColumns) * (kPreviewBadge + kPreviewGap);
+        const int ox = left + static_cast<int>(i % static_cast<size_t>(columns)) * (kPreviewBadge + kPreviewGap);
+        const int oy = top + static_cast<int>(i / static_cast<size_t>(columns)) * (kPreviewBadge + kPreviewGap);
         for (int y = 0; y < kPreviewBadge; ++y)
         {
             for (int x = 0; x < kPreviewBadge; ++x)
             {
                 const uint8_t* from = badge.at(x, y);
-                uint8_t* to = screens.top.at(ox + x, oy + y);
+                uint8_t* to = screen.at(ox + x, oy + y);
                 const int a = from[3];
                 for (int c = 0; c < 3; ++c)
                     to[c] = static_cast<uint8_t>((from[c] * a + to[c] * (255 - a)) / 255);
             }
         }
     }
+    return count;
+}
+
+// The first badges of a set in a grid on the top screen, under the status bar, for the list.
+preview::Screens grid(const std::vector<Image>& pictures)
+{
+    preview::Screens screens;
+    screens.top = backdrop(400);
+    placeBadges(screens.top, pictures, kPreviewColumns, kPreviewRows, 30);
+    return screens;
+}
+
+// As many of a set's badges as fill both screens, top first, for its full preview.
+preview::Screens fullGrid(const std::vector<Image>& pictures)
+{
+    preview::Screens screens;
+    screens.top = backdrop(400);
+    const size_t onTop = placeBadges(screens.top, pictures, kFullTopColumns, kFullRows, kFullTop);
+    screens.bottom = backdrop(320);
+    placeBadges(*screens.bottom, std::span(pictures).subspan(onTop), kFullBottomColumns, kFullRows, kFullTop);
     return screens;
 }
 
@@ -262,7 +296,7 @@ void BadgesPage::update(ui::Input& input, float dt)
     else if (input.pressed(KEY_X))
         set->included = !set->included;
     else if (input.pressed(KEY_Y))
-        install();
+        openPreview(*set);
 }
 
 std::vector<ui::Hint> BadgesPage::hints() const
@@ -274,7 +308,7 @@ std::vector<ui::Hint> BadgesPage::hints() const
     return {
         {KEY_A, tr("More")},
         {KEY_X, set && set->included ? tr("Skip") : tr("Include")},
-        {KEY_Y, trf("Install {}", std::to_string(includedCount()))},
+        {KEY_Y, tr("Preview")},
     };
 }
 
@@ -294,7 +328,7 @@ std::string BadgesPage::detailOf(const Set& set) const
         return tr("The pictures directly in /Badges");
     std::string detail;
     if (set.summarized)
-        detail = trf(set.summary.images == 1 ? "{} picture" : "{} pictures", std::to_string(set.summary.images));
+        detail = trf(set.summary.badges == 1 ? "{} badge" : "{} badges", std::to_string(set.summary.badges));
     if (!set.source.author.empty())
         detail += (detail.empty() ? "" : " \u00B7 ") + set.source.author;
     return detail;
@@ -372,6 +406,11 @@ void BadgesPage::openActions()
     actions.push_back({Icon::Install, trf("Install {} badge sets", std::to_string(includedCount())),
                        tr("They replace the badges on the HOME Menu"), includedCount() > 0, false,
                        [this] { install(); }});
+    actions.push_back({Icon::Eye, tr("Preview"), {}, true, false, [this, key] {
+                           for (const Set& s : sets_)
+                               if (s.key == key)
+                                   openPreview(s);
+                       }});
     actions.push_back({set->included ? Icon::Square : Icon::SquareCheck,
                        set->included ? tr("Leave this set out") : tr("Include this set"), {}, true, false,
                        [this, key] {
@@ -388,6 +427,22 @@ void BadgesPage::openActions()
     App::get().scenes().emplace<ui::ActionSheet>(set->source.name, std::move(actions), accent().light);
 }
 
+void BadgesPage::openPreview(const Set& set)
+{
+    const badges::SetSource source = set.source;
+    PreviewSource preview;
+    preview.title = set.source.name;
+    preview.key = set.key ^ kFullPreviewKey;
+    preview.previews = &previews_;
+    preview.loader = [source](const CancelToken& token) -> Expected<preview::Screens> {
+        auto pictures = TZ_TRY(badges::previewBadges(App::get().sd(), source, kFullBadges, token));
+        if (pictures.empty())
+            return fail(Errc::NotFound, "no badges");
+        return fullGrid(pictures);
+    };
+    App::get().scenes().push(makePreviewScene(std::move(preview)));
+}
+
 void BadgesPage::install()
 {
     std::vector<badges::SetSource> chosen;
@@ -399,19 +454,18 @@ void BadgesPage::install()
         ui::toast(tr("Include at least one set (X)"), ui::ToastKind::Warning);
         return;
     }
-    // more than the HOME Menu holds: said before rather than after. A picture can be a sheet of several badges, so
-    // these are at least the badges there are.
-    int pictures = 0;
+    // more than the HOME Menu holds: said before rather than after
+    int count = 0;
     for (const Set& set : sets_)
         if (set.included && set.summarized)
-            pictures += set.summary.images;
-    if (static_cast<int>(chosen.size()) > badges::kMaxSets || pictures > badges::kMaxBadges)
+            count += set.summary.badges;
+    if (static_cast<int>(chosen.size()) > badges::kMaxSets || count > badges::kMaxBadges)
     {
         App::get().scenes().emplace<ui::Dialog>(
             Icon::Badge, accent().light, tr("Not all of these fit"),
-            trf("The HOME Menu has room for 1000 badges in 100 sets, and these are {} sets with {} pictures. The ones at "
+            trf("The HOME Menu has room for 1000 badges in 100 sets, and these are {} sets with {} badges. The ones at "
                 "the end of the list are left out.",
-                std::to_string(chosen.size()), std::to_string(pictures)),
+                std::to_string(chosen.size()), std::to_string(count)),
             std::vector<ui::DialogButton>{
                 {tr("Cancel"), [] {}},
                 {tr("Install what fits"), [this, chosen] { installSets(chosen); }},

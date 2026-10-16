@@ -327,11 +327,11 @@ TEST(badges_find_sets)
 
     auto summary = badges::summarize(sd, list[0]);
     REQUIRE(summary.has_value());
-    CHECK_EQ(summary->images, 2);
+    CHECK_EQ(summary->badges, 2);
     CHECK(!summary->hasIcon);
     auto looseSummary = badges::summarize(sd, list[4]);
     REQUIRE(looseSummary.has_value());
-    CHECK_EQ(looseSummary->images, 2);
+    CHECK_EQ(looseSummary->badges, 2);
     CHECK(looseSummary->hasIcon); // the _seticon.png beside the loose badges
 
     auto none = badges::findSets(sd, "/Missing", "Other Badges");
@@ -597,6 +597,26 @@ TEST(badges_cancel)
     CHECK_EQ(nameAt(b.data(), kSetNames, 1), std::string("Many"));
 }
 
+TEST(badges_skips_themezer_preview)
+{
+    // Themezer's zips have a picture of the set on both screens beside its badges and icon
+    Badges b;
+    b.sd.put("/Badges/Cats Badge Set by mira (Themezer-BS1).zip",
+             zip({{"cat.png", png(solid(64, 64, kRed))},
+                  {"_seticon.png", png(solid(48, 48, kBlue))},
+                  {"preview.png", png(solid(400, 480, kWhite))}}));
+    auto sets = badges::findSets(b.sd, "/Badges", "Other Badges");
+    REQUIRE(sets.has_value());
+    REQUIRE(sets->size() == 1);
+    auto summary = badges::summarize(b.sd, (*sets)[0]);
+    REQUIRE(summary.has_value());
+    CHECK_EQ(summary->badges, 1);
+    auto result = b.installAll();
+    REQUIRE(result.has_value());
+    CHECK_EQ(result->badges, 1);
+    CHECK_EQ(result->skipped, 0);
+}
+
 TEST(badges_writes_in_batches)
 {
     Badges b;
@@ -620,7 +640,7 @@ TEST(badges_preview_and_icons)
 
     auto summary = badges::summarize(sd, animals);
     REQUIRE(summary.has_value());
-    CHECK_EQ(summary->images, 5); // bad, cat, dogs, fox, zebra
+    CHECK_EQ(summary->badges, 5); // cat, the two dogs of a sheet, fox, zebra; bad.png isn't a badge's size
     CHECK(summary->hasIcon);
 
     CancelToken token;

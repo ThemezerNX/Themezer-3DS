@@ -334,14 +334,20 @@ bool pngSize(ByteSpan png, uint32_t& width, uint32_t& height)
 }
 
 // A badge picture is 64x64, or a sheet of up to 12x6 of them; anything else isn't one.
+// Whether a picture of this size is a badge or a sheet of them, cut into 64x64 badges.
+bool badgeSize(uint32_t width, uint32_t height)
+{
+    return width != 0 && height != 0 && width % kBadgeSide == 0 && height % kBadgeSide == 0 &&
+           width <= kMaxSheetColumns * kBadgeSide && height <= kMaxSheetRows * kBadgeSide;
+}
+
 Expected<Image> decodeSheet(ByteSpan png)
 {
     uint32_t width;
     uint32_t height;
     if (!pngSize(png, width, height))
         return fail(Errc::InvalidData, "not a PNG");
-    if (width == 0 || height == 0 || width % kBadgeSide != 0 || height % kBadgeSide != 0 ||
-        width > kMaxSheetColumns * kBadgeSide || height > kMaxSheetRows * kBadgeSide)
+    if (!badgeSize(width, height))
         return fail(Errc::Unsupported, "not a badge size: " + std::to_string(width) + "x" + std::to_string(height));
     Image sheet = TZ_TRY(decodePng(png, static_cast<int>(width), static_cast<int>(height)));
     if (sheet.width != static_cast<int>(width) || sheet.height != static_cast<int>(height))
@@ -423,6 +429,8 @@ public:
                     std::string file = path::join(set.folderPath, entry.name);
                     if (path::equalsIgnoreCase(entry.name, kSetIconName))
                         folderIcon = PictureFile{entry.name, std::move(file)};
+                    else if (path::equalsIgnoreCase(entry.name, kSetPreviewName))
+                        continue;
                     else if (path::hasExtension(entry.name, "png"))
                         files.pictures.push_back({entry.name, std::move(file)});
                     else if (path::hasExtension(entry.name, "zip"))
@@ -443,6 +451,40 @@ public:
             return sd.readFile(file.path, kMaxPictureSize);
         const ZipArchive& zip = zips_[static_cast<size_t>(file.zip)];
         return zip.read(zip.entries()[file.entry], kMaxPictureSize);
+    }
+
+    // How many badges a picture holds, from the size in its PNG header (the first 24 bytes): none when it isn't a
+    // badge's size, or can't be read.
+    int badgeCount(FileSystem& sd, const PictureFile& file) const
+    {
+        uint8_t header[24];
+        if (file.zip < 0)
+        {
+            auto opened = sd.open(file.path, OpenMode::Read);
+            if (!opened || (*opened)->size() < sizeof(header) ||
+                !(*opened)->readAt(0, MutableByteSpan(header, sizeof(header))))
+                return 0;
+        }
+        else
+        {
+            const ZipArchive& zip = zips_[static_cast<size_t>(file.zip)];
+            auto stream = zip.openStream(zip.entries()[file.entry]);
+            if (!stream)
+                return 0;
+            size_t got = 0;
+            while (got < sizeof(header))
+            {
+                auto read = (*stream)->read(MutableByteSpan(header + got, sizeof(header) - got));
+                if (!read || *read == 0)
+                    return 0;
+                got += *read;
+            }
+        }
+        uint32_t width;
+        uint32_t height;
+        if (!pngSize(ByteSpan(header, sizeof(header)), width, height) || !badgeSize(width, height))
+            return 0;
+        return static_cast<int>((width / kBadgeSide) * (height / kBadgeSide));
     }
 
 private:
@@ -468,7 +510,7 @@ private:
             const ZipEntry& entry = entries[i];
             const std::string_view name = path::filename(entry.name);
             if (entry.isDirectory() || hiddenName(name) || !path::hasExtension(name, "png") ||
-                path::equalsIgnoreCase(name, kSetIconName))
+                path::equalsIgnoreCase(name, kSetIconName) || path::equalsIgnoreCase(name, kSetPreviewName))
                 continue;
             const std::vector<std::string_view> parts = path::split(entry.name);
             if (std::any_of(parts.begin(), parts.end(), [](std::string_view part) { return hiddenName(part); }))
@@ -762,7 +804,8 @@ Expected<std::vector<SetSource>> findSets(FileSystem& sd, std::string_view root,
             if (download)
                 set.author = download->author;
         }
-        else if (path::hasExtension(entry.name, "png") && !path::equalsIgnoreCase(entry.name, kSetIconName))
+        else if (path::hasExtension(entry.name, "png") && !path::equalsIgnoreCase(entry.name, kSetIconName) &&
+                 !path::equalsIgnoreCase(entry.name, kSetPreviewName))
         {
             loose.push_back(path::join(root, entry.name));
         }
@@ -788,7 +831,11 @@ Expected<std::vector<SetSource>> findSets(FileSystem& sd, std::string_view root,
 Expected<SetSummary> summarize(FileSystem& sd, const SetSource& set)
 {
     const SetFiles files = TZ_TRY(SetFiles::open(sd, set));
-    return SetSummary{static_cast<int>(files.pictures.size()), files.icon.has_value()};
+    SetSummary summary;
+    for (const PictureFile& picture : files.pictures)
+        summary.badges += files.badgeCount(sd, picture);
+    summary.hasIcon = files.icon.has_value();
+    return summary;
 }
 
 Expected<Image> setIcon(FileSystem& sd, const SetSource& set)
@@ -834,8 +881,8 @@ Expected<InstallResult> install(FileSystem& sd, FileSystem& badgeExt, std::span<
     // the steps progress counts: every picture
     int total = 0;
     for (const SetSource& set : sets)
-        if (auto summary = summarize(sd, set))
-            total += summary->images;
+        if (auto files = SetFiles::open(sd, set))
+            total += static_cast<int>(files->pictures.size());
 
     auto data = TZ_TRY(badgeExt.open(kDataPath, OpenMode::ReadWrite));
     auto managerFile = TZ_TRY(badgeExt.open(kManagerPath, OpenMode::ReadWrite));

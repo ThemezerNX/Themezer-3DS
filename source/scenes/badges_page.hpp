@@ -55,6 +55,7 @@ private:
     void readInstalledCount();
     void openActions();
     void install();
+    void openPreview(const Set& set);
     void installSets(std::vector<badges::SetSource> chosen);
     void uninstall();
     void exportBadges();
