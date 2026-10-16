@@ -196,7 +196,7 @@ public:
         brand(Brand::Icon, std::round((metric::kTopWidth - brandWidth(Brand::Icon)) / 2), 56);
         drawText(tr("Settings"), metric::kTopWidth / 2, textTop(146, metric::kTextLarge), metric::kTextLarge,
                  color::kText, Align::Center);
-        drawText(tr("Saved in /3ds/Themezer/config.json"), metric::kTopWidth / 2, textTop(170, metric::kTextSmall),
+        drawText(trf("Saved in {}", kConfigPath), metric::kTopWidth / 2, textTop(170, metric::kTextSmall),
                  metric::kTextSmall, color::kTextDim, Align::Center);
     }
 

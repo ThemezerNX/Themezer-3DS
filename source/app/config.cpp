@@ -3,6 +3,9 @@
 
 #include "app/config.hpp"
 
+#include "core/path.hpp"
+#include "sys/log.hpp"
+
 #include <jansson.h>
 #include <string_view>
 
@@ -48,6 +51,30 @@ void readBool(json_t* root, const char* key, bool& out)
 }
 
 } // namespace
+
+void moveOldAppFolder(FileSystem& sd)
+{
+    if (sd.exists(kAppFolder) || !sd.exists(kOldAppFolder))
+        return;
+    auto entries = sd.list(kOldAppFolder);
+    if (!entries || !sd.createDirectories(kAppFolder))
+        return;
+    size_t moved = 0;
+    for (const DirEntry& entry : *entries)
+    {
+        // a 3dsx kept there stays where the Homebrew Launcher finds it
+        if (!entry.isDirectory &&
+            (path::hasExtension(entry.name, "3dsx") || path::hasExtension(entry.name, "smdh")))
+            continue;
+        if (auto renamed = sd.rename(path::join(kOldAppFolder, entry.name), path::join(kAppFolder, entry.name)))
+            ++moved;
+        else
+            log::writeError(entry.name.c_str(), renamed.error());
+    }
+    if (auto left = sd.list(kOldAppFolder); left && left->empty())
+        (void)sd.removeDirectory(kOldAppFolder, false);
+    LOG_INFO("moved %u file(s) and folder(s) from %s to %s", static_cast<unsigned>(moved), kOldAppFolder, kAppFolder);
+}
 
 Config Config::load(FileSystem& sd)
 {

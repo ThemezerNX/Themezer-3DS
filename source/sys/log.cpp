@@ -29,7 +29,7 @@ void writeLines(const char* path)
     FILE* file = std::fopen(path, "w");
     if (!file)
         return;
-    std::fprintf(file, "%s %s\n", APP_TITLE, APP_VERSION);
+    std::fprintf(file, "%s %s\n", APP_NAME, APP_VERSION);
     for (size_t i = 0; i < count; ++i)
         std::fprintf(file, "%s\n", lines[(next + kKeptLines - count + i) % kKeptLines].c_str());
     std::fclose(file);

@@ -537,7 +537,7 @@ void configure(CURL* easy, Transfer& transfer, curl_slist* headers, char* errorT
     curl_easy_setopt(easy, CURLOPT_ERRORBUFFER, errorText);
     curl_easy_setopt(easy, CURLOPT_URL, transfer.request.url.c_str());
     // GitHub's API refuses requests without one
-    curl_easy_setopt(easy, CURLOPT_USERAGENT, APP_TITLE "/" APP_VERSION);
+    curl_easy_setopt(easy, CURLOPT_USERAGENT, APP_NAME "/" APP_VERSION);
     curl_easy_setopt(easy, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(easy, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(easy, CURLOPT_PROTOCOLS_STR, protocols);

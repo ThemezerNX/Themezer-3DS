@@ -20,7 +20,7 @@ namespace
     LOG_ERROR("the app stopped on a fatal error (heap %u KB in use, %u KB free; linear %lu KB free)",
               static_cast<unsigned>(heap.uordblks / 1024), static_cast<unsigned>(heap.fordblks / 1024),
               static_cast<unsigned long>(linearSpaceFree() / 1024));
-    tz::log::saveNow("sdmc:/3ds/Themezer/log.txt");
+    tz::log::saveNow(tz::kLogPath);
     std::abort();
 }
 

@@ -11,7 +11,7 @@ namespace tz::log
 {
 
 // Lines go to the debug output (a debugger attached through Luma, or an emulator's log), and the last ones are
-// kept in memory for /3ds/Themezer/log.txt, written when the app exits after an error.
+// kept in memory for /3ds/themezer-3ds/log.txt, written when the app exits after an error.
 void init();
 void write(const char* level, const char* format, ...) __attribute__((format(printf, 2, 3)));
 void writeError(const char* what, const Error& error);

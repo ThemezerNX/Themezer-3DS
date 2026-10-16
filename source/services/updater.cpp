@@ -266,7 +266,7 @@ Expected<void> downloadFile(Archive& sd, const std::string& path, net::Client& c
 Expected<void> install3dsx(net::Client& client, const Asset& asset, std::string_view appPath, net::Progress* progress,
                            const CancelToken& cancel)
 {
-    // "sdmc:/3ds/Themezer.3dsx" -> "/3ds/Themezer.3dsx"
+    // "sdmc:/3ds/themezer-3ds.3dsx" -> "/3ds/themezer-3ds.3dsx"
     const std::string target(appPath.substr(kSdmcPrefix.size() - 1));
     const std::string fresh = target + ".new";
     const std::string old = target + ".old";

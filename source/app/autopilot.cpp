@@ -27,8 +27,8 @@ namespace tz::autopilot
 namespace
 {
 
-constexpr const char* kScriptPath = "/3ds/Themezer/autopilot.txt";
-constexpr const char* kOutputDir = "/3ds/Themezer/autopilot";
+constexpr const char* kScriptPath = TZ_APP_FOLDER "/autopilot.txt";
+constexpr const char* kOutputDir = TZ_APP_FOLDER "/autopilot";
 
 struct Step
 {

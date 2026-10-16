@@ -29,6 +29,9 @@ endif
 #---------------------------------------------------------------------------------
 # The app
 #---------------------------------------------------------------------------------
+# the app's name in code: its folder on the SD card (/3ds/themezer-3ds), its files, its user agent
+APP_NAME         := themezer-3ds
+# what the HOME Menu shows; also the CIA's process name, which takes 8 characters at most
 APP_TITLE        := Themezer
 APP_DESCRIPTION  := Themes, splashes and badges for your 3DS
 APP_AUTHOR       := Themezer
@@ -39,7 +42,7 @@ UPDATE_URL       ?= https://3ds.themezer.net/app/releases/latest
 
 BASE_VERSION     := 4.0.0
 
-TARGET   := Themezer
+TARGET   := $(APP_NAME)
 BUILD    := build
 OUT      := out
 ifeq ($(DEVTOOLS),1)
@@ -85,6 +88,7 @@ INCLUDE  := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
             $(if $(PKGCONFIG),$(shell $(PKGCONFIG) --cflags-only-I $(PKGS)))
 
 DEFINES  := -D__3DS__ \
+            -DAPP_NAME='"$(APP_NAME)"' \
             -DAPP_TITLE='"$(APP_TITLE)"' \
             -DAPP_VERSION='"$(VERSION)"' \
             -DUPDATE_URL='"$(UPDATE_URL)"' \

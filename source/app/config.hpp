@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Themezer-3DS contributors
 
-// The settings, in /3ds/Themezer/config.json.
+// The settings, in /3ds/themezer-3ds/config.json, and the app's other files on the SD card.
 
 #pragma once
 
@@ -12,10 +12,20 @@
 namespace tz
 {
 
-constexpr const char* kAppFolder = "/3ds/Themezer";
-constexpr const char* kConfigPath = "/3ds/Themezer/config.json";
-constexpr const char* kCacheFolder = "/3ds/Themezer/cache";
-constexpr const char* kBadgeBackupFolder = "/3ds/Themezer/badge-backup";
+#define TZ_APP_FOLDER "/3ds/" APP_NAME
+
+constexpr const char* kAppFolder = TZ_APP_FOLDER;
+constexpr const char* kConfigPath = TZ_APP_FOLDER "/config.json";
+constexpr const char* kCacheFolder = TZ_APP_FOLDER "/cache";
+constexpr const char* kBadgeBackupFolder = TZ_APP_FOLDER "/badge-backup";
+constexpr const char* kBadgeExportFolder = TZ_APP_FOLDER "/Badge exports";
+// what went wrong, for a bug report; written with stdio, hence sdmc:
+constexpr const char* kLogPath = "sdmc:" TZ_APP_FOLDER "/log.txt";
+// The folder of the app's first builds: what's in it moves to kAppFolder once, but the app itself if it's there.
+constexpr const char* kOldAppFolder = "/3ds/Themezer";
+
+// Moves the files in kOldAppFolder to kAppFolder, when there's no kAppFolder yet.
+void moveOldAppFolder(FileSystem& sd);
 
 struct Config
 {

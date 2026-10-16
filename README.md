@@ -10,12 +10,13 @@ Themezer-3DS is based on [Anemone3DS](https://github.com/astronautlevel2/Anemone
 
 ## Installing
 
-- **CIA:** install `Themezer.cia` from the [latest release](https://github.com/ThemezerNX/themezer-3ds/releases/latest),
-  for example with FBI. It installs as its own app, next to Anemone3DS if you have it.
-- **3DSX:** copy `Themezer.3dsx` to `/3ds/` on your SD card and start it from the Homebrew Launcher.
+- **CIA:** install `themezer-3ds.cia` from the
+  [latest release](https://github.com/ThemezerNX/themezer-3ds/releases/latest), for example with FBI. It installs as its
+  own app, next to Anemone3DS if you have it.
+- **3DSX:** copy `themezer-3ds.3dsx` to `/3ds/` on your SD card and start it from the Homebrew Launcher.
 
 Themes, splash screens and badges are read from `/Themes`, `/Splashes` and `/Badges` on the SD card, the same folders
-Anemone3DS uses. The app keeps its settings and caches in `/3ds/Themezer`.
+Anemone3DS uses. The app keeps its settings and caches in `/3ds/themezer-3ds`.
 
 ## Building
 
@@ -29,7 +30,7 @@ and [makerom](https://github.com/3DSGuy/Project_CTR) and [bannertool](https://gi
 your `PATH`. Then:
 
 ```sh
-make          # out/Themezer.3dsx and out/Themezer.cia
+make          # out/themezer-3ds.3dsx and out/themezer-3ds.cia
 make test     # unit tests, on your computer
 make send     # sends the 3dsx to a 3DS waiting in the Homebrew Launcher (Y)
 make preview  # opens the 3dsx in the Azahar emulator

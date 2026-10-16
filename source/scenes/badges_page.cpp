@@ -498,7 +498,7 @@ void BadgesPage::exportBadges()
             const time_t now = std::time(nullptr);
             char stamp[32];
             std::strftime(stamp, sizeof(stamp), "%Y-%m-%d %H.%M", gmtime(&now));
-            const std::string folder = std::string(kAppFolder) + "/Badge exports/" + stamp;
+            const std::string folder = std::string(kBadgeExportFolder) + "/" + stamp;
             const int count = TZ_TRY(badges::exportBadges(*archive, App::get().sd(), folder, [&](int done, int total) {
                 progress.set(done, total);
                 return !token.cancelled();
@@ -594,7 +594,7 @@ std::vector<ui::Action> BadgesPage::menuActions()
     std::vector<ui::Action> actions;
     actions.push_back({Icon::Trash, tr("Take all badges off the HOME Menu"), {}, true, true, [this] { uninstall(); }});
     actions.push_back({Icon::Save, tr("Save the HOME Menu's badges to the SD card"),
-                       tr("As PNGs, a folder per set, in /3ds/Themezer/Badge exports"), true, false,
+                       trf("As PNGs, a folder per set, in {}", kBadgeExportFolder), true, false,
                        [this] { exportBadges(); }});
     const bool backup = badges::hasBackup(App::get().sd(), kBadgeBackupFolder);
     actions.push_back({Icon::Restore, tr("Bring back the badges you had before"),

@@ -8,7 +8,7 @@ How to build Themezer-3DS, try it without a console, and look at its screens wit
 The README lists what to install. Then:
 
 ```sh
-make            # out/Themezer.3dsx and out/Themezer.cia
+make            # out/themezer-3ds.3dsx and out/themezer-3ds.cia
 make test       # the unit tests of source/core and source/domain, on your computer
 ```
 
@@ -41,9 +41,9 @@ tools/autopilot.sh tools/autopilot/tour.txt
 `tools/autopilot.sh` puts the script on Azahar's SD card, opens the app, waits for the script to end, and copies the
 screenshots to `out/dev/shots`. `tools/autopilot/tour.txt` walks past the main screens without changing anything.
 
-On a console, the app reads the script from `/3ds/Themezer/autopilot.txt` when it starts (send `out/dev/Themezer.3dsx`
-with `3dslink`), and saves the screenshots in `/3ds/Themezer/autopilot/`. A script that installs something installs it
-for real there.
+On a console, the app reads the script from `/3ds/themezer-3ds/autopilot.txt` when it starts (send
+`out/dev/themezer-3ds.3dsx` with `3dslink`), and saves the screenshots in `/3ds/themezer-3ds/autopilot/`. A script that
+installs something installs it for real there.
 
 A script has one command a line; `#` starts a comment. Times are in frames, 60 a second.
 

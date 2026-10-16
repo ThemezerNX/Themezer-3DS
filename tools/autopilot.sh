@@ -15,7 +15,7 @@ fi
 script=$1
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=${2:-$root/out/dev/shots}
-app=$root/out/dev/Themezer.3dsx
+app=$root/out/dev/themezer-3ds.3dsx
 timeout=${TIMEOUT:-120}
 
 if [ "$(uname)" = Darwin ]; then
@@ -42,10 +42,10 @@ if pgrep -f "$process" > /dev/null 2>&1; then
 fi
 [ -d "$sd" ] || { echo "no emulated SD card at $sd: open Azahar once, or set AZAHAR_SD" >&2; exit 1; }
 
-shots=$sd/3ds/Themezer/autopilot
-mkdir -p "$sd/3ds/Themezer"
+shots=$sd/3ds/themezer-3ds/autopilot
+mkdir -p "$sd/3ds/themezer-3ds"
 rm -rf "$shots"
-cp "$script" "$sd/3ds/Themezer/autopilot.txt"
+cp "$script" "$sd/3ds/themezer-3ds/autopilot.txt"
 
 case "$azahar" in
     *.app)
@@ -68,7 +68,7 @@ cleanup() {
     kill "$pid" 2> /dev/null || true
     sleep 1
     kill -9 "$pid" 2> /dev/null || true
-    rm -f "$sd/3ds/Themezer/autopilot.txt"
+    rm -f "$sd/3ds/themezer-3ds/autopilot.txt"
 }
 trap cleanup EXIT INT TERM
 

@@ -93,6 +93,7 @@ bool App::init(int argc, char** argv)
         return false;
     }
     sd_ = std::move(*sd);
+    moveOldAppFolder(*sd_);
     (void)sd_->createDirectories(kAppFolder);
     config_ = Config::load(*sd_);
 
@@ -102,7 +103,7 @@ bool App::init(int argc, char** argv)
 
     openHomeStorage();
     checkForUpdates();
-    LOG_INFO("%s %s started", APP_TITLE, APP_VERSION);
+    LOG_INFO("%s %s started", APP_NAME, APP_VERSION);
     return true;
 }
 
@@ -312,7 +313,7 @@ void App::shutdown()
     saveConfig();
     // what went wrong this time, for a bug report
     if (log::hadErrors() && sd_)
-        log::save("sdmc:/3ds/Themezer/log.txt");
+        log::save(kLogPath);
     scenes_ = ui::SceneStack();
     audio::stopBackgroundMusic();
     jobs::shutdown();

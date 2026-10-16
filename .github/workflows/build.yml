@@ -65,10 +65,10 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Themezer-${{ github.sha }}
+          name: themezer-3ds-${{ github.sha }}
           path: |
-            out/Themezer.3dsx
-            out/Themezer.cia
+            out/themezer-3ds.3dsx
+            out/themezer-3ds.cia
 
   release:
     name: Release
@@ -80,10 +80,10 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: Themezer-${{ github.sha }}
+          name: themezer-3ds-${{ github.sha }}
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            Themezer.3dsx
-            Themezer.cia
+            themezer-3ds.3dsx
+            themezer-3ds.cia
           generate_release_notes: true
