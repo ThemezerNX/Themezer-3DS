@@ -29,6 +29,7 @@ struct Worker
     Mutex mutex;
     ConditionVariable wake;
     std::vector<Job> queue; // a heap would save little for the few jobs queued at once
+    CancelToken running;    // the token of the job that runs now, for shutdown()
     bool stopping = false;
     Thread thread;
 };
@@ -61,6 +62,7 @@ void workerLoop(Worker& worker)
             }
             job = std::move(*best);
             worker.queue.erase(best);
+            worker.running = job.token;
         }
 
         if (!job.token.cancelled())
@@ -91,6 +93,8 @@ void shutdown()
             for (Job& job : worker.queue)
                 job.token.cancel();
             worker.queue.clear();
+            // a download running now stops instead of keeping the app from closing until it's done
+            worker.running.cancel();
             worker.stopping = true;
         }
         worker.wake.notifyAll();

@@ -287,6 +287,10 @@ ProgressOverlay::ProgressOverlay(Options options) : options_(std::move(options))
 
 ProgressOverlay::~ProgressOverlay()
 {
+    // gone before its task is done only when the app closes; a task that writes the system's files isn't cancellable,
+    // and finishes
+    if (options_.cancellable)
+        token_.cancel();
     if (options_.blockHome)
         aptSetHomeAllowed(true);
 }
