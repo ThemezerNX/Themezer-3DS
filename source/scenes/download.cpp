@@ -36,27 +36,70 @@ const char* folderFor(ContentKind kind)
     return nullptr;
 }
 
-// "Name.zip", or "Name (2).zip" and up when that's taken.
-Expected<std::string> freePath(FileSystem& sd, const std::string& folder, const std::string& name)
+App::Folder appFolderFor(ContentKind kind)
 {
-    const std::string stem(path::stem(name));
-    for (int n = 1; n < 1000; ++n)
-    {
-        const std::string candidate = path::join(folder, n == 1 ? stem + ".zip"
-                                                                : stem + " (" + std::to_string(n) + ").zip");
-        if (!sd.exists(candidate))
-            return candidate;
-    }
-    return fail(Errc::NoSpace, "no free name for " + name);
+    return kind == ContentKind::Theme ? App::Folder::Themes
+                                      : (kind == ContentKind::Splash ? App::Folder::Splashes : App::Folder::Badges);
+}
+
+// A download for the main thread: saved, or, when a file of its name is on the SD card already, still to be written
+// over it once the user says so. Themezer and ThemePlaza put an item's id in its file's name, so that's most likely an
+// older version of the same item.
+struct Fetched
+{
+    Saved saved;
+    std::shared_ptr<MemoryReader> unsaved;
+};
+
+// Over the file of the same name. The new one is written beside it first, so that a write that fails (the SD card is
+// full) leaves the old one.
+Expected<void> replaceFile(FileSystem& sd, const std::string& path, ByteSpan data)
+{
+    const std::string part = path + ".part";
+    TZ_CHECK(sd.writeFile(part, data));
+    TZ_CHECK(sd.removeFile(path));
+    return sd.rename(part, path);
+}
+
+void finish(const Saved& saved, const std::function<void(Saved)>& done)
+{
+    App::get().folderChanged(appFolderFor(saved.kind));
+    done(saved);
+}
+
+void askToReplace(const Saved& saved, std::shared_ptr<MemoryReader> unsaved, std::function<void(Saved)> done)
+{
+    App::get().scenes().emplace<ui::Dialog>(
+        gfx::Icon::Download, gfx::color::kPrimaryLight, tr("It's on the SD card already"),
+        trf("{}\nReplace it with the download?", saved.path),
+        std::vector<ui::DialogButton>{
+            {tr("Cancel"), nullptr},
+            {tr("Replace"),
+             [saved, unsaved, done] {
+                 App::get().scenes().push(ui::ProgressOverlay::start<Expected<void>>(
+                     {tr("Saving it to the SD card"), Lane::Io, false, false, gfx::color::kPrimary},
+                     [saved, unsaved](ui::TaskProgress&, const CancelToken&) {
+                         return replaceFile(App::get().sd(), saved.path, unsaved->bytes());
+                     },
+                     [saved, done](Expected<void> replaced) {
+                         if (!replaced)
+                         {
+                             showError(downloadError(replaced.error()));
+                             return;
+                         }
+                         finish(saved, done);
+                     }));
+             }},
+        });
 }
 
 } // namespace
 
 void downloadToSd(std::string url, std::string title, std::string fallbackName, std::function<void(Saved)> done)
 {
-    App::get().scenes().push(ui::ProgressOverlay::start<Expected<Saved>>(
+    App::get().scenes().push(ui::ProgressOverlay::start<Expected<Fetched>>(
         {std::move(title), Lane::Network, true, false, gfx::color::kPrimary},
-        [url, fallbackName](ui::TaskProgress& task, const CancelToken& token) -> Expected<Saved> {
+        [url, fallbackName](ui::TaskProgress& task, const CancelToken& token) -> Expected<Fetched> {
             task.setStatus(tr("Downloading"));
             net::Request request;
             request.url = url;
@@ -75,9 +118,9 @@ void downloadToSd(std::string url, std::string title, std::string fallbackName, 
             std::vector<std::string> files;
             for (const ZipEntry& entry : zip.entries())
                 files.push_back(entry.name);
-            Saved saved;
-            saved.kind = kindOf(files);
-            const char* folder = folderFor(saved.kind);
+            Fetched fetched;
+            fetched.saved.kind = kindOf(files);
+            const char* folder = folderFor(fetched.saved.kind);
             if (!folder)
                 return fail(Errc::Unsupported, "neither a theme, a splash nor badges");
 
@@ -85,28 +128,33 @@ void downloadToSd(std::string url, std::string title, std::string fallbackName, 
             name = path::sanitizeFilename(name.empty() ? std::string("download") : name);
             FileSystem& sd = App::get().sd();
             TZ_CHECK(sd.createDirectories(folder));
-            saved.path = TZ_TRY(freePath(sd, folder, name));
-            // from the download's own buffer: a copy would need its size again, and the app closes when it can't have it
-            saved.size = reader->size();
-            TZ_CHECK(sd.writeFile(saved.path, reader->bytes()));
-            return saved;
-        },
-        [done](Expected<Saved> saved) {
-            if (!saved)
+            fetched.saved.path = path::join(folder, std::string(path::stem(name)) + ".zip");
+            fetched.saved.size = reader->size();
+            if (sd.exists(fetched.saved.path))
             {
-                if (saved.error().code == Errc::Unsupported)
+                // asked first (see askToReplace())
+                fetched.unsaved = std::move(reader);
+                return fetched;
+            }
+            // from the download's own buffer: a copy would need its size again, and the app closes when it can't
+            // have it
+            TZ_CHECK(sd.writeFile(fetched.saved.path, reader->bytes()));
+            return fetched;
+        },
+        [done](Expected<Fetched> fetched) {
+            if (!fetched)
+            {
+                if (fetched.error().code == Errc::Unsupported)
                     showError({tr("That's not something to install"),
                                tr("The download isn't a theme, a splash screen or a badge set.")});
                 else
-                    showError(downloadError(saved.error()));
+                    showError(downloadError(fetched.error()));
                 return;
             }
-            const App::Folder folder = saved->kind == ContentKind::Theme
-                                           ? App::Folder::Themes
-                                           : (saved->kind == ContentKind::Splash ? App::Folder::Splashes
-                                                                                 : App::Folder::Badges);
-            App::get().folderChanged(folder);
-            done(*saved);
+            if (fetched->unsaved)
+                askToReplace(fetched->saved, std::move(fetched->unsaved), done);
+            else
+                finish(fetched->saved, done);
         }));
 }
 
@@ -117,7 +165,7 @@ void offerInstall(const Saved& saved, const std::string& name)
     {
         App::get().scenes().emplace<ui::Dialog>(
             gfx::Icon::Badge, gfx::accent::kBadges.light, trf("{} is saved", name),
-            trf("It's in /Badges as {}. Install your badges from the Badges tab.", file),
+            trf("{}\nInstall your badges from the Badges tab.", saved.path),
             std::vector<ui::DialogButton>{{tr("OK"), nullptr}});
         return;
     }
@@ -125,7 +173,7 @@ void offerInstall(const Saved& saved, const std::string& name)
     const bool theme = saved.kind == ContentKind::Theme;
     App::get().scenes().emplace<ui::Dialog>(
         theme ? gfx::Icon::Theme : gfx::Icon::Splash, theme ? gfx::accent::kThemes.light : gfx::accent::kSplashes.light,
-        trf("{} is saved", name), trf("Install it now? It's in {} as {}.", path::parent(saved.path), file),
+        trf("{} is saved", name), trf("{}\nInstall it now?", saved.path),
         std::vector<ui::DialogButton>{
             {tr("Later"), nullptr},
             {tr("Install"),
