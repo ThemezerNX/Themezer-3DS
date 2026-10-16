@@ -37,6 +37,8 @@ constexpr const char* kMusicName = "bgm.bcstm";
 constexpr const char* kPreviewName = "preview.png";
 constexpr uint64_t kMaxPreviewSize = 4 * 1024 * 1024;
 constexpr int kMaxShuffle = home::kShuffleSlots;
+// how long the info reader holds the SD card worker before what else waits for it goes first
+constexpr u64 kInfoTurnMs = 100;
 
 // the order of ThemeMode
 enum InstallMode
@@ -246,6 +248,9 @@ void LibraryPage::startInfoReader()
     const library::Kind kind = kind_;
     const int language = App::get().language();
     jobs::run(Lane::Io, token_, [this, queue, kind, language, token = token_](const CancelToken&) {
+        // A tenth of a second at a time: a preview, music or an install waiting for the SD card goes in between, rather
+        // than after every item without an info in the cache (all of them, the first time).
+        const u64 start = osGetTime();
         for (;;)
         {
             library::Source source;
@@ -254,6 +259,16 @@ void LibraryPage::startInfoReader()
                 if (queue->pending.empty() || token.cancelled())
                 {
                     queue->running = false;
+                    return;
+                }
+                if (osGetTime() - start >= kInfoTurnMs)
+                {
+                    // the rest in a new job, behind what's waiting now
+                    queue->running = false;
+                    jobs::post([this, token] {
+                        if (!token.cancelled())
+                            startInfoReader();
+                    });
                     return;
                 }
                 source = std::move(queue->pending.front());
