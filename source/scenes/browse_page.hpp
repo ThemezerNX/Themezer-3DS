@@ -47,6 +47,7 @@ private:
         catalog::Item item;
         uint64_t key = 0;
         bool iconRequested = false;  // the icon, or the details with it
+        bool iconShown = false;      // it went into the atlas, which may have made room for others since
         uint8_t detailsFailures = 0; // tried again when it comes into view, a few times
         bool onSd = false;           // already downloaded
     };
@@ -61,6 +62,7 @@ private:
 
     void reload();
     void fetchPage(int page);
+    bool hasMore() const;
     void requestIcons();
     void checkOnSd(size_t from);
     void search();
@@ -94,6 +96,13 @@ private:
     CancelToken token_; // cancelled when the page goes, or when the list is replaced
     // used only on the network lane's one worker, so never by two threads at once
     std::shared_ptr<net::Client> client_ = std::make_shared<net::Client>();
+    // the same, on the icons lane: its own connection, so icons load while a preview downloads
+    std::shared_ptr<net::Client> iconClient_ = std::make_shared<net::Client>();
+    // icons asked for and not there yet (see requestIcons())
+    int iconsInFlight_ = 0;
+    // the next page failed: what went wrong, and when it's tried again
+    std::string moreError_;
+    uint64_t moreRetryAt_ = 0;
     ui::TabBar kinds_{KEY_LEFT, KEY_RIGHT};
     QrView qr_;
     // the folders' generations last checked for downloads, by App::Folder

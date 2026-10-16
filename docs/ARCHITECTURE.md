@@ -28,7 +28,8 @@ implements in memory. That is what makes the code that writes the HOME Menu's fi
   the network. A frame takes a few milliseconds of it.
 - Work runs on a **worker** (`sys/jobs.hpp`): `jobs::async(Lane::Io, work, done)` runs `work` on the SD card worker and
   `done` with its result on the main thread, during the next frame. Network work uses `Lane::Network`, so a slow server
-  never delays the SD card.
+  never delays the SD card, and a list's icons `Lane::Icons`, with a connection of their own, so a preview downloading
+  never delays them.
 - **State the UI uses is only touched on the main thread.** Workers get copies of what they need and post results back.
   There are no locks in UI code.
 - Every job gets a `CancelToken`. An object that starts jobs keeps a `JobGuard` per job, which cancels it when the object

@@ -28,15 +28,18 @@ public:
     // Keeps the selection in range; the list doesn't jump.
     void setCount(int count);
     int count() const { return count_; }
+    // Room under the last row, for what's still loading; the last row selected shows it too. 0 for none.
+    void setFooter(float height);
 
     int selected() const { return selected_; }
     void select(int index, bool animate = true);
 
     Event update(Input& input, float dt);
 
-    // drawRow(index, x, y, width, height, selected)
+    // drawRow(index, x, y, width, height, selected); drawFooter(x, y, width, height), when it's on screen
     using RowPainter = std::function<void(int, float, float, float, float, bool)>;
-    void draw(const RowPainter& drawRow) const;
+    using FooterPainter = std::function<void(float, float, float, float)>;
+    void draw(const RowPainter& drawRow, const FooterPainter& drawFooter = {}) const;
 
     // The rows that are at least partly on screen, for loading what they show first.
     std::pair<int, int> visibleRange() const;
@@ -52,6 +55,7 @@ private:
     float width_ = 320;
     float height_ = 200;
     float rowHeight_ = 44;
+    float footer_ = 0;
     int count_ = 0;
     int selected_ = 0;
     float scroll_ = 0;       // pixels from the top

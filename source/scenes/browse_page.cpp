@@ -43,6 +43,13 @@ constexpr float kSearchLineHeight = 22;
 constexpr int kQrTab = 3;
 // how near the end of the list the next page starts loading
 constexpr int kPrefetchRows = 6;
+// how long a next page that failed waits before it's tried again
+constexpr uint64_t kMoreRetryMs = 3000;
+// the spinner's radius in the row under the list while more loads
+constexpr float kFooterSpinner = 8;
+// icons asked for at a time: the one loading and the next, so that the icons lane never waits, and what's asked for
+// next is what's on screen when one arrives
+constexpr int kIconsInFlight = 2;
 constexpr uint64_t kMaxIconSize = 256 * 1024;
 constexpr uint64_t kMaxPreviewSize = 4 * 1024 * 1024;
 constexpr uint64_t kMaxZipSize = 64 * 1024 * 1024;
@@ -221,14 +228,22 @@ void BrowsePage::reload()
     token_.cancel();
     token_ = CancelToken();
     entries_.clear();
+    iconsInFlight_ = 0;
     atlas_.clear();
     previews_.clear();
     list_.setCount(0);
     page_ = 0;
     pages_ = 1;
     fetching_ = false;
+    moreError_.clear();
+    moreRetryAt_ = 0;
     state_ = State::Loading;
     fetchPage(1);
+}
+
+bool BrowsePage::hasMore() const
+{
+    return page_ < pages_;
 }
 
 void BrowsePage::fetchPage(int page)
@@ -258,10 +273,13 @@ void BrowsePage::fetchPage(int page)
                     }
                     else
                     {
-                        ui::toast(describe(result->error()).title, ui::ToastKind::Error);
+                        // said at the end of the list, and tried again in a while rather than every frame
+                        moreError_ = describe(result->error()).title;
+                        moreRetryAt_ = osGetTime() + kMoreRetryMs;
                     }
                     return;
                 }
+                moreError_.clear();
                 page_ = (*result)->page;
                 pages_ = (*result)->pages;
                 const size_t from = entries_.size();
@@ -321,23 +339,28 @@ void BrowsePage::checkOnSd(size_t from)
 
 void BrowsePage::requestIcons()
 {
-    // the rows on screen first, a few below them after
+    // The rows on screen from the top, then a few below them, a couple at a time: the next is chosen when one arrives,
+    // so a fast scroll loads the rows it stops at, not all those it passed.
     const auto [first, last] = list_.visibleRange();
     const int end = std::min<int>(last + 4, static_cast<int>(entries_.size()) - 1);
-    for (int i = std::max(0, first); i <= end; ++i)
+    for (int i = std::max(0, first); i <= end && iconsInFlight_ < kIconsInFlight; ++i)
     {
         Entry& entry = entries_[i];
+        // the atlas keeps a hundred icons: one it dropped since is asked for again
+        if (entry.iconShown && !atlas_.has(entry.key))
+            entry.iconRequested = entry.iconShown = false;
         if (entry.iconRequested || entry.detailsFailures >= kDetailsTries)
             continue;
         const uint64_t key = entry.key;
-        auto client = client_;
+        auto client = iconClient_;
         if (!entry.item.detailsUrl.empty())
         {
             // a site that lists only ids: the name, author and icon come together
             entry.iconRequested = true;
+            ++iconsInFlight_;
             const catalog::Item item = entry.item;
             const int language = App::get().language();
-            jobs::run(Lane::Network, token_, [this, client, item, key, language, token = token_](const CancelToken&) {
+            jobs::run(Lane::Icons, token_, [this, client, item, key, language, token = token_](const CancelToken&) {
                 auto details = std::make_shared<Expected<catalog::Details>>(
                     catalog::fetchDetails(*client, item, language, token));
                 if (token.cancelled())
@@ -345,21 +368,28 @@ void BrowsePage::requestIcons()
                 if (!*details)
                     log::writeError(item.detailsUrl.c_str(), details->error());
                 jobs::post([this, details, key, token] {
-                    Entry* found = token.cancelled() ? nullptr : find(key);
-                    if (!found)
+                    if (token.cancelled())
                         return;
-                    if (!*details)
+                    --iconsInFlight_;
+                    if (Entry* found = find(key))
                     {
-                        // a network hiccup: asked again while it's in view
-                        found->iconRequested = false;
-                        ++found->detailsFailures;
-                        return;
+                        if (!*details)
+                        {
+                            // a network hiccup: asked again while it's in view
+                            found->iconRequested = false;
+                            ++found->detailsFailures;
+                        }
+                        else
+                        {
+                            catalog::Details& got = **details;
+                            found->item.name = std::move(got.name);
+                            found->item.author = std::move(got.author);
+                            found->item.description = std::move(got.description);
+                            atlas_.put(key, got.icon.data());
+                            found->iconShown = true;
+                        }
                     }
-                    catalog::Details& got = **details;
-                    found->item.name = std::move(got.name);
-                    found->item.author = std::move(got.author);
-                    found->item.description = std::move(got.description);
-                    atlas_.put(key, got.icon.data());
+                    requestIcons();
                 });
             });
             continue;
@@ -367,16 +397,28 @@ void BrowsePage::requestIcons()
         if (entry.item.iconUrl.empty())
             continue;
         entry.iconRequested = true;
+        ++iconsInFlight_;
         const std::string url = entry.item.iconUrl;
-        jobs::run(Lane::Network, token_, [this, client, url, key, token = token_](const CancelToken&) {
-            auto image = downloadPng(*client, url, kMaxIconSize, 48, 48, token);
-            if (!image || token.cancelled())
+        jobs::run(Lane::Icons, token_, [this, client, url, key, token = token_](const CancelToken&) {
+            std::shared_ptr<std::array<uint16_t, 48 * 48>> icon;
+            if (auto image = downloadPng(*client, url, kMaxIconSize, 48, 48, token))
+            {
+                icon = std::make_shared<std::array<uint16_t, 48 * 48>>();
+                imageToIcon(resize(*image, 48, 48), icon->data(), 48);
+            }
+            if (token.cancelled())
                 return;
-            auto icon = std::make_shared<std::array<uint16_t, 48 * 48>>();
-            imageToIcon(resize(*image, 48, 48), icon->data(), 48);
+            // a failed one stays a placeholder
             jobs::post([this, icon, key, token] {
-                if (!token.cancelled())
+                if (token.cancelled())
+                    return;
+                --iconsInFlight_;
+                if (Entry* found = icon ? find(key) : nullptr)
+                {
                     atlas_.put(key, icon->data());
+                    found->iconShown = true;
+                }
+                requestIcons();
             });
         });
     }
@@ -471,13 +513,15 @@ void BrowsePage::update(ui::Input& input, float dt)
 
     const float top = listTop(metric::kTabBarHeight);
     list_.setBounds(0, top, metric::kBottomWidth, metric::kHeight - top - metric::kHintBarHeight);
+    // a row under the last one while there's more to load
+    list_.setFooter(hasMore() ? metric::kRowHeight : 0);
     const auto event = list_.update(input, dt);
     requestIcons();
 
     // the next page, before the end is reached
-    if (page_ < pages_ && list_.selected() >= static_cast<int>(entries_.size()) - kPrefetchRows)
-        fetchPage(page_ + 1);
-    if (list_.visibleRange().second >= static_cast<int>(entries_.size()) - 2 && page_ < pages_)
+    const int count = static_cast<int>(entries_.size());
+    if (hasMore() && osGetTime() >= moreRetryAt_ &&
+        (list_.selected() >= count - kPrefetchRows || list_.visibleRange().second >= count - 2))
         fetchPage(page_ + 1);
 
     Entry* entry = selected();
@@ -657,9 +701,20 @@ void BrowsePage::drawBottom(float top, float bottom)
         if (!entry.item.audioUrl.empty())
             right = row::mark(Icon::Music, color::kTextFaint, right, y, h);
         row::lines(nameOf(entry.item), entry.item.author, x, y, h, right);
+    }, [this](float x, float y, float w, float h) {
+        // the next page: loading, or what went wrong until it's tried again
+        const float middle = y + h / 2;
+        const bool failed = !fetching_ && !moreError_.empty();
+        const std::string text = failed ? moreError_ : tr("Loading more");
+        const float width = 2 * kFooterSpinner + 8 + textWidth(text, metric::kTextSmall);
+        const float left = x + (w - width) / 2;
+        if (failed)
+            icon(Icon::WifiOff, left, std::round(middle - kFooterSpinner), 2 * kFooterSpinner, color::kTextDim);
+        else
+            spinner(left + kFooterSpinner, middle, kFooterSpinner, accent().light);
+        drawText(text, left + 2 * kFooterSpinner + 8, textTop(middle, metric::kTextSmall), metric::kTextSmall,
+                 color::kTextDim);
     });
-    if (fetching_ && !entries_.empty())
-        spinner(metric::kBottomWidth / 2, bottom - 12, 7, accent().light);
 }
 
 void BrowsePage::downloadScanned(const std::string& text)

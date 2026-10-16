@@ -35,6 +35,17 @@ void ListView::setCount(int count)
     scroll_ = std::clamp(scroll_, 0.0f, maxScroll());
 }
 
+void ListView::setFooter(float height)
+{
+    height = std::max(0.0f, height);
+    // unchanged, it leaves a drag past the end alone
+    if (height == footer_)
+        return;
+    footer_ = height;
+    target_ = std::clamp(target_, 0.0f, maxScroll());
+    scroll_ = std::clamp(scroll_, 0.0f, maxScroll());
+}
+
 void ListView::select(int index, bool animate)
 {
     if (count_ == 0)
@@ -47,7 +58,7 @@ void ListView::select(int index, bool animate)
 
 float ListView::maxScroll() const
 {
-    return std::max(0.0f, count_ * rowHeight_ - height_);
+    return std::max(0.0f, count_ * rowHeight_ + footer_ - height_);
 }
 
 int ListView::rowsPerPage() const
@@ -57,13 +68,14 @@ int ListView::rowsPerPage() const
 
 void ListView::keepSelectionVisible()
 {
-    // a row of margin above and below the selection, where there is one
+    // a row of margin above and below the selection, where there is one; under the last row, the footer
     const float top = selected_ * rowHeight_;
     const float margin = height_ > rowHeight_ * 3 ? rowHeight_ * 0.6f : 0.0f;
+    const float below = selected_ == count_ - 1 ? std::max(margin, footer_) : margin;
     if (top - margin < target_)
         target_ = top - margin;
-    else if (top + rowHeight_ + margin > target_ + height_)
-        target_ = top + rowHeight_ + margin - height_;
+    else if (top + rowHeight_ + below > target_ + height_)
+        target_ = top + rowHeight_ + below - height_;
     target_ = std::clamp(target_, 0.0f, maxScroll());
     velocity_ = 0;
 }
@@ -185,7 +197,7 @@ ListView::Event ListView::update(Input& input, float dt)
     return event;
 }
 
-void ListView::draw(const RowPainter& drawRow) const
+void ListView::draw(const RowPainter& drawRow, const FooterPainter& drawFooter) const
 {
     if (count_ == 0)
         return;
@@ -193,9 +205,12 @@ void ListView::draw(const RowPainter& drawRow) const
     const auto [first, last] = visibleRange();
     for (int i = first; i <= last; ++i)
         drawRow(i, x_, y_ + i * rowHeight_ - scroll_, width_, rowHeight_, i == selected_);
+    const float footerTop = y_ + count_ * rowHeight_ - scroll_;
+    if (footer_ > 0 && drawFooter && footerTop < y_ + height_)
+        drawFooter(x_, footerTop, width_, footer_);
 
     // a thin scrollbar when the rows don't fit
-    const float total = count_ * rowHeight_;
+    const float total = count_ * rowHeight_ + footer_;
     if (total > height_)
     {
         const float barHeight = std::max(16.0f, height_ * height_ / total);

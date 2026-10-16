@@ -52,6 +52,7 @@ namespace priority
 constexpr int kAudio = 0x18;   // above the UI, so the music never skips
 constexpr int kMain = 0x30;
 constexpr int kWorker = 0x38;  // below the UI: work happens while it waits for the next frame
+constexpr int kIcons = 0x37;   // above the other workers: a list waits on its icons, each a moment's work
 constexpr int kNetwork = 0x38;
 constexpr int kIdle = 0x3F;
 } // namespace priority

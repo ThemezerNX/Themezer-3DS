@@ -212,7 +212,9 @@ void roundedRect(float x, float y, float w, float h, float radius, Color color)
 
 void circle(float cx, float cy, float radius, Color color)
 {
-    C2D_DrawCircleSolid(cx, cy, 0, radius, color);
+    // four quarter fans, as the rounded corners are drawn: citro2d's own circles don't show in Azahar
+    for (int quarter = 0; quarter < 4; ++quarter)
+        corner(cx, cy, radius, kPi * 0.5f * static_cast<float>(quarter), color);
 }
 
 void line(float x0, float y0, float x1, float y1, float width, Color color)

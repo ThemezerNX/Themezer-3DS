@@ -21,6 +21,7 @@ enum class Lane : uint8_t
 {
     Io,      // the SD card, zips, images
     Network, // downloads, so a slow server never holds up the SD card work
+    Icons,   // a list's icons: small downloads each wanted at once, never kept waiting by a preview or a download
     Count,
 };
 

@@ -72,10 +72,13 @@ void workerLoop(Worker& worker)
 
 void init()
 {
-    for (Worker& worker : workers)
+    for (size_t lane = 0; lane < std::size(workers); ++lane)
     {
+        Worker& worker = workers[lane];
         worker.stopping = false;
-        worker.thread = Thread::start([&worker] { workerLoop(worker); }, priority::kWorker, -2, 128 * 1024);
+        // the 3DS doesn't share a core between threads of one priority: the icons go before a preview's decoding
+        const int priority = lane == static_cast<size_t>(Lane::Icons) ? priority::kIcons : priority::kWorker;
+        worker.thread = Thread::start([&worker] { workerLoop(worker); }, priority, -2, 128 * 1024);
     }
 }
 
