@@ -799,8 +799,7 @@ void LibraryPage::openActions()
     {
         const bool music = info && info->hasMusic;
         const bool usable = !info || info->usable(kind_);
-        actions.push_back({Icon::Install, tr("Install"), music ? tr("With its music") : tr("It has no music"), usable,
-                           false, [this, key] {
+        actions.push_back({Icon::Install, tr("Install"), {}, usable, false, [this, key] {
                                if (Entry* e = find(key))
                                    install(*e, kFull);
                            }});
@@ -812,17 +811,17 @@ void LibraryPage::openActions()
                                }});
             const themes::Current& current = App::get().homeStorage().atStart;
             const bool customInstalled = !installedBodies_.empty() || current.hasCustomTheme();
+            // said only when it can't be chosen: why
             actions.push_back({Icon::MusicOnly, tr("Use only its music"),
-                               customInstalled ? tr("With the theme you have now") : tr("Install a theme first"),
-                               customInstalled, false, [this, key] {
+                               customInstalled ? std::string() : tr("Install a theme first"), customInstalled, false,
+                               [this, key] {
                                    if (Entry* e = find(key))
                                        install(*e, kMusicOnly);
                                }});
         }
         const bool picked = std::any_of(shuffle_.begin(), shuffle_.end(), [&](const auto& p) { return p.key == key; });
-        actions.push_back({Icon::Shuffle, picked ? tr("Change in shuffle") : tr("Add to shuffle"),
-                           trf("{} of {} chosen", std::to_string(shuffle_.size()), std::to_string(kMaxShuffle)),
-                           usable, false, [this, key] {
+        actions.push_back({Icon::Shuffle, picked ? tr("Change in shuffle") : tr("Add to shuffle"), {}, usable, false,
+                           [this, key] {
                                if (Entry* e = find(key))
                                    toggleShuffle(*e);
                            }});
@@ -834,8 +833,7 @@ void LibraryPage::openActions()
     {
         const bool top = info && info->top.size != 0;
         const bool bottom = info && info->bottom.size != 0;
-        const std::string screens = top && bottom ? tr("Both screens") : (top ? tr("Top screen") : tr("Bottom screen"));
-        actions.push_back({Icon::Screens, tr("Install"), screens, top || bottom || !info, false, [this, key] {
+        actions.push_back({Icon::Screens, tr("Install"), {}, top || bottom || !info, false, [this, key] {
                                if (Entry* e = find(key))
                                    installSplash(*e, static_cast<int>(splashes::Screens::Both));
                            }});
@@ -1073,7 +1071,7 @@ std::vector<ui::Action> LibraryPage::menuActions()
         actions.push_back({Icon::Trash, tr("Remove the splash"), tr("Luma3DS starts without one"), true, true,
                            [this] { removeSplash(); }});
     }
-    actions.push_back({Icon::Refresh, tr("Look at the SD card again"), {}, true, false, [this] { load(); }});
+    actions.push_back({Icon::Refresh, tr("Reload from the SD card"), {}, true, false, [this] { load(); }});
     return actions;
 }
 

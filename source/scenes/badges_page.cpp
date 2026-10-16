@@ -307,8 +307,8 @@ std::vector<ui::Hint> BadgesPage::hints() const
     const Set* set = self->selected();
     return {
         {KEY_A, tr("More")},
-        {KEY_X, set && set->included ? tr("Skip") : tr("Include")},
         {KEY_Y, tr("Preview")},
+        {KEY_X, set && set->included ? tr("Skip") : tr("Include")},
     };
 }
 
@@ -403,20 +403,19 @@ void BadgesPage::openActions()
         return;
     const uint64_t key = set->key;
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Install, trf("Install {} badge sets", std::to_string(includedCount())),
-                       tr("They replace the badges on the HOME Menu"), includedCount() > 0, false,
-                       [this] { install(); }});
-    actions.push_back({Icon::Eye, tr("Preview"), {}, true, false, [this, key] {
-                           for (const Set& s : sets_)
-                               if (s.key == key)
-                                   openPreview(s);
-                       }});
+    actions.push_back({Icon::Install, trf("Install {} badge sets", std::to_string(includedCount())), {},
+                       includedCount() > 0, false, [this] { install(); }});
     actions.push_back({set->included ? Icon::Square : Icon::SquareCheck,
                        set->included ? tr("Leave this set out") : tr("Include this set"), {}, true, false,
                        [this, key] {
                            for (Set& s : sets_)
                                if (s.key == key)
                                    s.included = !s.included;
+                       }});
+    actions.push_back({Icon::Eye, tr("Preview"), {}, true, false, [this, key] {
+                           for (const Set& s : sets_)
+                               if (s.key == key)
+                                   openPreview(s);
                        }});
     if (!set->source.loose())
         actions.push_back({Icon::Trash, tr("Delete from the SD card"), {}, true, true, [this, key] {
@@ -680,7 +679,7 @@ std::vector<ui::Action> BadgesPage::menuActions()
     actions.push_back({Icon::Restore, tr("Bring back the badges you had before"),
                        backup ? tr("From before this app first changed them") : tr("There's no copy yet"), backup,
                        false, [this] { restore(); }});
-    actions.push_back({Icon::Refresh, tr("Look at the SD card again"), {}, true, false, [this] { load(); }});
+    actions.push_back({Icon::Refresh, tr("Reload from the SD card"), {}, true, false, [this] { load(); }});
     return actions;
 }
 
