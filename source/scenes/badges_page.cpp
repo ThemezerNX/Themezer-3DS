@@ -399,6 +399,30 @@ void BadgesPage::install()
         ui::toast(tr("Include at least one set (X)"), ui::ToastKind::Warning);
         return;
     }
+    // more than the HOME Menu holds: said before rather than after. A picture can be a sheet of several badges, so
+    // these are at least the badges there are.
+    int pictures = 0;
+    for (const Set& set : sets_)
+        if (set.included && set.summarized)
+            pictures += set.summary.images;
+    if (static_cast<int>(chosen.size()) > badges::kMaxSets || pictures > badges::kMaxBadges)
+    {
+        App::get().scenes().emplace<ui::Dialog>(
+            Icon::Badge, accent().light, tr("Not all of these fit"),
+            trf("The HOME Menu has room for 1000 badges in 100 sets, and these are {} sets with {} pictures. The ones at "
+                "the end of the list are left out.",
+                std::to_string(chosen.size()), std::to_string(pictures)),
+            std::vector<ui::DialogButton>{
+                {tr("Cancel"), [] {}},
+                {tr("Install what fits"), [this, chosen] { installSets(chosen); }},
+            });
+        return;
+    }
+    installSets(std::move(chosen));
+}
+
+void BadgesPage::installSets(std::vector<badges::SetSource> chosen)
+{
     Error error;
     Archive* archive = App::get().badges(&error);
     if (!archive)
@@ -440,7 +464,8 @@ void BadgesPage::install()
             if (result->skipped > 0)
                 ui::toast(trf("{} pictures couldn't be used", std::to_string(result->skipped)),
                           ui::ToastKind::Warning);
-            ui::toast(tr("The HOME Menu shows them after a restart"));
+            ui::toast(tr("Press HOME to see them"));
+            App::get().badgesChanged();
         }));
 }
 
@@ -477,6 +502,7 @@ void BadgesPage::uninstall()
                          }
                          installedCount_ = 0;
                          ui::toast(tr("The badges are off the HOME Menu"), ui::ToastKind::Success);
+                         App::get().badgesChanged();
                      });
              },
              true},

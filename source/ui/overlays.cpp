@@ -19,6 +19,9 @@ using namespace gfx;
 namespace
 {
 
+// progress overlays holding the HOME button off
+int homeHolds = 0;
+
 float ease(float t)
 {
     t = std::clamp(t, 0.0f, 1.0f);
@@ -282,7 +285,11 @@ std::string TaskProgress::status() const
 ProgressOverlay::ProgressOverlay(Options options) : options_(std::move(options))
 {
     if (options_.blockHome)
+    {
+        ++homeHolds;
+        // at once, not from the next frame
         aptSetHomeAllowed(false);
+    }
 }
 
 ProgressOverlay::~ProgressOverlay()
@@ -292,7 +299,12 @@ ProgressOverlay::~ProgressOverlay()
     if (options_.cancellable)
         token_.cancel();
     if (options_.blockHome)
-        aptSetHomeAllowed(true);
+        --homeHolds;
+}
+
+bool homeHeld()
+{
+    return homeHolds > 0;
 }
 
 void ProgressOverlay::update(Input& input, float dt)
@@ -306,8 +318,6 @@ void ProgressOverlay::update(Input& input, float dt)
         cancelRequested_ = true;
         token_.cancel();
     }
-    if (options_.blockHome && aptCheckHomePressRejected())
-        toast("Wait a moment: this has to finish first", ToastKind::Warning);
     if (done_->load())
         close();
 }

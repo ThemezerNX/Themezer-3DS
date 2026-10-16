@@ -238,51 +238,83 @@ void App::requestExit()
         LOG_INFO("autopilot: the app would close now; it stays open for the monkey");
         return;
     }
-    if (!themeChanged_)
+    if (!themeChanged_ && !badgesChanged_)
     {
         quit_ = true;
         return;
     }
 
-    // A 3dsx returns to the Homebrew Launcher, not to the HOME Menu, which then can't reload the theme; nor can it
-    // when it's on a basic colour or a shuffle (see themes::Current::restartToShow).
-    const bool restart = restartNeeded_ || homebrew_ || homeStorage_.atStart.restartToShow();
-    if (restart)
+    // asked once at a time, however often HOME is pressed
+    if (exitAsked_)
+        return;
+    exitAsked_ = true;
+    const ui::DialogButton cancel{tr("Cancel"), [this] { exitAsked_ = false; }};
+    const auto closing = [this](AfterExit after) {
+        return [this, after] {
+            exitAsked_ = false;
+            afterExit_ = after;
+            quit_ = true;
+        };
+    };
+
+    // A 3dsx returns to the Homebrew Launcher, not to the HOME Menu, which then can't reload the theme or the badges;
+    // nor can it reload a theme when it's on a basic colour or a shuffle (see themes::Current::restartToShow). Closing
+    // without a reboot would show nothing new, so a reboot is the only way out then.
+    const bool reboot = restartNeeded_ || homebrew_ || homeStorage_.atStart.restartToShow();
+    if (reboot)
     {
-        scenes_.emplace<ui::Dialog>(
-            gfx::Icon::Refresh, gfx::color::kPrimaryLight, tr("Restart to see your theme?"),
-            tr("The HOME Menu shows your new theme once the console restarts. You can also restart later."),
-            std::vector<ui::DialogButton>{
-                {tr("Later"),
-                 [this] {
-                     afterExit_ = AfterExit::Nothing;
-                     quit_ = true;
-                 }},
-                {tr("Restart"),
-                 [this] {
-                     afterExit_ = AfterExit::Restart;
-                     quit_ = true;
-                 }},
-            });
+        const char* title = tr("Reboot to see your theme?");
+        const char* text = tr("The HOME Menu shows your new theme once the console reboots.");
+        if (badgesChanged_ && themeChanged_)
+        {
+            title = tr("Reboot to see your theme and badges?");
+            text = tr("The HOME Menu shows your new theme and badges once the console reboots.");
+        }
+        else if (badgesChanged_)
+        {
+            title = tr("Reboot to see your badges?");
+            text = tr("The HOME Menu shows your new badges once the console reboots.");
+        }
+        scenes_.emplace<ui::Dialog>(gfx::Icon::Refresh, gfx::color::kPrimaryLight, title, text,
+                                    std::vector<ui::DialogButton>{cancel, {tr("Reboot"), closing(AfterExit::Restart)}});
     }
     else
     {
-        scenes_.emplace<ui::Dialog>(
-            gfx::Icon::Theme, gfx::color::kPrimaryLight, tr("Your new theme is ready"),
-            tr("When you close the app, the HOME Menu offers to power off: choose Cancel, and it shows your theme."),
-            std::vector<ui::DialogButton>{
-                {tr("Restart instead"),
-                 [this] {
-                     afterExit_ = AfterExit::Restart;
-                     quit_ = true;
-                 }},
-                {tr("Close"),
-                 [this] {
-                     afterExit_ = AfterExit::ReloadHome;
-                     quit_ = true;
-                 }},
-            });
+        gfx::Icon icon = gfx::Icon::Theme;
+        const char* title = tr("Your new theme is ready");
+        const char* text = tr("Close the app to see it. The HOME Menu then asks whether to power off: choose Cancel "
+                              "there, and it shows your new theme.");
+        if (badgesChanged_ && themeChanged_)
+        {
+            title = tr("Your new theme and badges are ready");
+            text = tr("Close the app to see them. The HOME Menu then asks whether to power off: choose Cancel there, and "
+                      "it shows your new theme and badges.");
+        }
+        else if (badgesChanged_)
+        {
+            icon = gfx::Icon::Badge;
+            title = tr("Your new badges are ready");
+            text = tr("Close the app to see them. The HOME Menu then asks whether to power off: choose Cancel there, and "
+                      "it shows your new badges.");
+        }
+        scenes_.emplace<ui::Dialog>(icon, gfx::color::kPrimaryLight, title, text,
+                                    std::vector<ui::DialogButton>{cancel, {tr("Close app"), closing(AfterExit::ReloadHome)}});
     }
+}
+
+void App::updateHome()
+{
+    // HOME is held off while a task writes the system's files, and while a change waits to show: going to the HOME
+    // Menu then wouldn't show it, so HOME asks how to close the app instead, as "Close the app" does.
+    const bool allowed = !ui::homeHeld() && !themeChanged_ && !badgesChanged_;
+    if (aptIsHomeAllowed() != allowed)
+        aptSetHomeAllowed(allowed);
+    if (!aptCheckHomePressRejected())
+        return;
+    if (ui::homeHeld())
+        ui::toast(tr("Wait a moment: this has to finish first"), ui::ToastKind::Warning);
+    else
+        requestExit();
 }
 
 void App::updateStatus()
@@ -353,6 +385,7 @@ int App::run(int argc, char** argv)
         const u64 now = osGetTime();
         const float dt = std::clamp(static_cast<float>(now - last) / 1000.0f, 0.0f, 0.1f);
         last = now;
+        updateHome();
 
         ui::RawInput raw = ui::readHardware();
         autopilot::drive(raw);

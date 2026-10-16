@@ -91,6 +91,10 @@ private:
     float buttonsY_ = 0;
 };
 
+// Whether a progress overlay holds the HOME button off now, its task writing the system's files. The app decides
+// what HOME may do each frame (see App::updateHome()).
+bool homeHeld();
+
 // What a task tells the progress overlay as it goes, from its worker thread.
 class TaskProgress
 {

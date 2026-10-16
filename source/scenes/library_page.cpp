@@ -975,7 +975,7 @@ void LibraryPage::installShuffle()
             for (Entry& entry : entries_)
                 applyInstalled(entry);
             App::get().themeChanged(true);
-            ui::toast(tr("The shuffle is installed"), ui::ToastKind::Success);
+            ui::toast(tr("The shuffle is installed: press HOME to reboot and see it"), ui::ToastKind::Success);
         }));
 }
 
@@ -1111,7 +1111,7 @@ void LibraryPage::resetTheme()
                          for (Entry& entry : entries_)
                              applyInstalled(entry);
                          App::get().themeChanged(false);
-                         ui::toast(tr("The default theme is back"), ui::ToastKind::Success);
+                         ui::toast(tr("The default theme is back: press HOME to see it"), ui::ToastKind::Success);
                      }));
              }},
         });

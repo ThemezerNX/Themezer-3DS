@@ -94,7 +94,9 @@ void installTheme(const library::Source& source, const std::string& name, ThemeM
                 return;
             }
             App::get().themeChanged(false);
-            ui::toast(trf(mode == ThemeMode::MusicOnly ? "The music of {} is on" : "{} is installed", name),
+            ui::toast(trf(mode == ThemeMode::MusicOnly ? "The music of {} is on: press HOME to hear it"
+                                                       : "{} is installed: press HOME to see it",
+                          name),
                       ui::ToastKind::Success);
             if (result->mono)
                 ui::toast(tr("Its music is mono, which the HOME Menu can play badly"), ui::ToastKind::Warning);

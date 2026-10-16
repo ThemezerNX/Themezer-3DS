@@ -50,8 +50,10 @@ public:
     // The HOME Menu's theme has changed. It shows after the HOME Menu reloads, or after a restart when needed.
     void themeChanged(bool needsRestart);
     bool themeChangePending() const { return themeChanged_; }
+    // The HOME Menu's badges have changed. It shows them once it reloads, as for a theme (see requestExit()).
+    void badgesChanged() { badgesChanged_ = true; }
 
-    // Closes the app, first asking how to show a changed theme.
+    // Closes the app, first asking how to show a changed theme or badges (HOME asks it too while there is one).
     void requestExit();
 
     // A newer release, once the update check found one.
@@ -84,6 +86,7 @@ private:
     void shutdown();
     void openHomeStorage();
     void checkForUpdates();
+    void updateHome();
     void updateStatus();
 
     std::unique_ptr<Archive> sd_;
@@ -98,6 +101,8 @@ private:
     bool quit_ = false;
     bool themeChanged_ = false;
     bool restartNeeded_ = false;
+    bool badgesChanged_ = false;
+    bool exitAsked_ = false; // the question of how to close is on screen
     enum class AfterExit : uint8_t
     {
         Nothing,
