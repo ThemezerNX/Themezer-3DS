@@ -70,7 +70,7 @@ void downloadToSd(std::string url, std::string title, std::string fallbackName, 
             net::Response response = TZ_TRY(std::move(got));
 
             task.setStatus(tr("Saving it to the SD card"));
-            std::shared_ptr<Reader> reader = std::make_shared<MemoryReader>(std::move(response.body));
+            auto reader = std::make_shared<MemoryReader>(std::move(response.body));
             const ZipArchive zip = TZ_TRY(ZipArchive::open(reader));
             std::vector<std::string> files;
             for (const ZipEntry& entry : zip.entries())
@@ -86,9 +86,9 @@ void downloadToSd(std::string url, std::string title, std::string fallbackName, 
             FileSystem& sd = App::get().sd();
             TZ_CHECK(sd.createDirectories(folder));
             saved.path = TZ_TRY(freePath(sd, folder, name));
-            Bytes data = TZ_TRY(reader->readAll(kMaxDownload));
-            saved.size = data.size();
-            TZ_CHECK(sd.writeFile(saved.path, data));
+            // from the download's own buffer: a copy would need its size again, and the app closes when it can't have it
+            saved.size = reader->size();
+            TZ_CHECK(sd.writeFile(saved.path, reader->bytes()));
             return saved;
         },
         [done](Expected<Saved> saved) {

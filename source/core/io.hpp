@@ -31,6 +31,7 @@ class MemoryReader final : public Reader
 public:
     explicit MemoryReader(Bytes data) : data_(std::move(data)) {}
     uint64_t size() const override { return data_.size(); }
+    ByteSpan bytes() const { return data_; }
     Expected<void> readAt(uint64_t offset, MutableByteSpan out) override;
 
 private:
