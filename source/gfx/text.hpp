@@ -43,6 +43,16 @@ float drawText(std::string_view text, float x, float y, float size, Color color,
 float drawWrapped(std::string_view text, float x, float y, float width, float size, Color color, int maxLines = 0,
                   Align align = Align::Left, float lineSpacing = 1.0f);
 
+// While one lives, text is drawn with a dark shadow under it, to read it on a picture.
+class TextShadow
+{
+public:
+    TextShadow();
+    ~TextShadow();
+    TextShadow(const TextShadow&) = delete;
+    TextShadow& operator=(const TextShadow&) = delete;
+};
+
 std::string ellipsize(std::string_view text, float maxWidth, float size);
 std::vector<std::string> wrap(std::string_view text, float width, float size, int maxLines = 0);
 

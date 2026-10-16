@@ -46,25 +46,4 @@ private:
     JobGuard job_;
 };
 
-// How far the selected item's preview has faded in over the top screen: from nothing for each item selected, once
-// its preview is there.
-class PreviewFade
-{
-public:
-    void update(uint64_t key, bool ready, float dt)
-    {
-        if (key != key_)
-        {
-            key_ = key;
-            alpha_ = 0;
-        }
-        alpha_ = ready ? std::min(1.0f, alpha_ + dt * 6) : 0;
-    }
-    float alpha() const { return alpha_; }
-
-private:
-    uint64_t key_ = 0;
-    float alpha_ = 0;
-};
-
 } // namespace tz::scenes

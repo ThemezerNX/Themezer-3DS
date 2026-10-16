@@ -66,7 +66,7 @@ Screens split(const Image& picture)
 Image blurSource(const Image& top)
 {
     // a small picture with its neighbours averaged: stretched by the GPU, it becomes a smooth blur
-    Image small = resize(top, 40, 24);
+    Image small = resize(top, 80, 48);
     Image blurred(small.width, small.height);
     for (int y = 0; y < small.height; ++y)
     {

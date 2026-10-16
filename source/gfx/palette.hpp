@@ -98,6 +98,7 @@ constexpr float kIcon = 16;
 constexpr float kIconLarge = 48;
 
 // The console font at these sizes stays readable on the screens' large pixels; nothing is smaller than kTextSmall.
+constexpr float kTextTitle = 0.75f; // an item's name on the top screen: capitals 14 pixels high
 constexpr float kTextLarge = 0.6f;  // titles: capitals 11 pixels high
 constexpr float kTextNormal = 0.5f; // most text: capitals 9.5 pixels high
 constexpr float kTextSmall = 0.45f; // second lines: capitals 8.5 pixels high

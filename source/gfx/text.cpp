@@ -58,6 +58,9 @@ bool breaksAnywhere(char32_t c)
            (c >= 0xFF00 && c <= 0xFFEF);
 }
 
+// TextShadows alive
+int shadows = 0;
+
 void drawLine(std::string_view line, float x, float y, float size, Color color, Align align)
 {
     if (line.empty() || !frameBuffer)
@@ -69,10 +72,24 @@ void drawLine(std::string_view line, float x, float y, float size, Color color, 
         x -= textWidth(line, size) / 2;
     else if (align == Align::Right)
         x -= textWidth(line, size);
+    // parsed once and drawn twice, as the frame has room for so many glyphs
+    if (shadows > 0)
+        C2D_DrawText(&text, C2D_WithColor, std::round(x) + 1, std::round(y) + 1, 0.0f, size, size,
+                     withAlpha(rgba(0, 0, 0, 200), static_cast<float>(color >> 24) / 255.0f));
     C2D_DrawText(&text, C2D_WithColor, std::round(x), std::round(y), 0.0f, size, size, color);
 }
 
 } // namespace
+
+TextShadow::TextShadow()
+{
+    ++shadows;
+}
+
+TextShadow::~TextShadow()
+{
+    --shadows;
+}
 
 void initText()
 {

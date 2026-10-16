@@ -438,15 +438,8 @@ BrowsePage::Entry* BrowsePage::find(uint64_t key)
     return nullptr;
 }
 
-void BrowsePage::tick(float dt)
+void BrowsePage::tick(float)
 {
-    // the preview fades in also under a menu that opened before it came
-    if (const Entry* entry = selected(); entry && state_ == State::Ready)
-    {
-        const PreviewPictures* pictures = previews_.get(entry->key);
-        fade_.update(entry->key, pictures && pictures->top, dt);
-    }
-
     // the site was changed in the settings
     if (App::get().config().browseSource != source_)
         switchSource(App::get().config().browseSource);
@@ -586,9 +579,7 @@ std::shared_ptr<Picture> BrowsePage::backdrop() const
 
 float BrowsePage::topCover() const
 {
-    if (scanningTab())
-        return qr_.showsPicture() ? 1 : 0;
-    return state_ == State::Ready ? fade_.alpha() : 0;
+    return scanningTab() && qr_.showsPicture() ? 1 : 0;
 }
 
 void BrowsePage::drawTop()
@@ -601,16 +592,13 @@ void BrowsePage::drawTop()
     const Entry* entry = selected();
     if (state_ != State::Ready || !entry)
         return;
-    if (fade_.alpha() < 1)
-        drawDetails(*entry);
-    const PreviewPictures* pictures = previews_.get(entry->key);
-    if (pictures && pictures->top && fade_.alpha() > 0)
-        pictures->top->draw(0, 0, metric::kTopWidth, metric::kHeight, fade_.alpha());
+    drawDetails(*entry);
 }
 
 void BrowsePage::drawDetails(const Entry& entry)
 {
-    // until the preview is here: the icon, the name and the author
+    // the item's icon, name, author and description, its preview blurred behind them (see backdrop())
+    const TextShadow shadow;
     constexpr float kLeft = 24;
     constexpr float kIcon = IconAtlas::kIconSize;
     const float top = metric::kStatusBarHeight + 24;
@@ -619,15 +607,13 @@ void BrowsePage::drawDetails(const Entry& entry)
     const float textX = kLeft + kIcon + 14;
     const float width = metric::kTopWidth - textX - kLeft;
     const float middle = top + kIcon / 2;
-    drawText(nameOf(entry.item), textX, textTop(middle - 9, metric::kTextLarge), metric::kTextLarge, color::kText,
+    drawText(nameOf(entry.item), textX, textTop(middle - 10, metric::kTextTitle), metric::kTextTitle, color::kText,
              Align::Left, width);
-    drawText(entry.item.author, textX, textTop(middle + 11, metric::kTextNormal), metric::kTextNormal,
+    drawText(entry.item.author, textX, textTop(middle + 13, metric::kTextNormal), metric::kTextNormal,
              color::kTextDim, Align::Left, width);
     if (!entry.item.description.empty())
         drawWrapped(entry.item.description, kLeft, top + kIcon + 18, metric::kTopWidth - 2 * kLeft,
                     metric::kTextNormal, color::kTextDim, 4);
-    if (previews_.loading(entry.key))
-        spinner(metric::kTopWidth - 30, metric::kHeight - 26, 9, color::kTextDim);
 
     const float factsMiddle = metric::kHeight - 22;
     float x = kLeft;

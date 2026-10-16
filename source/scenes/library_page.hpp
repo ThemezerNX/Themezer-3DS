@@ -33,7 +33,6 @@ public:
     void tick(float dt) override;
     void update(ui::Input& input, float dt) override;
     void drawTop() override;
-    float topCover() const override;
     void drawBottom(float top, float bottom) override;
     std::vector<ui::Hint> hints() const override;
     std::shared_ptr<gfx::Picture> backdrop() const override;
@@ -105,7 +104,6 @@ private:
     ui::ListView list_;
     gfx::IconAtlas atlas_;
     Previews previews_;
-    PreviewFade fade_;
     std::shared_ptr<InfoQueue> infoQueue_ = std::make_shared<InfoQueue>();
     CancelToken token_; // everything this page started; cancelled when it goes
     std::pair<int, int> visible_{0, -1};

@@ -336,6 +336,7 @@ std::string BadgesPage::detailOf(const Set& set) const
 
 void BadgesPage::drawTop()
 {
+    const TextShadow shadow;
     const Set* set = selected();
     if (state_ != State::Ready || !set)
     {
@@ -346,23 +347,51 @@ void BadgesPage::drawTop()
                      Align::Center);
         return;
     }
-    const PreviewPictures* pictures = previews_.get(set->key);
-    if (pictures && pictures->top)
-        pictures->top->draw(0, 0, metric::kTopWidth, metric::kHeight);
-    else if (previews_.loading(set->key))
-        spinner(metric::kTopWidth / 2, 110, 14, color::kTextDim);
+    // the set's icon, name and author, its badges blurred behind them (see backdrop()), as the other tabs show an item
+    constexpr float kLeft = 24;
+    constexpr float kIcon = IconAtlas::kIconSize;
+    const std::string description = set->source.loose() ? tr("The pictures directly in /Badges") : std::string();
+    const auto lines = wrap(description, metric::kTopWidth - 2 * kLeft, metric::kTextNormal, 4);
+    const float blockHeight =
+        kIcon + (lines.empty() ? 0 : 16 + static_cast<float>(lines.size()) * lineHeight(metric::kTextNormal));
+    // between the status bar and the facts along the bottom
+    const float top = std::round(metric::kStatusBarHeight + (metric::kHeight - 44 - metric::kStatusBarHeight -
+                                                              blockHeight) / 2);
+    if (!atlas_.draw(set->key, kLeft, top, kIcon))
+    {
+        roundedRect(kLeft, top, kIcon, kIcon, metric::kRadius, color::kSurfaceRaised);
+        icon(set->source.loose() ? Icon::Images : Icon::Badge, kLeft + (kIcon - metric::kIcon) / 2,
+             top + (kIcon - metric::kIcon) / 2, metric::kIcon, color::kTextFaint);
+    }
+    const float textX = kLeft + kIcon + 14;
+    const float width = metric::kTopWidth - textX - kLeft;
+    const float middle = top + kIcon / 2;
+    const std::string& author = set->source.author;
+    drawText(set->source.name, textX, textTop(author.empty() ? middle : middle - 10, metric::kTextTitle),
+             metric::kTextTitle, color::kText, Align::Left, width);
+    if (!author.empty())
+        drawText(author, textX, textTop(middle + 13, metric::kTextNormal), metric::kTextNormal, color::kTextDim,
+                 Align::Left, width);
+    drawWrapped(description, kLeft, top + kIcon + 16, metric::kTopWidth - 2 * kLeft, metric::kTextNormal,
+                color::kTextDim, 4);
 
-    // under the grid: the set's name and how many badges it has
-    const float nameMiddle = metric::kHeight - 36;
-    drawText(set->source.name, 24, textTop(nameMiddle, metric::kTextLarge), metric::kTextLarge, color::kText,
-             Align::Left, metric::kTopWidth - 48);
-    std::string line = detailOf(*set);
+    // what it is, along the bottom
+    const float factsMiddle = metric::kHeight - 22;
+    float x = kLeft;
+    auto fact = [&](Icon which, const std::string& text, Color tint) {
+        icon(which, x, std::round(factsMiddle - metric::kIcon / 2), metric::kIcon, tint);
+        x += metric::kIcon + 4;
+        x += drawText(text, x, textTop(factsMiddle, metric::kTextSmall), metric::kTextSmall, tint) + 16;
+    };
+    if (set->summarized)
+        fact(Icon::Badge, trf(set->summary.badges == 1 ? "{} badge" : "{} badges", std::to_string(set->summary.badges)),
+             color::kTextDim);
+    if (!set->included)
+        fact(Icon::Square, tr("Left out"), color::kTextFaint);
     if (installedCount_ >= 0)
-        line += (line.empty() ? "" : "   ") + trf("The HOME Menu has {} now", std::to_string(installedCount_));
+        fact(Icon::Info, trf("The HOME Menu has {} now", std::to_string(installedCount_)), color::kTextDim);
     else if (storageBusy_)
-        line += std::string(line.empty() ? "" : "   ") + tr("The HOME Menu is using its badges");
-    drawText(line, 24, textTop(metric::kHeight - 15, metric::kTextSmall), metric::kTextSmall, color::kTextDim,
-             Align::Left, metric::kTopWidth - 48);
+        fact(Icon::Info, tr("The HOME Menu is using its badges"), color::kTextFaint);
 }
 
 void BadgesPage::drawBottom(float top, float bottom)

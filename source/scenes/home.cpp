@@ -70,7 +70,8 @@ public:
 
     void drawTop() override
     {
-        backdrop_.draw(0.35f);
+        // dark enough under the item's details to read them on a light preview
+        backdrop_.draw(0.55f);
         page().drawTop();
         if (const float cover = page().topCover(); cover < 1)
             drawStatusBar(1 - cover);

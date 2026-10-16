@@ -92,7 +92,6 @@ private:
     ui::ListView list_;
     gfx::IconAtlas atlas_;
     Previews previews_;
-    PreviewFade fade_;
     CancelToken token_; // cancelled when the page goes, or when the list is replaced
     // used only on the network lane's one worker, so never by two threads at once
     std::shared_ptr<net::Client> client_ = std::make_shared<net::Client>();

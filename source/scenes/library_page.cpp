@@ -497,13 +497,6 @@ void LibraryPage::tick(float dt)
         installedFound_ = false;
         focusInstalled();
     }
-    // the preview fades in also under a menu that opened before it came
-    if (const Entry* entry = selectedEntry(); entry && state_ == State::Ready)
-    {
-        const PreviewPictures* pictures = previews_.get(entry->key);
-        fade_.update(entry->key, pictures && pictures->top, dt);
-    }
-
     // something was downloaded into the folder: read it again
     const auto folder = kind_ == library::Kind::Theme ? App::Folder::Themes : App::Folder::Splashes;
     if (state_ == State::Ready && App::get().folderGeneration(folder) != generation_)
@@ -627,23 +620,12 @@ std::shared_ptr<Picture> LibraryPage::backdrop() const
 // ---------------------------------------------------------------------------------------------------------------------
 // Drawing
 
-float LibraryPage::topCover() const
-{
-    return state_ == State::Ready ? fade_.alpha() : 0;
-}
-
 void LibraryPage::drawTop()
 {
     const Entry* entry = selectedEntry();
     if (state_ != State::Ready || !entry)
         return;
-    // the details until the preview is there, then the top screen as the HOME Menu would show it (the name is on the
-    // selected row)
-    if (fade_.alpha() < 1)
-        drawDetails(*entry);
-    const PreviewPictures* pictures = previews_.get(entry->key);
-    if (pictures && pictures->top && fade_.alpha() > 0)
-        pictures->top->draw(0, 0, metric::kTopWidth, metric::kHeight, fade_.alpha());
+    drawDetails(*entry);
 }
 
 const char* LibraryPage::statusOf(const Entry& entry) const
@@ -661,7 +643,8 @@ const char* LibraryPage::statusOf(const Entry& entry) const
 
 void LibraryPage::drawDetails(const Entry& entry)
 {
-    // without a preview: the item's icon, name, author and description
+    // the item's icon, name, author and description, its preview blurred behind them (see backdrop())
+    const TextShadow shadow;
     const library::Item& item = entry.item;
     constexpr float kLeft = 24;
     constexpr float kIcon = IconAtlas::kIconSize;
@@ -683,10 +666,10 @@ void LibraryPage::drawDetails(const Entry& entry)
     const float width = metric::kTopWidth - textX - kLeft;
     const float middle = top + kIcon / 2;
     const std::string author = item.author();
-    drawText(item.displayName(), textX, textTop(author.empty() ? middle : middle - 9, metric::kTextLarge),
-             metric::kTextLarge, color::kText, Align::Left, width);
+    drawText(item.displayName(), textX, textTop(author.empty() ? middle : middle - 10, metric::kTextTitle),
+             metric::kTextTitle, color::kText, Align::Left, width);
     if (!author.empty())
-        drawText(author, textX, textTop(middle + 11, metric::kTextNormal), metric::kTextNormal, color::kTextDim,
+        drawText(author, textX, textTop(middle + 13, metric::kTextNormal), metric::kTextNormal, color::kTextDim,
                  Align::Left, width);
     drawWrapped(description, kLeft, top + kIcon + 16, textWidth, metric::kTextNormal,
                 item.info ? color::kTextDim : color::kTextFaint, 4);
