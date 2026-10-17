@@ -13,7 +13,7 @@ and shipped inside the app, where the About screen shows them.
 | zlib | zip archives, PNG | zlib |
 | libpng | PNG images | libpng-2.0 |
 | Jansson | JSON | MIT |
-| quirc | QR code scanning | ISC |
+| ZXing-cpp | QR code scanning | Apache-2.0 |
 | Lucide | the app's icons (gfx/icons) | ISC; parts from Feather, MIT |
 | Mozilla CA certificate list | verifying HTTPS servers | MPL-2.0 |
 | newlib, libstdc++ (devkitARM) | C and C++ runtime | see below |
@@ -510,22 +510,41 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-## quirc
+## ZXing-cpp
+
+ZXing-cpp (https://github.com/zxing-cpp/zxing-cpp) is used under the Apache License 2.0, whose text is in the Mbed TLS
+section above. Its files are unmodified (see `third_party/zxing-cpp`).
 
 ```
-Copyright (C) 2010-2012 Daniel Beer <dlbeer@gmail.com>
+Copyright Nu-book Inc.
+Copyright ZXing authors
+Copyright Axel Waggershauser
+Copyright gitlost
+Copyright Huy Cuong Nguyen
+```
 
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
+Its UTF-8 decoder is Bjoern Hoehrmann's (http://bjoern.hoehrmann.de/utf-8/decoder/dfa/), under the MIT license:
 
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+```
+Copyright (c) 2008-2009 Bjoern Hoehrmann <bjoern@hoehrmann.de>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 ```
 
 ## Lucide

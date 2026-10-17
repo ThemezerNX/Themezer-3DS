@@ -49,7 +49,7 @@ ifeq ($(DEVTOOLS),1)
   BUILD  := build/dev
   OUT    := out/dev
 endif
-SOURCES  := source third_party/quirc
+SOURCES  := source third_party/zxing-cpp
 INCLUDES := source third_party
 ROMFS    := romfs
 META     := meta
@@ -154,6 +154,10 @@ $(BUILD)/%.o: %.c
 
 # code from elsewhere is kept as it is, warnings and all
 $(BUILD)/third_party/%.o: CFLAGS += -w
+# ZXing-cpp throws and catches as it decodes, so it and the one file that calls it are built with exceptions
+ZXING_FLAGS := -fexceptions -DZXING_INTERNAL -I$(CURDIR)/third_party/zxing-cpp
+$(BUILD)/third_party/zxing-cpp/%.o: CXXFLAGS += -w $(ZXING_FLAGS)
+$(BUILD)/source/services/qr_zxing.o: CXXFLAGS += $(ZXING_FLAGS)
 
 $(ROMFS)/gfx/%.t3x $(BUILD)/gen/%.h: $(GFX)/%.t3s
 	@mkdir -p $(ROMFS)/gfx $(BUILD)/gen

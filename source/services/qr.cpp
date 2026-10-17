@@ -2,15 +2,17 @@
 // Copyright (C) 2026 Themezer-3DS contributors
 
 // Two threads. The camera thread takes the outer camera's frames as they come, 30 a second, and keeps the newest for
-// latestFrame(); the decode thread looks for QR codes with quirc in one of them about ten times a second.
+// latestFrame(); the decode thread looks for a QR code in the middle of one of them with ZXing-cpp, up to ten times a
+// second.
 
 #include "services/qr.hpp"
 
-#include "quirc/quirc.h"
+#include "services/qr_zxing.hpp"
 #include "sys/log.hpp"
 #include "sys/thread.hpp"
 
 #include <3ds.h>
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <cstring>
@@ -34,20 +36,20 @@ constexpr int kAppCore = -2;
 constexpr int kCapturePriority = priority::kMain - 1;
 constexpr size_t kCaptureStack = 32 * 1024;
 
-// quirc spends tens of milliseconds of the app core on a picture; ten pictures a second still find a code quickly.
+// An attempt starts 100 ms after the last one started, or 10 ms after it ended when it took longer, as on an Old 3DS:
+// the system doesn't take turns between threads of one priority, and the job workers on this core have this one's.
 constexpr s64 kDecodeIntervalNs = 100'000'000;
-// quirc 1.2's flood fill doesn't recurse; quirc_flip keeps a code (4 KB) on the stack.
+constexpr s64 kDecodeGapNs = 10'000'000;
 constexpr size_t kDecodeStack = 64 * 1024;
+
+// ZXing-cpp reads the middle of the picture, around the corners the screen shows to aim with (240 x 240 of the
+// camera's pixels): an Old 3DS took 0.17 s to convert a whole picture and look through it, about twice this.
+constexpr int kDecodeWidth = 400;
+constexpr int kDecodeHeight = 300;
+constexpr size_t kDecodePixels = static_cast<size_t>(kDecodeWidth) * kDecodeHeight;
 
 // How long stopping waits for the frame in flight, in 1 ms steps; a frame takes 33.
 constexpr int kStopPolls = 500;
-
-// What quirc hands back for a code, too big for a thread's stack.
-struct DecodeScratch
-{
-    quirc_code code;
-    quirc_data data;
-};
 
 // Logs a camera call that failed; true if it worked.
 bool check(Result result, const char* what)
@@ -68,59 +70,34 @@ Error cameraError(Result result)
     return Error{Errc::Busy, static_cast<int32_t>(result), "camera driver didn't start"};
 }
 
-// quirc reads 8-bit grey. (2R + 5G + B) / 8 of the channels widened to 8 bits is close to the usual luma weights
-// (0.30, 0.59, 0.11), keeps white at 255 and needs no division.
-void toGrey(const uint16_t* rgb565, uint8_t* grey)
+// The middle of a frame (kDecodeWidth x kDecodeHeight) as 8-bit grey, which ZXing-cpp reads. (2R + 5G + B) / 8 of the
+// channels widened to 8 bits is close to the usual luma weights (0.30, 0.59, 0.11), keeps white at 255 and needs no
+// division.
+void middleToGrey(const uint16_t* rgb565, uint8_t* grey)
 {
-    for (size_t i = 0; i < kPixels; ++i)
+    constexpr int left = (QrScanner::kWidth - kDecodeWidth) / 2;
+    constexpr int top = (QrScanner::kHeight - kDecodeHeight) / 2;
+    for (int y = 0; y < kDecodeHeight; ++y)
     {
-        const uint32_t pixel = rgb565[i];
-        const uint32_t r = pixel >> 11;
-        const uint32_t g = (pixel >> 5) & 0x3F;
-        const uint32_t b = pixel & 0x1F;
-        const uint32_t r8 = (r << 3) | (r >> 2);
-        const uint32_t g8 = (g << 2) | (g >> 4);
-        const uint32_t b8 = (b << 3) | (b >> 2);
-        grey[i] = static_cast<uint8_t>((2 * r8 + 5 * g8 + b8) >> 3);
+        const uint16_t* row = rgb565 + static_cast<size_t>(top + y) * QrScanner::kWidth + left;
+        for (int x = 0; x < kDecodeWidth; ++x)
+        {
+            const uint32_t pixel = row[x];
+            const uint32_t r = pixel >> 11;
+            const uint32_t g = (pixel >> 5) & 0x3F;
+            const uint32_t b = pixel & 0x1F;
+            const uint32_t r8 = (r << 3) | (r >> 2);
+            const uint32_t g8 = (g << 2) | (g >> 4);
+            const uint32_t b8 = (b << 3) | (b >> 2);
+            *grey++ = static_cast<uint8_t>((2 * r8 + 5 * g8 + b8) >> 3);
+        }
     }
 }
 
 // NULs and white space, which some generators leave after the text.
-bool isPadding(uint8_t c)
+bool isPadding(char c)
 {
     return c == '\0' || c == ' ' || (c >= '\t' && c <= '\r');
-}
-
-std::string payloadText(const quirc_data& data)
-{
-    size_t length = static_cast<size_t>(data.payload_len);
-    while (length > 0 && isPadding(data.payload[length - 1]))
-        --length;
-    return std::string(reinterpret_cast<const char*>(data.payload), length);
-}
-
-// The text of the first code quirc found that decodes.
-std::optional<std::string> readCodes(const quirc* qr, DecodeScratch& scratch)
-{
-    const int count = quirc_count(qr);
-    for (int i = 0; i < count; ++i)
-    {
-        quirc_extract(qr, i, &scratch.code);
-        quirc_decode_error_t error = quirc_decode(&scratch.code, &scratch.data);
-        if (error != QUIRC_SUCCESS)
-        {
-            // it may be mirrored (seen in a mirror, or through the back of a see-through sheet); another try costs
-            // little next to finding the code
-            quirc_flip(&scratch.code);
-            error = quirc_decode(&scratch.code, &scratch.data);
-        }
-        if (error != QUIRC_SUCCESS)
-            continue;
-        std::string text = payloadText(scratch.data);
-        if (!text.empty())
-            return text;
-    }
-    return std::nullopt;
 }
 
 } // namespace
@@ -161,9 +138,8 @@ struct QrScanner::Impl
     std::unique_ptr<uint16_t[]> decodeFrame;
     std::atomic<bool> decodeWants{true};
 
-    // The decode thread's own.
-    quirc* qr = nullptr;
-    std::unique_ptr<DecodeScratch> scratch;
+    // The decode thread's own: the middle of its frame in grey.
+    std::unique_ptr<uint8_t[]> grey;
 
     // Written once, before found is set.
     std::string resultText;
@@ -190,8 +166,6 @@ QrScanner::Impl::~Impl()
         if (buffer)
             linearFree(buffer);
     }
-    if (qr)
-        quirc_destroy(qr);
     if (stopEvent)
         svcCloseHandle(stopEvent);
 }
@@ -210,9 +184,8 @@ Expected<void> QrScanner::Impl::open()
         buffer = static_cast<uint16_t*>(linearAlloc(kFrameBytes));
     latest.reset(new (std::nothrow) uint16_t[kPixels]);
     decodeFrame.reset(new (std::nothrow) uint16_t[kPixels]);
-    scratch.reset(new (std::nothrow) DecodeScratch);
-    qr = quirc_new();
-    if (!dma[0] || !dma[1] || !latest || !decodeFrame || !scratch || !qr || quirc_resize(qr, kWidth, kHeight) < 0)
+    grey.reset(new (std::nothrow) uint8_t[kDecodePixels]);
+    if (!dma[0] || !dma[1] || !latest || !decodeFrame || !grey)
         return fail(Errc::OutOfMemory, "QR scanner buffers");
 
     const Result opened = camInit();
@@ -299,7 +272,7 @@ bool QrScanner::Impl::configureCamera(Handle& bufferError, s16& transferUnit)
     check(CAMU_SetNoiseFilter(SELECT_OUT1, true), "turn on the noise filter");
     check(CAMU_SetAutoExposure(SELECT_OUT1, true), "turn on auto exposure");
     check(CAMU_SetAutoWhiteBalance(SELECT_OUT1, true), "turn on auto white balance");
-    // a little sharpening: crisper module edges make the finder patterns easier for quirc to find
+    // a little sharpening: crisper module edges make a code's corners easier to find
     check(CAMU_SetSharpness(SELECT_OUT1, 1), "set the sharpness");
 
     if (!check(CAMU_Activate(SELECT_OUT1), "turn on the camera"))
@@ -351,24 +324,30 @@ void QrScanner::Impl::publish(const uint16_t* frame)
 
 void QrScanner::Impl::decode()
 {
-    while (!stopping(kDecodeIntervalNs))
+    s64 waitNs = kDecodeIntervalNs;
+    while (!stopping(waitNs))
     {
+        waitNs = kDecodeIntervalNs;
         if (decodeWants.load(std::memory_order_acquire))
             continue; // no frame since the last one
-        toGrey(decodeFrame.get(), quirc_begin(qr, nullptr, nullptr));
-        // quirc has its own copy now, so the next frame can come in while it looks
+        const u64 started = svcGetSystemTick();
+        middleToGrey(decodeFrame.get(), grey.get());
+        // the grey copy is enough, so the next frame can come in while ZXing-cpp looks
         decodeWants.store(true, std::memory_order_release);
 
-        quirc_end(qr);
-        std::optional<std::string> text = readCodes(qr, *scratch);
-        if (!text)
-            continue;
-
-        LOG_INFO("qr: read a code of %zu bytes", text->size());
-        resultText = std::move(*text);
-        found.store(true, std::memory_order_release);
-        // The first code is the answer. The camera stays on for the picture until the scanner goes.
-        return;
+        std::optional<std::string> text = readQrCode(grey.get(), kDecodeWidth, kDecodeHeight);
+        while (text && !text->empty() && isPadding(text->back()))
+            text->pop_back();
+        if (text && !text->empty())
+        {
+            LOG_INFO("qr: read a code of %zu bytes", text->size());
+            resultText = std::move(*text);
+            found.store(true, std::memory_order_release);
+            // The first code is the answer. The camera stays on for the picture until the scanner goes.
+            return;
+        }
+        const s64 tookNs = static_cast<s64>((svcGetSystemTick() - started) * 1'000'000'000ULL / SYSCLOCK_ARM11);
+        waitNs = std::max(kDecodeGapNs, kDecodeIntervalNs - tookNs);
     }
 }
 
