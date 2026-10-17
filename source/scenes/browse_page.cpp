@@ -710,7 +710,13 @@ void BrowsePage::downloadScanned(const std::string& text)
         downloadFromThemePlaza(*id);
         return;
     }
-    if (!text.starts_with("http://") && !text.starts_with("https://"))
+    // a link's scheme counts in capitals too, which a QR code holds in fewer modules
+    const auto hasScheme = [&](std::string_view scheme) {
+        return text.size() >= scheme.size() &&
+               path::equalsIgnoreCase(std::string_view(text).substr(0, scheme.size()), scheme);
+    };
+    const bool http = hasScheme("http://");
+    if (!http && !hasScheme("https://"))
     {
         // a code with just an ID in it
         if (const auto quickId = ids::themezerQuickId(text))
@@ -722,9 +728,7 @@ void BrowsePage::downloadScanned(const std::string& text)
         return;
     }
     // Themezer's links are https; an old http one is asked for securely
-    std::string url = text;
-    if (url.starts_with("http://"))
-        url = "https://" + url.substr(7);
+    const std::string url = http ? "https://" + text.substr(7) : text;
     downloadToSd(url, tr("Downloading from the QR code"), "download.zip",
                  [](Saved saved) { offerInstall(saved, savedName(saved)); });
 }
