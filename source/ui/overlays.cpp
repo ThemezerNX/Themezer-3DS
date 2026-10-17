@@ -413,7 +413,8 @@ void drawToasts()
         const float out = std::clamp((kToastTime - t.age) / kToastFade, 0.0f, 1.0f);
         const float alpha = std::min(in, out);
         const float size = metric::kTextSmall;
-        const auto lines = wrap(t.message, metric::kBottomWidth - 64, size, 2);
+        const float wrapWidth = metric::kBottomWidth - 64;
+        const auto lines = wrap(t.message, wrapWidth, size, 2);
         const float height = static_cast<float>(lines.size()) * lineHeight(size) + 12;
         float width = 0;
         for (const std::string& line : lines)
@@ -445,7 +446,8 @@ void drawToasts()
         icon(which, x + 12, std::round(y + height / 2 - metric::kIcon / 2), metric::kIcon, withAlpha(tint, alpha));
         const float textTopY =
             lines.size() == 1 ? textTop(y + height / 2, size) : y + (height - lineHeight(size) * 2) / 2;
-        drawWrapped(t.message, x + 34, textTopY, width - 44, size, withAlpha(color::kText, alpha), 2);
+        // wrapped as measured: the box's width less its padding can be a hair short and wrap the last letter
+        drawWrapped(t.message, x + 34, textTopY, wrapWidth, size, withAlpha(color::kText, alpha), 2);
         bottom = y - 6;
     }
 }
