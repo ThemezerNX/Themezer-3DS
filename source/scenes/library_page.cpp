@@ -608,9 +608,11 @@ std::vector<ui::Hint> LibraryPage::hints() const
         // picking themes for a shuffle: only what that takes
         auto* self = const_cast<LibraryPage*>(this);
         const Entry* entry = self->selectedEntry();
-        const bool picked = entry && std::any_of(shuffle_.begin(), shuffle_.end(),
-                                                 [&](const ShufflePick& pick) { return pick.key == entry->key; });
-        hints.push_back({KEY_X, picked ? tr("Unpick") : tr("Shuffle")});
+        auto pick = std::find_if(shuffle_.begin(), shuffle_.end(),
+                                 [&](const ShufflePick& p) { return entry && p.key == entry->key; });
+        // what X does next: pick it, then take its music out (when it has some), then unpick it
+        const bool mutes = pick != shuffle_.end() && pick->music && entry->item.info && entry->item.info->hasMusic;
+        hints.push_back({KEY_X, pick == shuffle_.end() ? tr("Shuffle") : (mutes ? tr("Mute") : tr("Unpick"))});
         hints.push_back({KEY_A, trf("Install {}", std::to_string(shuffle_.size()))});
         hints.push_back({KEY_B, tr("Clear")});
         return hints;
@@ -696,7 +698,9 @@ void LibraryPage::drawDetails(const Entry& entry)
         fact(Icon::Check, tr(status), accent().light);
     for (size_t i = 0; i < shuffle_.size(); ++i)
         if (shuffle_[i].key == entry.key)
-            fact(Icon::Shuffle, trf("Shuffle pick {}", std::to_string(i + 1)), accent().light);
+            fact(Icon::Shuffle,
+                 trf(shuffle_[i].music ? "Shuffle pick {}" : "Shuffle pick {} without music", std::to_string(i + 1)),
+                 accent().light);
     if (item.info && item.info->hasMusic)
         fact(Icon::Music, tr("Has music"), color::kTextDim);
 }
@@ -728,27 +732,32 @@ void LibraryPage::drawRow(int index, float x, float y, float w, float h, bool se
     if (!atlas_.draw(entry.key, x + row::kIconX, iconTop, row::kIconSize))
         row::placeholder(x, y, h, kind_ == library::Kind::Theme ? Icon::Theme : Icon::Splash);
 
-    // picked for a shuffle: its place in it, on the icon's corner
-    const ShufflePick* pick = nullptr;
+    // picked for a shuffle: its place in it on the icon's corner, and whether it goes without its music
     for (size_t i = 0; i < shuffle_.size(); ++i)
     {
         if (shuffle_[i].key != entry.key)
             continue;
-        pick = &shuffle_[i];
+        // at the icons' own size, which has its margin: scaled down, the cross runs together
+        constexpr float kMuteIcon = metric::kIcon;
         const std::string number = std::to_string(i + 1);
-        const float width = std::max(16.0f, std::round(textWidth(number, metric::kTextSmall) + 8));
+        const bool muted = !shuffle_[i].music;
+        const float numberWidth = textWidth(number, metric::kTextSmall);
+        const float content = numberWidth + (muted ? 1 + kMuteIcon : 0);
+        const float width = std::max(16.0f, std::round(content + 8));
         const float right = x + row::kIconX + row::kIconSize + 3;
         const float top = iconTop - 3;
         roundedRect(right - width, top, width, 16, 8, accent().solid);
-        drawText(number, right - width / 2, textTop(top + 8, metric::kTextSmall), metric::kTextSmall,
-                 color::kOnAccent, Align::Center);
+        const float left = std::round(right - width / 2 - content / 2);
+        drawText(number, left, textTop(top + 8, metric::kTextSmall), metric::kTextSmall, color::kOnAccent);
+        if (muted)
+            icon(Icon::NoMusic, left + numberWidth + 1, top, kMuteIcon, color::kOnAccent);
     }
 
     float right = x + w - row::kRight;
     if (const char* status = statusOf(entry))
         right = row::status(Icon::Check, tr(status), accent().light, right, y, h);
     if (kind_ == library::Kind::Theme && item.info && item.info->hasMusic)
-        right = row::mark(pick && !pick->music ? Icon::NoMusic : Icon::Music, color::kTextFaint, right, y, h);
+        right = row::mark(Icon::Music, color::kTextFaint, right, y, h);
 
     const bool usable = !item.info || item.info->usable(kind_);
     std::string detail;
