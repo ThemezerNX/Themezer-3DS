@@ -5,6 +5,7 @@
 
 #include "app/app.hpp"
 #include "app/strings.hpp"
+#include "core/motion.hpp"
 #include "core/image.hpp"
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
@@ -130,7 +131,6 @@ private:
         full_ = false;
         scroll_ = 0;
         velocity_ = 0;
-        flinging_ = false;
         CancelToken token;
         job_ = JobGuard(token);
         // before the page's own jobs, as the preview someone is looking at goes first on its lane
@@ -175,10 +175,11 @@ private:
     // Main thread: puts badges into the textures, a new one when the last is full.
     void add(std::vector<Image> badges)
     {
+        const bool wasPast = scroll_ > maxScroll();
         for (const Image& badge : badges)
         {
             if (full_)
-                return;
+                break;
             const int texture = count_ / kPerTexture;
             if (texture == static_cast<int>(textures_.size()))
             {
@@ -190,7 +191,7 @@ private:
                     full_ = true;
                     job_.cancel();
                     done_ = true;
-                    return;
+                    break;
                 }
                 C3D_TexSetFilter(&added, GPU_LINEAR, GPU_LINEAR);
                 textures_.push_back(added);
@@ -205,6 +206,9 @@ private:
                                   (kBadge / 8) * kTileRowBytes);
             ++count_;
         }
+        // badges came in under a bounce at the end: its speed back isn't a fling
+        if (wasPast && scroll_ <= maxScroll())
+            velocity_ = 0;
     }
 
     float contentHeight() const
@@ -217,42 +221,30 @@ private:
     // how far the page goes past the two screens
     float maxScroll() const { return std::max(0.0f, contentHeight() - 2 * metric::kHeight); }
 
+    // As the lists scroll: dragged past an end it gives less and less and springs back, and a fling bounces off an end.
     void scroll(const ui::Input& input, float dt)
     {
         const bool down = input.held & KEY_DOWN;
         const bool up = input.held & KEY_UP;
+        const float over = scroll_ - std::clamp(scroll_, 0.0f, maxScroll());
         if (input.dragging)
         {
-            scroll_ -= input.dy;
+            scroll_ -= input.dy * (over != 0 ? motion::rubberGive(over, metric::kHeight) : 1.0f);
             velocity_ = 0;
-            flinging_ = false;
+            return;
         }
-        else if (input.touchEnded)
+        if (input.touchEnded)
         {
             velocity_ = -input.velocityY;
-            flinging_ = true;
         }
-        else if (down != up)
+        else if (down != up && over == 0)
         {
-            velocity_ = down ? kScrollSpeed : -kScrollSpeed;
-            flinging_ = false;
-        }
-        else if (flinging_)
-        {
-            velocity_ *= std::exp(-kFriction * dt);
-            if (std::abs(velocity_) < 10)
-                velocity_ = 0;
-        }
-        else
-        {
-            // up or down let go: the page stops where it is
+            // up or down held: steadily, stopping at the end; let go, the page stops where it is
+            scroll_ = std::clamp(scroll_ + (down ? kScrollSpeed : -kScrollSpeed) * dt, 0.0f, maxScroll());
             velocity_ = 0;
+            return;
         }
-        scroll_ += velocity_ * dt;
-        const float clamped = std::clamp(scroll_, 0.0f, maxScroll());
-        if (clamped != scroll_)
-            velocity_ = 0;
-        scroll_ = clamped;
+        motion::coast(scroll_, velocity_, 0, maxScroll(), kFriction, dt);
     }
 
     // One screen's part of the page: the top screen shows it from scroll_, the bottom one from a screen lower down.
@@ -285,8 +277,7 @@ private:
     bool done_ = false; // all read, or as many as fit
     bool full_ = false; // no memory for another texture
     float scroll_ = 0;
-    float velocity_ = 0;
-    bool flinging_ = false; // coasting after a drag, rather than moved by up or down
+    float velocity_ = 0; // of a fling or a bounce
     float hintsShown_ = 2.5f;
     ui::HintBar hintBar_;
     std::vector<ui::Hint> hints_;

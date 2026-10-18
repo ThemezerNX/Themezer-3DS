@@ -19,9 +19,6 @@ namespace
 {
 constexpr float kFollow = 16.0f;   // how fast the scroll catches up with its target
 constexpr float kFriction = 4.0f;  // how fast a fling slows down
-constexpr float kSpring = 18.0f;   // how fast the list comes back from past an end (the spring's angular frequency)
-// A fling meets an end at most this fast, so that it bounces off by 30 pixels or so, however hard it was flung.
-constexpr float kBounceSpeed = 1400.0f;
 constexpr float kGlide = 24.0f;    // how fast the highlight goes to the selected row
 constexpr float kScrollbarWidth = 3.0f;
 // The selected row's key: centred in the row with its ledge under it, sinking into it while pressed and a moment at
@@ -268,39 +265,10 @@ ListView::Event ListView::update(Input& input, float dt)
     {
         const float over = overscroll();
         target_ = std::clamp(target_, minScroll(), maxScroll());
-        // past an end and going back to it (not to a row the D-pad chose): a spring, which a fling bounces off
-        if (over != 0 && std::fabs(target_ - (scroll_ - over)) < 0.5f)
+        // coasting: back from past an end, unless the D-pad chose a row to go to instead, or a fling
+        if ((over != 0 && std::fabs(target_ - (scroll_ - over)) < 0.5f) || (over == 0 && velocity_ != 0))
         {
-            float left = over;
-            velocity_ = std::clamp(velocity_, -kBounceSpeed, kBounceSpeed);
-            motion::springStep(left, velocity_, kSpring, dt);
-            if (std::fabs(left) < 0.5f && std::fabs(velocity_) < 20.0f)
-            {
-                left = 0;
-                velocity_ = 0;
-            }
-            scroll_ += left - over;
-        }
-        else if (over == 0 && velocity_ != 0)
-        {
-            // a fling, slowing down; one that reaches an end meets the spring there, no faster than kBounceSpeed
-            const float next = scroll_ + velocity_ * dt;
-            const float end = next > maxScroll() ? maxScroll() : (next < minScroll() ? minScroll() : next);
-            if (end != next)
-            {
-                const float rest = dt * (next - end) / (next - scroll_);
-                float past = 0;
-                velocity_ = std::clamp(velocity_, -kBounceSpeed, kBounceSpeed);
-                motion::springStep(past, velocity_, kSpring, rest);
-                scroll_ = end + past;
-            }
-            else
-            {
-                scroll_ = next;
-                velocity_ *= std::exp(-kFriction * dt);
-                if (std::fabs(velocity_) < 20.0f)
-                    velocity_ = 0;
-            }
+            motion::coast(scroll_, velocity_, minScroll(), maxScroll(), kFriction, dt);
             target_ = std::clamp(scroll_, minScroll(), maxScroll());
         }
         else

@@ -67,3 +67,44 @@ TEST(motion_rubber_never_goes_as_far_as_its_room)
     CHECK(motion::rubberGive(-50, kRoom) == motion::rubberGive(50, kRoom));
     CHECK(motion::rubberGive(100, kRoom) < motion::rubberGive(50, kRoom));
 }
+
+TEST(motion_coast_bounces_off_an_end_however_hard_the_fling)
+{
+    // flung at 5000 pixels a second towards the bottom of a page that ends at 300, even in frames a tenth of a second
+    // long: it goes on past the end by no more than 30 pixels, and comes to rest on it
+    for (const float dt : {1.0f / 60, 0.1f})
+    {
+        float position = 250;
+        float velocity = 5000;
+        float furthest = 0;
+        for (int frame = 0; frame < 120; ++frame)
+        {
+            motion::coast(position, velocity, 0, 300, 4, dt);
+            furthest = std::max(furthest, position);
+        }
+        CHECK(furthest > 300 && furthest < 330);
+        CHECK(position == 300);
+        CHECK(velocity == 0);
+    }
+}
+
+TEST(motion_coast_slows_a_fling_between_the_ends)
+{
+    float position = 0;
+    float velocity = 600;
+    for (int frame = 0; frame < 180; ++frame)
+        motion::coast(position, velocity, 0, 10000, 4, 1.0f / 60);
+    // about 600 / 4 pixels in all, as friction has it, a little more in steps of a frame
+    CHECK(velocity == 0);
+    CHECK(position > 140 && position < 160);
+}
+
+TEST(motion_coast_brings_a_pull_back)
+{
+    float position = -60;
+    float velocity = 0;
+    for (int frame = 0; frame < 60; ++frame)
+        motion::coast(position, velocity, 0, 300, 4, 1.0f / 60);
+    CHECK(position == 0);
+    CHECK(velocity == 0);
+}

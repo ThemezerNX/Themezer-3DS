@@ -5,6 +5,7 @@
 
 #include "app/app.hpp"
 #include "app/strings.hpp"
+#include "core/motion.hpp"
 #include "app_version.h"
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
@@ -353,20 +354,36 @@ public:
     void update(ui::Input& input, float dt) override
     {
         hintBar_.update(input, hints_);
-        const float lineStep = lineHeight(metric::kTextSmall);
-        const float maxScroll = std::max(
-            0.0f, static_cast<float>(lines_.size()) * lineStep - (metric::kHeight - kHeader - metric::kHintBarHeight));
-        if (input.held & KEY_DOWN)
-            scroll_ += 240 * dt;
-        if (input.held & KEY_UP)
-            scroll_ -= 240 * dt;
-        if (input.repeated(KEY_RIGHT))
-            scroll_ += metric::kHeight - 80;
-        if (input.repeated(KEY_LEFT))
-            scroll_ -= metric::kHeight - 80;
+        // as the lists scroll: a drag past an end gives less and less and springs back, a fling bounces off an end, and
+        // the D-pad goes steadily, or a page at a time, stopping at the ends
+        const float view = metric::kHeight - kHeader - metric::kHintBarHeight;
+        const float maxScroll =
+            std::max(0.0f, static_cast<float>(lines_.size()) * lineHeight(metric::kTextSmall) - view);
+        const float over = scroll_ - std::clamp(scroll_, 0.0f, maxScroll);
         if (input.dragging)
-            scroll_ -= input.dy;
-        scroll_ = std::clamp(scroll_, 0.0f, maxScroll);
+        {
+            scroll_ -= input.dy * (over != 0 ? motion::rubberGive(over, view) : 1.0f);
+            velocity_ = 0;
+        }
+        else
+        {
+            if (input.touchEnded)
+                velocity_ = -input.velocityY;
+            // a page at a time, also while it's bouncing; up or down held, once it's back between the ends
+            const float page = input.repeated(KEY_RIGHT)  ? metric::kHeight - 80
+                               : input.repeated(KEY_LEFT) ? -(metric::kHeight - 80)
+                                                          : 0;
+            const float held = ((input.held & KEY_DOWN) ? 240 * dt : 0) - ((input.held & KEY_UP) ? 240 * dt : 0);
+            if (page != 0 || (held != 0 && over == 0))
+            {
+                scroll_ = std::clamp(std::clamp(scroll_, 0.0f, maxScroll) + page + held, 0.0f, maxScroll);
+                velocity_ = 0;
+            }
+            else
+            {
+                motion::coast(scroll_, velocity_, 0, maxScroll, kFriction, dt);
+            }
+        }
         if (input.pressed(KEY_B))
         {
             sfx::play(sfx::Sound::Close);
@@ -422,9 +439,11 @@ private:
     }
 
     static constexpr float kHeader = 32;
+    static constexpr float kFriction = 4; // how fast a fling slows down, as in the lists
     std::string licenses_;
     std::vector<std::string> lines_;
     float scroll_ = 0;
+    float velocity_ = 0; // of a fling or a bounce
     ui::HintBar hintBar_;
     std::vector<ui::Hint> hints_{{KEY_DOWN, tr("Scroll")}, {KEY_B, tr("Back")}};
 };
