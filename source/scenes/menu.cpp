@@ -12,6 +12,7 @@
 #include "scenes/errors.hpp"
 #include "services/updater.hpp"
 #include "sys/audio.hpp"
+#include "sys/sfx.hpp"
 #include "ui/list_view.hpp"
 #include "ui/overlays.hpp"
 #include "ui/widgets.hpp"
@@ -36,6 +37,7 @@ class MenuScene final : public ui::Scene
 public:
     MenuScene(std::string title, std::vector<ui::Action> actions) : title_(std::move(title)), actions_(std::move(actions))
     {
+        sfx::play(sfx::Sound::Open);
         list_.setRowHeight(kRow);
         list_.setCount(static_cast<int>(actions_.size()));
         for (size_t i = 0; i < actions_.size(); ++i)
@@ -58,6 +60,7 @@ public:
         const auto event = list_.update(input, dt);
         if (input.pressed(KEY_B | KEY_START))
         {
+            sfx::play(sfx::Sound::Close);
             close();
             return;
         }
@@ -65,7 +68,10 @@ public:
         {
             const ui::Action& action = actions_[list_.selected()];
             if (!action.enabled)
+            {
+                sfx::play(sfx::Sound::Error);
                 return;
+            }
             close();
             if (action.run)
                 action.run();
@@ -85,8 +91,6 @@ public:
         drawText(title_, 16, textTop(kHeader / 2, metric::kTextNormal), metric::kTextNormal, color::kText);
         list_.draw([this](int index, float x, float y, float w, float h, bool selected) {
             const ui::Action& action = actions_[index];
-            if (selected)
-                roundedRect(x + 6, y + 2, w - 12, h - 4, metric::kRadius, color::kSelection);
             const float middle = y + h / 2;
             const Color tint = !action.enabled ? color::kTextFaint
                                                : (action.danger ? color::kDanger
@@ -95,6 +99,8 @@ public:
             drawText(action.label, x + 44, textTop(middle, metric::kTextNormal), metric::kTextNormal,
                      action.enabled ? (action.danger ? color::kDanger : color::kText) : color::kTextFaint, Align::Left,
                      w - 60);
+        }, {}, [](float x, float y, float w, float h, bool down) {
+            ui::drawKey(x, y, w, h, color::kSurfaceHigh, down, metric::kRadius);
         });
         hintBar_.draw(hints_);
     }
@@ -141,6 +147,7 @@ void installUpdate()
                 Icon::CheckCircle, color::kPrimaryLight, trf("Version {} is installed", copy.version),
                 tr("It starts the next time you open the app."),
                 std::vector<ui::DialogButton>{{tr("Close the app"), [] { App::get().requestExit(); }}});
+            sfx::play(sfx::Sound::Done);
         }));
 }
 
@@ -186,6 +193,7 @@ public:
         const auto event = list_.update(input, dt);
         if (input.pressed(KEY_B))
         {
+            sfx::play(sfx::Sound::Close);
             App::get().saveConfig();
             close();
             return;
@@ -211,10 +219,8 @@ public:
         fill(color::kSurfaceSolid);
         drawText(tr("Settings"), 16, textTop(kHeader / 2, metric::kTextNormal), metric::kTextNormal, color::kText);
         const Config& config = App::get().config();
-        list_.draw([&](int index, float x, float y, float w, float h, bool selected) {
+        list_.draw([&](int index, float x, float y, float w, float h, bool) {
             const Row& row = kRows[index];
-            if (selected)
-                roundedRect(x + 6, y + 2, w - 12, h - 4, metric::kRadius, color::kSelection);
             const float middle = y + h / 2;
             float right = x + w - 18;
             if (row.setting == Setting::BrowseSource)
@@ -236,6 +242,8 @@ public:
                      color::kText, Align::Left, right - x - 44);
             drawText(tr(row.detail), x + 44, textTop(middle + 8, metric::kTextSmall), metric::kTextSmall,
                      color::kTextDim, Align::Left, right - x - 44);
+        }, {}, [](float x, float y, float w, float h, bool down) {
+            ui::drawKey(x, y, w, h, color::kSurfaceHigh, down, metric::kRadius);
         });
         hintBar_.draw(hints_);
     }
@@ -247,6 +255,7 @@ private:
     {
         BackgroundMusic,
         PreviewMusic,
+        Sounds,
         BrowseSource,
         CheckForUpdates,
     };
@@ -258,9 +267,10 @@ private:
         const char* detail;
     };
 
-    static constexpr std::array<Row, 4> kRows{{
+    static constexpr std::array<Row, 5> kRows{{
         {Setting::BackgroundMusic, "Background music", "Themezer's own tune while you browse"},
         {Setting::PreviewMusic, "Music in previews", "A theme's music plays with its preview"},
+        {Setting::Sounds, "Sounds", "A sound as you move, open and choose"},
         {Setting::BrowseSource, "Browse", "Or SELECT on the globe tab"},
         {Setting::CheckForUpdates, "Check for updates", "When the app starts, it looks for a new version"},
     }};
@@ -273,6 +283,8 @@ private:
             return config.backgroundMusic;
         case Setting::PreviewMusic:
             return config.previewMusic;
+        case Setting::Sounds:
+            return config.sounds;
         case Setting::CheckForUpdates:
             return config.checkForUpdates;
         case Setting::BrowseSource:
@@ -295,6 +307,13 @@ private:
             break;
         case Setting::PreviewMusic:
             config.previewMusic = !config.previewMusic;
+            break;
+        case Setting::Sounds:
+            config.sounds = !config.sounds;
+            sfx::setEnabled(config.sounds);
+            // the list's Confirm came while they were still off
+            if (config.sounds)
+                sfx::play(sfx::Sound::Confirm);
             break;
         case Setting::BrowseSource:
             config.browseSource = config.browseSource == catalog::Source::Themezer ? catalog::Source::ThemePlaza
@@ -349,7 +368,10 @@ public:
             scroll_ -= input.dy;
         scroll_ = std::clamp(scroll_, 0.0f, maxScroll);
         if (input.pressed(KEY_B))
+        {
+            sfx::play(sfx::Sound::Close);
             close();
+        }
     }
 
     void drawTop() override

@@ -5,6 +5,7 @@
 
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
+#include "sys/sfx.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -17,8 +18,12 @@ using namespace gfx;
 namespace
 {
 
-constexpr float kHintGap = 12;
-constexpr float kHintMargin = 8;
+// The hints are keycaps: pills on a ledge they sink into when pressed, A the widest, in the accent.
+constexpr float kHintGap = 4;
+constexpr float kHintMargin = 4;
+constexpr float kKeyHeight = 19;
+constexpr float kKeyPadding = 6;  // either side of the button and label
+constexpr float kPressTime = 0.11f; // how long a pressed key stays down at least, as long as it's held
 
 // Where a button's hint goes, left to right as on a Switch: the others first, then SELECT (-), START (+), Y, X, B, A.
 int hintRank(u32 key)
@@ -46,6 +51,7 @@ bool isWordButton(u32 key)
 {
     return key == KEY_START || key == KEY_SELECT;
 }
+
 
 // START and SELECT: a small pill with the word, as the buttons are printed
 struct WordButton
@@ -127,66 +133,113 @@ float drawHint(u32 key, std::string_view label, float x, float middle, Color but
     return button + 4 + drawText(label, x + button + 4, textTop(middle, labelSize), labelSize, labelColor);
 }
 
+float drawKey(float x, float y, float w, float h, Color face, bool down, float radius)
+{
+    if (radius < 0)
+        radius = h / 2;
+    if (down)
+        y += kKeyLip;
+    else if (opacity() >= 1) // it would show through a face that's fading
+        roundedRect(x, y + kKeyLip, w, h, radius, mix(face, color::kBackground, 0.55f));
+    roundedRect(x, y, w, h, radius, face);
+    return y;
+}
+
+u32 HintBar::keyAt(float x, float y) const
+{
+    if (y < y_ || y >= y_ + height_)
+        return 0;
+    for (const Spot& spot : spots_)
+    {
+        if (x >= spot.x && x < spot.x + spot.width)
+            return spot.key;
+    }
+    return 0;
+}
+
 void HintBar::update(Input& input, const std::vector<Hint>& hints)
 {
-    if (!input.tap || input.y < y_ || input.y >= y_ + height_)
-        return;
-    for (size_t i = 0; i < spots_.size() && i < hints.size(); ++i)
+    // a finger on a key holds it down; lifted there, without having moved off, it presses the key
+    const u32 touched = input.touching && !input.dragging ? keyAt(input.x, input.y) : 0;
+    touchedKey_ = touched == keyAt(input.startX, input.startY) ? touched : 0;
+    if (input.tap)
     {
-        if (input.x >= spots_[i].x && input.x < spots_[i].x + spots_[i].width)
+        if (const u32 key = keyAt(input.x, input.y); key && key == keyAt(input.startX, input.startY))
         {
-            input.press(spots_[i].key);
+            input.press(key);
             input.consumeTouch();
-            return;
+        }
+    }
+    // a press of a hint's button, on the bar or on the console, sinks its key for a moment, or while it's held
+    held_ = input.held;
+    for (const Hint& hint : hints)
+    {
+        if (input.down & hint.key)
+        {
+            pressedKey_ = hint.key;
+            pressedAt_ = time();
         }
     }
 }
 
-void HintBar::draw(const std::vector<Hint>& hints, float alpha)
+void HintBar::draw(const std::vector<Hint>& hints, float alpha, Color accent)
 {
     height_ = metric::kHintBarHeight;
     y_ = metric::kHeight - height_;
     spots_.clear();
     if (hints.empty() || alpha <= 0)
         return;
-    rect(0, y_, metric::kBottomWidth, height_, withAlpha(color::kSurfaceSolid, 0.94f * alpha));
-    rect(0, y_, metric::kBottomWidth, 1, withAlpha(color::kDivider, alpha));
+    const Layer layer(0, 0, alpha);
+    rect(0, y_, metric::kBottomWidth, height_, withAlpha(color::kSurfaceSolid, 0.94f));
 
-    // closer together, then smaller labels, when they don't fit
-    float labelSize = metric::kTextNormal;
-    float gap = kHintGap;
-    auto total = [&] {
-        float sum = 2 * kHintMargin - gap;
-        for (const Hint& hint : hints)
-            sum += hintWidth(hint.key, hint.label, labelSize) + gap;
-        return sum;
-    };
-    if (total() > metric::kBottomWidth)
-        gap = 8;
-    if (total() > metric::kBottomWidth)
-        labelSize = metric::kTextSmall;
-
-    // right-aligned in that order, A last; laid out from the right, so the ones that don't fit are on the left
+    // in that order, A last; smaller labels when they don't fit, and then the first ones go
     std::vector<const Hint*> order;
     order.reserve(hints.size());
     for (const Hint& hint : hints)
         order.push_back(&hint);
     std::stable_sort(order.begin(), order.end(),
                      [](const Hint* a, const Hint* b) { return hintRank(a->key) < hintRank(b->key); });
-    const float middle = y_ + 1 + (height_ - 1) / 2;
-    float x = metric::kBottomWidth - kHintMargin;
-    for (auto it = order.rbegin(); it != order.rend(); ++it)
+    float labelSize = metric::kTextNormal;
+    auto keyWidth = [&](const Hint& hint) {
+        return std::round(hintWidth(hint.key, hint.label, labelSize) + 2 * kKeyPadding);
+    };
+    auto total = [&](size_t first) {
+        float sum = 2 * kHintMargin - kHintGap;
+        for (size_t i = first; i < order.size(); ++i)
+            sum += keyWidth(*order[i]) + kHintGap;
+        return sum;
+    };
+    if (total(0) > metric::kBottomWidth)
+        labelSize = metric::kTextSmall;
+    size_t first = 0;
+    while (first + 1 < order.size() && total(first) > metric::kBottomWidth)
+        ++first;
+
+    // right-aligned; A, when it's there, takes what's left of the bar
+    const float spare = std::max(0.0f, metric::kBottomWidth - total(first));
+    const bool wideA = order.back()->key == KEY_A;
+    float x = kHintMargin + (wideA ? 0 : spare);
+    const float top = std::round(y_ + (height_ - kKeyHeight - kKeyLip) / 2);
+    const bool justPressed = time() - pressedAt_ < kPressTime;
+    for (size_t i = first; i < order.size(); ++i)
     {
-        const Hint& hint = **it;
-        const float width = hintWidth(hint.key, hint.label, labelSize);
-        if (x - width < 0)
-            break;
-        x -= width;
-        drawHint(hint.key, hint.label, x, middle, withAlpha(color::kText, alpha), withAlpha(color::kTextDim, alpha),
+        const Hint& hint = *order[i];
+        const bool primary = hint.key == KEY_A;
+        const float width = keyWidth(hint) + (primary && wideA ? spare : 0);
+        const bool down = (justPressed && hint.key == pressedKey_) || (held_ & hint.key) || hint.key == touchedKey_;
+        const Color face = primary ? accent : color::kSurfaceHigh;
+        const Color ink = primary ? color::kOnAccent : color::kText;
+        const float keyTop = drawKey(x, top, width, kKeyHeight, face, down);
+        const float content = hintWidth(hint.key, hint.label, labelSize);
+        drawHint(hint.key, hint.label, x + std::round((width - content) / 2), keyTop + kKeyHeight / 2, ink, ink,
                  labelSize);
-        spots_.push_back({x - gap / 2, width + gap, hint.key});
-        x -= gap;
+        // the whole height of the bar, and half the gaps
+        spots_.push_back({x - kHintGap / 2, width + kHintGap, hint.key});
+        x += width + kHintGap;
     }
+    // as update saw them this frame: without an update (an overlay is over the scene) the keys come up
+    held_ = 0;
+    touchedKey_ = 0;
 }
 
 bool TabBar::update(Input& input)
@@ -195,28 +248,71 @@ bool TabBar::update(Input& input)
         return false;
     const int count = static_cast<int>(tabs_.size());
     const int before = selected_;
+    bool forward = true;
+    // where a finger is on the bar, having stayed where it went down, for the symbols at the ends
+    const auto onBar = [&](float x, float y) { return x >= left_ && x < right_ && y >= top_ && y < bottom_; };
+    const bool touching =
+        input.touching && !input.dragging && onBar(input.startX, input.startY) && onBar(input.x, input.y);
+    const int touched = touching ? slotAt(input.x) : kNoSlot;
+    bool tappedEnd = false;
     if (previousKey_ && input.pressed(previousKey_))
+    {
         selected_ = (selected_ + count - 1) % count;
+        forward = false;
+    }
     else if (nextKey_ && input.pressed(nextKey_))
+    {
         selected_ = (selected_ + 1) % count;
-    else if (input.tap && input.y >= top_ && input.y < bottom_ && !slots_.empty())
+    }
+    else if (input.tap && onBar(input.startX, input.startY) && onBar(input.x, input.y) && !slots_.empty())
     {
         // a tab, or the buttons' symbols at the ends, which go to the tab before or after
-        if (input.x < slots_.front().x)
-            selected_ = (selected_ + count - 1) % count;
-        else if (input.x >= slots_.back().x + slots_.back().width)
-            selected_ = (selected_ + 1) % count;
-        for (size_t i = 0; i < slots_.size(); ++i)
+        const int slot = slotAt(input.x);
+        if (slot == kBefore)
         {
-            if (input.x >= slots_[i].x && input.x < slots_[i].x + slots_[i].width)
-                selected_ = static_cast<int>(i);
+            selected_ = (selected_ + count - 1) % count;
+            forward = false;
         }
+        else if (slot == kAfter)
+        {
+            selected_ = (selected_ + 1) % count;
+        }
+        else
+        {
+            selected_ = slot;
+            forward = selected_ > before;
+        }
+        tappedEnd = slot < 0;
         input.consumeTouch();
     }
+    previousPress_.update(touched == kBefore || (previousKey_ && (input.held & previousKey_)),
+                          (previousKey_ && input.pressed(previousKey_)) || (tappedEnd && !forward));
+    nextPress_.update(touched == kAfter || (nextKey_ && (input.held & nextKey_)),
+                      (nextKey_ && input.pressed(nextKey_)) || (tappedEnd && forward));
     // the buttons switch tabs here, and do nothing else (the D-pad doesn't also page the list)
     input.down &= ~(previousKey_ | nextKey_);
     input.repeat &= ~(previousKey_ | nextKey_);
-    return selected_ != before;
+    if (selected_ == before)
+        return false;
+    forward_ = forward;
+    sfx::play(sfx::Sound::Tab);
+    return true;
+}
+
+int TabBar::slotAt(float x) const
+{
+    if (slots_.empty())
+        return kNoSlot;
+    if (x < slots_.front().x)
+        return kBefore;
+    if (x >= slots_.back().x + slots_.back().width)
+        return kAfter;
+    for (size_t i = 0; i < slots_.size(); ++i)
+    {
+        if (x < slots_[i].x + slots_[i].width)
+            return static_cast<int>(i);
+    }
+    return kAfter;
 }
 
 float TabBar::contentWidth(const Tab& tab, float size) const
@@ -228,6 +324,8 @@ void TabBar::draw(float x, float y, float width, float height, float textSize)
 {
     if (tabs_.empty())
         return;
+    left_ = x;
+    right_ = x + width;
     top_ = y;
     bottom_ = y + height;
     const float middle = y + height / 2;
@@ -238,10 +336,16 @@ void TabBar::draw(float x, float y, float width, float height, float textSize)
     float right = x + width - 8;
     if (previousKey_ && nextKey_)
     {
+        // pressed, a symbol goes down as far as the keys sink, and lights up
         const float glyphTop = textTop(middle, metric::kButtonGlyph);
-        left += drawText(buttonGlyph(previousKey_), left, glyphTop, metric::kButtonGlyph, color::kTextDim) + 4;
+        const bool previousDown = previousPress_.down();
+        const bool nextDown = nextPress_.down();
+        left += drawText(buttonGlyph(previousKey_), left, glyphTop + (previousDown ? kKeyLip : 0), metric::kButtonGlyph,
+                         previousDown ? color::kText : color::kTextDim) +
+                4;
         right -= textWidth(buttonGlyph(nextKey_), metric::kButtonGlyph);
-        drawText(buttonGlyph(nextKey_), right, glyphTop, metric::kButtonGlyph, color::kTextDim);
+        drawText(buttonGlyph(nextKey_), right, glyphTop + (nextDown ? kKeyLip : 0), metric::kButtonGlyph,
+                 nextDown ? color::kText : color::kTextDim);
         right -= 4;
     }
 
@@ -282,6 +386,7 @@ void TabBar::draw(float x, float y, float width, float height, float textSize)
         highlightX_ = target.x;
         highlightWidth_ = target.width;
     }
+    // flat, not a key: it shows where you are, there's nothing to press
     const float pillHeight = height - 10;
     roundedRect(std::round(highlightX_), y + 5, std::round(highlightWidth_), pillHeight, pillHeight / 2,
                 withAlpha(tabs_[static_cast<size_t>(selected_)].accent.solid, 0.35f));

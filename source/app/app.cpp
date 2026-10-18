@@ -16,6 +16,7 @@
 #include "sys/jobs.hpp"
 #include "sys/log.hpp"
 #include "sys/net.hpp"
+#include "sys/sfx.hpp"
 #include "ui/overlays.hpp"
 
 #include <3ds.h>
@@ -100,7 +101,11 @@ bool App::init(int argc, char** argv)
     config_ = Config::load(*sd_);
 
     jobs::init();
-    if (audio::init() && config_.backgroundMusic)
+    // the sounds before the music's thread starts: both take linear memory, and its allocator has no lock
+    const bool dsp = audio::init();
+    sfx::init();
+    sfx::setEnabled(config_.sounds);
+    if (dsp && config_.backgroundMusic)
         audio::startBackgroundMusic("romfs:/bgm.bcstm");
 
     openHomeStorage();
@@ -353,6 +358,7 @@ void App::shutdown()
     QrScanner::stopDriver(); // the scenes' scanners are gone
     audio::stopBackgroundMusic();
     jobs::shutdown();
+    sfx::exit();
     audio::exit();
     net::exit();
     badgeArchive_.reset();

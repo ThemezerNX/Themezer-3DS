@@ -42,8 +42,10 @@ namespace
 {
 
 constexpr int kNdspChannels = 24;
-// Previews take the first free channels from 0; the background music has 20 to 23 to itself.
+// Previews take the first free channels from 0 up to the UI sounds' (18 and 19); the background music has 20 to 23 to
+// itself.
 constexpr int kBackgroundChannels = 20;
+static_assert(kEffectChannel + 2 <= kBackgroundChannels);
 
 // Per channel, wave buffers of a block each holding about this much sound, within these bounds: 7 blocks of
 // DSP-ADPCM at 32 kHz.
@@ -552,7 +554,7 @@ Expected<void> Playback::openChannels()
         return fail(Errc::OutOfMemory, "no linear memory for the music");
 
     const int first = shared_.background ? kBackgroundChannels : 0;
-    const int end = shared_.background ? kNdspChannels : kBackgroundChannels;
+    const int end = shared_.background ? kNdspChannels : kEffectChannel;
     const float volume = std::max(shared_.options.volume, 0.0f);
 
     std::lock_guard lock(shared_.mutex);

@@ -9,10 +9,11 @@
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
-#include "scenes/frame.hpp"
 #include "gfx/texture.hpp"
+#include "scenes/frame.hpp"
 #include "sys/jobs.hpp"
 #include "sys/log.hpp"
+#include "sys/sfx.hpp"
 #include "ui/widgets.hpp"
 
 #include <algorithm>
@@ -53,6 +54,7 @@ public:
         // all it can take, so that adding one doesn't move those the GPU is to draw from
         textures_.reserve((badges::kMaxBadges + kPerTexture - 1) / kPerTexture);
         load();
+        sfx::play(sfx::Sound::Open);
     }
 
     ~BadgePreview() override
@@ -76,6 +78,7 @@ public:
             hintBar_.update(input, hints_);
         if (input.pressed(KEY_B | KEY_Y | KEY_A) || (input.tap && hintsShown_ <= 0))
         {
+            sfx::play(sfx::Sound::Close);
             close();
             return;
         }
@@ -87,6 +90,7 @@ public:
                                                              : 0;
         if (step != 0 && source_.hasNeighbour && source_.hasNeighbour(step))
         {
+            sfx::play(sfx::Sound::Page);
             source_ = source_.neighbour(step);
             load();
             hintsShown_ = 2.5f;

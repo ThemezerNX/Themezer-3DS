@@ -4,6 +4,7 @@
 #include "gfx/text.hpp"
 
 #include "core/utf.hpp"
+#include "gfx/renderer.hpp"
 
 #include <3ds.h>
 #include <citro2d.h>
@@ -72,6 +73,7 @@ void drawLine(std::string_view line, float x, float y, float size, Color color, 
         x -= textWidth(line, size) / 2;
     else if (align == Align::Right)
         x -= textWidth(line, size);
+    color = faded(color);
     // parsed once and drawn twice, as the frame has room for so many glyphs
     if (shadows > 0)
         C2D_DrawText(&text, C2D_WithColor, std::round(x) + 1, std::round(y) + 1, 0.0f, size, size,

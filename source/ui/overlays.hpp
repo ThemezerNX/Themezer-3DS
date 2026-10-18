@@ -52,6 +52,8 @@ private:
     gfx::Color accent_;
     int selected_ = 0;
     int first_ = 0; // the first row shown, when they don't all fit
+    float highlight_ = -1; // the row the highlight is at, on its way to the selected one
+    KeyPress press_;       // the selected row's key: a finger on it, or chosen
     float appear_ = 0;
     std::function<void()> chosen_;
     bool closing_ = false;

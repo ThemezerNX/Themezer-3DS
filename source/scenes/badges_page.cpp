@@ -13,6 +13,7 @@
 #include "scenes/frame.hpp"
 #include "sys/act.hpp"
 #include "sys/log.hpp"
+#include "sys/sfx.hpp"
 
 #include <algorithm>
 #include <array>
@@ -274,7 +275,10 @@ void BadgesPage::update(ui::Input& input, float dt)
     if (event == ui::ListView::Event::Activated)
         openActions();
     else if (input.pressed(KEY_X))
+    {
         set->included = !set->included;
+        sfx::play(set->included ? sfx::Sound::Confirm : sfx::Sound::Back);
+    }
     else if (input.pressed(KEY_Y))
         openPreview(*set);
 }
@@ -328,6 +332,7 @@ void BadgesPage::drawTop()
         return;
     }
     // the set's icon, name and author, its badges blurred behind them (see backdrop()), as the other tabs show an item
+    const Layer layer = list_.entrance().layer(8, true);
     constexpr float kLeft = details::kLeft;
     constexpr float kIcon = IconAtlas::kIconSize;
     constexpr float top = details::kTop;
@@ -382,17 +387,15 @@ void BadgesPage::drawBottom(float top, float bottom)
                        tr("Find some on the Themezer tab, or put folders or zips of PNGs in /Badges."), top, bottom);
         return;
     }
-    list_.draw([this](int index, float x, float y, float w, float h, bool isSelected) {
+    list_.draw([this](int index, float x, float y, float w, float h, bool) {
         const Set& set = sets_[index];
-        if (isSelected)
-            row::highlight(x, y, w, h, accent().solid);
         if (!atlas_.draw(set.key, x + row::kIconX, row::iconTop(y, h), row::kIconSize, set.included ? 1.0f : 0.35f))
             row::placeholder(x, y, h, set.source.loose() ? Icon::Images : Icon::Badge);
         // whether it goes in with the next install
         const float right = row::mark(set.included ? Icon::SquareCheck : Icon::Square,
                                       set.included ? accent().light : color::kTextFaint, x + w - row::kRight, y, h);
         row::lines(set.source.name, detailOf(set), x, y, h, right, !set.included);
-    });
+    }, {}, [this](float x, float y, float w, float h, bool down) { row::highlight(x, y, w, h, down, accent().solid); });
 }
 
 void BadgesPage::openActions()

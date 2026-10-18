@@ -7,6 +7,7 @@
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
+#include "ui/widgets.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -98,10 +99,10 @@ void drawStatusBar(float alpha)
 namespace row
 {
 
-void highlight(float x, float y, float w, float h, Color accent)
+void highlight(float x, float y, float w, float h, bool down, Color accent)
 {
-    roundedRect(x + 4, y + 2, w - 8, h - 4, metric::kRadius, color::kSelection);
-    roundedRect(x + 6, y + 12, 3, h - 24, 1.5f, accent);
+    const float top = ui::drawKey(x, y, w, h, color::kSurfaceRaised, down, metric::kRadius);
+    roundedRect(x + 2, top + 10, 3, h - 20, 1.5f, accent);
 }
 
 float iconTop(float y, float h)

@@ -8,10 +8,12 @@
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
 #include "scenes/badges_page.hpp"
+#include "scenes/browse_page.hpp"
 #include "scenes/frame.hpp"
 #include "scenes/library_page.hpp"
 #include "scenes/menu.hpp"
-#include "scenes/browse_page.hpp"
+#include "sys/sfx.hpp"
+#include "ui/entrance.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -67,15 +69,21 @@ public:
         hintBar_.update(input, hints_);
 
         // the mode button first: the tab bar takes a tap left of its tabs for the tab before
-        if (input.pressed(KEY_SELECT) || (input.tap && modeButtonHit(input)))
+        // a touch that starts and stays on it, or ends there having started there
+        const bool fromModeButton = inModeButton(input.startX, input.startY) && inModeButton(input.x, input.y);
+        const bool onModeButton = input.touching && !input.dragging && fromModeButton;
+        const bool modePressed = input.pressed(KEY_SELECT) || (input.tap && fromModeButton);
+        modePress_.update((input.held & KEY_SELECT) || onModeButton, modePressed);
+        if (modePressed)
         {
+            sfx::play(sfx::Sound::Tab);
             if (input.tap)
                 input.consumeTouch();
             switchMode();
             return;
         }
         if (tabs_.update(input))
-            switchTo(tabs_.selected());
+            switchTo(tabs_.selected(), tabs_.movedForward() ? 1 : -1);
 
         if (input.pressed(KEY_START))
         {
@@ -97,7 +105,10 @@ public:
     {
         // dark enough under the item's details to read them on a light preview
         backdrop_.draw(0.55f);
-        page().drawTop();
+        {
+            const gfx::Layer layer = entrance_.layer(kSlide);
+            page().drawTop();
+        }
         if (const float cover = page().topCover(); cover < 1)
             drawStatusBar(1 - cover);
     }
@@ -108,28 +119,34 @@ public:
         backdrop_.draw(0.72f);
         drawModeButton();
         tabs_.draw(kModeButton, 0, metric::kBottomWidth - kModeButton, metric::kTabBarHeight, metric::kTextNormal);
-        page().drawBottom(metric::kTabBarHeight, metric::kHeight - metric::kHintBarHeight);
-        hintBar_.draw(hints_);
+        {
+            const Layer layer = entrance_.layer(kSlide);
+            page().drawBottom(metric::kTabBarHeight, metric::kHeight - metric::kHintBarHeight);
+        }
+        hintBar_.draw(hints_, 1.0f, page().accent().solid);
     }
 
 private:
     // the round button at the start of the tab bar, as tall as it
     static constexpr float kModeButton = gfx::metric::kTabBarHeight;
+    // how far a page comes in from, from the side of its tab
+    static constexpr float kSlide = 24;
 
     Page& page() { return online_ ? static_cast<Page&>(browse_) : *local_[localTab_]; }
 
-    bool modeButtonHit(const ui::Input& input) const
+    static bool inModeButton(float x, float y)
     {
-        return input.x >= 0 && input.x < kModeButton && input.y >= 0 && input.y < gfx::metric::kTabBarHeight;
+        return x >= 0 && x < kModeButton && y >= 0 && y < gfx::metric::kTabBarHeight;
     }
 
+    // a round key, its ledge in the bar's height
     void drawModeButton()
     {
         using namespace gfx;
-        const float size = metric::kTabBarHeight - 6;
-        roundedRect(3, 3, size, size, size / 2, color::kSurface);
-        const float at = std::round(3 + (size - metric::kIcon) / 2);
-        icon(online_ ? Icon::Globe : Icon::SdCard, at, at, metric::kIcon,
+        const float size = metric::kTabBarHeight - 6 - ui::kKeyLip;
+        const float top = ui::drawKey(3, 3, size, size, color::kSurfaceHigh, modePress_.down());
+        const float at = std::round((size - metric::kIcon) / 2);
+        icon(online_ ? Icon::Globe : Icon::SdCard, 3 + at, top + at, metric::kIcon,
              online_ ? accent::kApp.light : color::kText);
     }
 
@@ -156,11 +173,13 @@ private:
         online_ = !online_;
         showTabs();
         page().onShow();
+        entrance_.start(0);
         remember();
     }
 
-    void switchTo(int index)
+    void switchTo(int index, int side)
     {
+        entrance_.start(side);
         if (online_)
         {
             onlineTab_ = index;
@@ -187,6 +206,8 @@ private:
     ui::HintBar hintBar_;
     std::vector<ui::Hint> hints_;
     Backdrop backdrop_;
+    ui::Entrance entrance_; // of the page, as its tab is switched to
+    ui::KeyPress modePress_;
 };
 
 } // namespace

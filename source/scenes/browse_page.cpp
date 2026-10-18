@@ -22,6 +22,7 @@
 #include "services/themeplaza.hpp"
 #include "services/themezer.hpp"
 #include "sys/log.hpp"
+#include "sys/sfx.hpp"
 #include "ui/keyboard.hpp"
 #include "ui/overlays.hpp"
 
@@ -536,6 +537,7 @@ void BrowsePage::update(ui::Input& input, float dt)
     }
     if (!query_.empty() && input.pressed(KEY_B))
     {
+        sfx::play(sfx::Sound::Back);
         query_.clear();
         reload();
         return;
@@ -633,6 +635,7 @@ void BrowsePage::drawTop()
     const Entry* entry = selected();
     if (state_ != State::Ready || !entry)
         return;
+    const Layer layer = list_.entrance().layer(8, true);
     drawDetails(*entry);
 }
 
@@ -715,10 +718,8 @@ void BrowsePage::drawBottom(float top, float bottom)
                        listTop, bottom);
         return;
     }
-    list_.draw([this](int index, float x, float y, float w, float h, bool isSelected) {
+    list_.draw([this](int index, float x, float y, float w, float h, bool) {
         const Entry& entry = entries_[index];
-        if (isSelected)
-            row::highlight(x, y, w, h, accent().solid);
         if (!atlas_.draw(entry.key, x + row::kIconX, row::iconTop(y, h), row::kIconSize))
             row::placeholder(x, y, h, kind_ == Kind::Themes ? Icon::Theme
                                                            : (kind_ == Kind::Splashes ? Icon::Splash : Icon::Badge));
@@ -741,7 +742,7 @@ void BrowsePage::drawBottom(float top, float bottom)
             spinner(left + kFooterSpinner, middle, kFooterSpinner, accent().light);
         drawText(text, left + 2 * kFooterSpinner + 8, textTop(middle, metric::kTextSmall), metric::kTextSmall,
                  color::kTextDim);
-    });
+    }, [this](float x, float y, float w, float h, bool down) { row::highlight(x, y, w, h, down, accent().solid); });
 }
 
 void BrowsePage::downloadScanned(const std::string& text)

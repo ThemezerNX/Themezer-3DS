@@ -20,6 +20,7 @@
 #include "scenes/menu.hpp"
 #include "scenes/preview_scene.hpp"
 #include "sys/log.hpp"
+#include "sys/sfx.hpp"
 
 #include <algorithm>
 #include <ctime>
@@ -590,10 +591,11 @@ void LibraryPage::update(ui::Input& input, float dt)
     if (input.pressed(KEY_Y))
         openPreview(*entry);
     else if (kind_ == library::Kind::Theme && input.pressed(KEY_X))
-        toggleShuffle(*entry);
+        toggleShuffle(*entry, true);
     else if (!shuffle_.empty() && input.pressed(KEY_B))
     {
         shuffle_.clear();
+        sfx::play(sfx::Sound::Back);
         ui::toast(tr("Shuffle cleared"));
     }
 }
@@ -642,6 +644,7 @@ void LibraryPage::drawTop()
     const Entry* entry = selectedEntry();
     if (state_ != State::Ready || !entry)
         return;
+    const Layer layer = list_.entrance().layer(8, true);
     drawDetails(*entry);
 }
 
@@ -712,17 +715,16 @@ void LibraryPage::drawBottom(float top, float bottom)
         drawEmpty(top, bottom);
         return;
     }
-    list_.draw([this](int index, float x, float y, float w, float h, bool selected) {
-        drawRow(index, x, y, w, h, selected);
-    });
+    list_.draw([this](int index, float x, float y, float w, float h, bool) { drawRow(index, x, y, w, h); }, {},
+               [this](float x, float y, float w, float h, bool down) {
+                   row::highlight(x, y, w, h, down, accent().solid);
+               });
 }
 
-void LibraryPage::drawRow(int index, float x, float y, float w, float h, bool selected)
+void LibraryPage::drawRow(int index, float x, float y, float w, float h)
 {
     const Entry& entry = entries_[index];
     const library::Item& item = entry.item;
-    if (selected)
-        row::highlight(x, y, w, h, accent().solid);
     const float iconTop = row::iconTop(y, h);
     if (!atlas_.draw(entry.key, x + row::kIconX, iconTop, row::kIconSize))
         row::placeholder(x, y, h, kind_ == library::Kind::Theme ? Icon::Theme : Icon::Splash);
@@ -820,7 +822,7 @@ void LibraryPage::openActions()
         actions.push_back({Icon::Shuffle, picked ? tr("Change in shuffle") : tr("Add to shuffle"), {}, usable, false,
                            [this, key] {
                                if (Entry* e = find(key))
-                                   toggleShuffle(*e);
+                                   toggleShuffle(*e, false);
                            }});
         if (shuffle_.size() >= 2)
             actions.push_back({Icon::Shuffle, trf("Install the shuffle of {}", std::to_string(shuffle_.size())), {},
@@ -880,7 +882,7 @@ void LibraryPage::installSplash(Entry& entry, int screens)
                           });
 }
 
-void LibraryPage::toggleShuffle(Entry& entry)
+void LibraryPage::toggleShuffle(Entry& entry, bool sound)
 {
     if (entry.item.info && !entry.item.info->usable(kind_))
         return;
@@ -894,15 +896,21 @@ void LibraryPage::toggleShuffle(Entry& entry)
             return;
         }
         shuffle_.push_back({entry.key, true});
+        if (sound)
+            sfx::play(sfx::Sound::Confirm);
     }
     else if (it->music && music)
     {
         // a second press keeps it in the shuffle without its music, a third takes it out
         it->music = false;
+        if (sound)
+            sfx::play(sfx::Sound::Back);
     }
     else
     {
         shuffle_.erase(it);
+        if (sound)
+            sfx::play(sfx::Sound::Back);
     }
 }
 

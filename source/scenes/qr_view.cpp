@@ -11,6 +11,7 @@
 #include "gfx/text.hpp"
 #include "gfx/texture.hpp"
 #include "scenes/frame.hpp"
+#include "sys/sfx.hpp"
 #include "ui/widgets.hpp"
 
 namespace tz::scenes
@@ -131,6 +132,7 @@ std::optional<std::string> QrView::update()
     if (auto text = scanner_->result())
     {
         scanned_ = true;
+        sfx::play(sfx::Sound::Confirm);
         stop(); // the camera stops at once
         return text;
     }

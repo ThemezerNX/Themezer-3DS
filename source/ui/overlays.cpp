@@ -5,6 +5,7 @@
 
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
+#include "sys/sfx.hpp"
 
 #include <3ds.h>
 #include <algorithm>
@@ -63,6 +64,7 @@ void drawCaption(std::string_view title, std::string_view detail, float alpha)
 ActionSheet::ActionSheet(std::string title, std::vector<Action> actions, Color accent)
     : title_(std::move(title)), actions_(std::move(actions)), accent_(accent)
 {
+    sfx::play(sfx::Sound::Open);
     // start on the first action that can be taken
     for (size_t i = 0; i < actions_.size(); ++i)
     {
@@ -107,6 +109,8 @@ void ActionSheet::update(Input& input, float dt)
             const int next = (selected_ + direction * i + count) % count;
             if (actions_[next].enabled)
             {
+                if (next != selected_)
+                    sfx::play(sfx::Sound::Cursor);
                 selected_ = next;
                 return;
             }
@@ -118,24 +122,41 @@ void ActionSheet::update(Input& input, float dt)
         step(1);
     // the selection stays in the rows shown
     first_ = std::clamp(first_, selected_ - visibleRows() + 1, selected_);
+    if (highlight_ < 0)
+        highlight_ = static_cast<float>(selected_);
+    highlight_ += (static_cast<float>(selected_) - highlight_) * std::min(1.0f, dt * 24);
 
     auto choose = [&](int index) {
         if (index < 0 || index >= count || !actions_[index].enabled)
             return;
         chosen_ = actions_[index].run;
         closing_ = true;
+        press_.update(false, true);
+        highlight_ = static_cast<float>(index); // it doesn't glide while the sheet closes
+        sfx::play(sfx::Sound::Confirm);
     };
+    auto cancel = [&] {
+        closing_ = true;
+        highlight_ = static_cast<float>(selected_);
+        sfx::play(sfx::Sound::Close);
+    };
+
+    // a finger on the selected row holds its key down
+    const float rowsTop = panelTop() + kSheetPadding;
+    const auto rowAt = [&](float y) { return y < rowsTop ? -1 : first_ + static_cast<int>((y - rowsTop) / kSheetRow); };
+    press_.update(input.touching && !input.dragging && rowAt(input.startY) == selected_ && rowAt(input.y) == selected_,
+                  false);
 
     if (input.pressed(KEY_A))
         choose(selected_);
     else if (input.pressed(KEY_B))
-        closing_ = true;
+        cancel();
     else if (input.tap)
     {
         const float top = panelTop() + kSheetPadding;
         if (input.y < panelTop())
         {
-            closing_ = true;
+            cancel();
         }
         else if (input.y >= top)
         {
@@ -163,13 +184,21 @@ void ActionSheet::drawBottom()
     roundedRect(4, top, metric::kBottomWidth - 8, metric::kHeight - top + 12, 12, color::kSurfaceSolid);
 
     float y = top + kSheetPadding;
+    // the selected row's key, as a list's: its face centred in the row, sinking with what's on it
+    const bool down = press_.down();
+    if (highlight_ >= 0)
+    {
+        const float row = std::clamp(highlight_, static_cast<float>(first_),
+                                     static_cast<float>(first_ + visibleRows() - 1)) -
+                          static_cast<float>(first_);
+        drawKey(10, std::round(y + row * kSheetRow) + 3, metric::kBottomWidth - 20, kSheetRow - 6, color::kSurfaceHigh,
+                down, metric::kRadius);
+    }
     for (int i = first_; i < first_ + visibleRows(); ++i)
     {
         const Action& action = actions_[static_cast<size_t>(i)];
         const bool selected = i == selected_;
-        if (selected)
-            roundedRect(10, y + 2, metric::kBottomWidth - 20, kSheetRow - 4, metric::kRadius, color::kSelection);
-        const float middle = y + kSheetRow / 2;
+        const float middle = y + kSheetRow / 2 + (selected && down ? kKeyLip : 0);
         const Color tint = !action.enabled ? color::kTextFaint
                                            : (action.danger ? color::kDanger : (selected ? accent_ : color::kTextDim));
         icon(action.icon, 22, std::round(middle - metric::kIcon / 2), metric::kIcon, tint);
@@ -189,10 +218,13 @@ Dialog::Dialog(Icon icon, Color iconColor, std::string title, std::string messag
 {
     if (buttons_.empty())
         buttons_.push_back({"OK", nullptr});
+    sfx::play(sfx::Sound::Open);
 }
 
 void Dialog::choose(size_t button)
 {
+    // the first of two or more cancels
+    sfx::play(buttons_.size() == 1 ? sfx::Sound::Close : (button == 0 ? sfx::Sound::Back : sfx::Sound::Confirm));
     close();
     if (button < buttons_.size() && buttons_[button].run)
         buttons_[button].run();
@@ -317,6 +349,7 @@ void ProgressOverlay::update(Input& input, float dt)
     {
         cancelRequested_ = true;
         token_.cancel();
+        sfx::play(sfx::Sound::Back);
     }
     if (done_->load())
         close();
@@ -376,12 +409,24 @@ struct Toast
     float age = 0;
 };
 std::vector<Toast> toasts;
+bool successThisFrame = false; // a Success toast was posted since the last updateToasts
 constexpr float kToastTime = 2.8f;
 constexpr float kToastFade = 0.25f;
 } // namespace
 
 void toast(std::string message, ToastKind kind)
 {
+    // also when it's on screen already: a refusal repeated sounds again. A caveat that comes with a success in the same
+    // frame leaves the success its sound.
+    if (kind == ToastKind::Success)
+    {
+        sfx::play(sfx::Sound::Done);
+        successThisFrame = true;
+    }
+    else if (kind == ToastKind::Error || (kind == ToastKind::Warning && !successThisFrame))
+    {
+        sfx::play(sfx::Sound::Error);
+    }
     // the same message again restarts it instead of stacking
     for (Toast& t : toasts)
     {
@@ -398,6 +443,7 @@ void toast(std::string message, ToastKind kind)
 
 void updateToasts(float dt)
 {
+    successThisFrame = false;
     for (Toast& t : toasts)
         t.age += dt;
     std::erase_if(toasts, [](const Toast& t) { return t.age > kToastTime; });

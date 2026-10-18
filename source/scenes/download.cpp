@@ -10,6 +10,7 @@
 #include "gfx/draw.hpp"
 #include "scenes/errors.hpp"
 #include "sys/net.hpp"
+#include "sys/sfx.hpp"
 #include "ui/overlays.hpp"
 
 namespace tz::scenes
@@ -168,6 +169,7 @@ void offerInstall(const Saved& saved, const std::string& name)
             gfx::Icon::Badge, gfx::accent::kBadges.light, trf("{} is saved", name),
             trf("{}\nInstall your badges from the Badges tab.", saved.path),
             std::vector<ui::DialogButton>{{tr("OK"), nullptr}});
+        sfx::play(sfx::Sound::Done);
         return;
     }
     const library::Source source{saved.path, file, true, saved.size};
@@ -185,6 +187,7 @@ void offerInstall(const Saved& saved, const std::string& name)
                      installSplash(source, name, splashes::Screens::Both, [](bool) {});
              }},
         });
+    sfx::play(sfx::Sound::Done);
 }
 
 } // namespace tz::scenes

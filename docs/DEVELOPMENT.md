@@ -22,8 +22,8 @@ opens it. The emulator's SD card is a folder: on a Mac `~/Library/Application Su
 
 Azahar isn't a console, and the app looks a little different in it:
 
-- Without the console's own system font, Azahar uses a replacement whose letters are wider and spaced differently.
-  Check how text fits on a console.
+- Without the console's own system font, Azahar uses a replacement whose letters are wider and spaced differently, and
+  whose button symbols (Ⓐ, Ⓛ...) sit 2 pixels higher. Check how text fits and lines up on a console.
 - Azahar ignores the tint citro2d gives pictures, so the icons are white in it instead of their colours.
 - The HOME Menu's theme storage and the badge storage don't exist until a console has used them, so installing
   themes and badges ends in an error message there.

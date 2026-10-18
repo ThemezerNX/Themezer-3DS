@@ -8,6 +8,7 @@
 #include <3ds.h>
 #include <algorithm>
 #include <citro2d.h>
+#include <cmath>
 #include <vector>
 
 namespace tz::gfx
@@ -26,6 +27,7 @@ C3D_RenderTarget* bottomTarget = nullptr;
 Screen screen = Screen::Top;
 std::vector<Rect> clips;
 u64 startTick = 0;
+float layerOpacity = 1.0f;
 #ifdef TZ_DEVTOOLS
 // the framebuffers the frame being drawn goes to, and those the last one went to
 u8* drawnTo[2] = {};
@@ -127,6 +129,32 @@ void endFrame()
     peakCommandUse = std::max(peakCommandUse, C3D_GetCmdBufUsage());
 #endif
     C3D_FrameEnd(0);
+}
+
+Layer::Layer(float dx, float dy, float opacity)
+    : dx_(std::round(dx)), dy_(std::round(dy)), outerOpacity_(layerOpacity)
+{
+    layerOpacity *= std::clamp(opacity, 0.0f, 1.0f);
+    if (dx_ != 0 || dy_ != 0)
+        C2D_ViewTranslate(dx_, dy_);
+}
+
+Layer::~Layer()
+{
+    // the view is only ever moved, so moving it back undoes it
+    if (dx_ != 0 || dy_ != 0)
+        C2D_ViewTranslate(-dx_, -dy_);
+    layerOpacity = outerOpacity_;
+}
+
+Color faded(Color color)
+{
+    return layerOpacity >= 1.0f ? color : withAlpha(color, layerOpacity);
+}
+
+float opacity()
+{
+    return layerOpacity;
 }
 
 Screen currentScreen()

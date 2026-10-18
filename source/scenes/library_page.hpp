@@ -90,7 +90,8 @@ private:
     void install(Entry& entry, int mode);
     void installSplash(Entry& entry, int screens);
     void installShuffle();
-    void toggleShuffle(Entry& entry);
+    // sound: the X key's, which the action sheet makes for itself
+    void toggleShuffle(Entry& entry, bool sound);
     void confirmDelete(Entry& entry);
     void openPreview(Entry& entry);
     PreviewSource previewOf(Entry& entry);
@@ -100,7 +101,7 @@ private:
 
     // "In use" and the like, for what the HOME Menu (or Luma) has now; nullptr when it isn't.
     const char* statusOf(const Entry& entry) const;
-    void drawRow(int index, float x, float y, float w, float h, bool selected);
+    void drawRow(int index, float x, float y, float w, float h);
     void drawEmpty(float top, float bottom);
     void drawDetails(const Entry& entry);
 

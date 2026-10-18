@@ -106,6 +106,7 @@ constexpr float kPi = 3.14159265f;
 // edge and a ring fades the colour out over the pixel across it, as much as a pixel there is covered.
 void corner(float cx, float cy, float radius, int quarter, Color color)
 {
+    color = faded(color);
     const int steps = std::clamp(static_cast<int>(std::ceil(radius / 2)), 3, 8);
     const float start = (kPi / 2) * static_cast<float>(quarter);
     const float inner = std::max(0.0f, radius - 0.5f);
@@ -154,6 +155,7 @@ void brand(Brand which, float x, float y, float alpha)
     if (!brandSheet)
         return;
     const C2D_Image image = C2D_SpriteSheetGetImage(brandSheet, which == Brand::Logo ? brand_logo_idx : brand_icon_64_idx);
+    alpha *= opacity();
     C2D_ImageTint tint;
     C2D_AlphaImageTint(&tint, alpha);
     C2D_DrawImageAt(image, x, y, 0, alpha < 1.0f ? &tint : nullptr, 1.0f, 1.0f);
@@ -185,7 +187,7 @@ void icon(Icon which, float x, float y, float size, Color color)
             index = static_cast<size_t>(large);
     const C2D_Image image = C2D_SpriteSheetGetImage(sheet, index);
     C2D_ImageTint tint;
-    C2D_PlainImageTint(&tint, color, 1.0f);
+    C2D_PlainImageTint(&tint, faded(color), 1.0f);
     const float scale = size / static_cast<float>(image.subtex->width);
     C2D_DrawImageAt(image, std::round(x), std::round(y), 0, &tint, scale, scale);
 }
@@ -193,16 +195,20 @@ void icon(Icon which, float x, float y, float size, Color color)
 void rect(float x, float y, float w, float h, Color color)
 {
     if (w > 0 && h > 0)
-        C2D_DrawRectSolid(x, y, 0, w, h, color);
+        C2D_DrawRectSolid(x, y, 0, w, h, faded(color));
 }
 
 void gradientV(float x, float y, float w, float h, Color top, Color bottom)
 {
+    top = faded(top);
+    bottom = faded(bottom);
     C2D_DrawRectangle(x, y, 0, w, h, top, top, bottom, bottom);
 }
 
 void gradientH(float x, float y, float w, float h, Color left, Color right)
 {
+    left = faded(left);
+    right = faded(right);
     C2D_DrawRectangle(x, y, 0, w, h, left, right, left, right);
 }
 
@@ -232,6 +238,7 @@ void circle(float cx, float cy, float radius, Color color)
 
 void line(float x0, float y0, float x1, float y1, float width, Color color)
 {
+    color = faded(color);
     C2D_DrawLine(x0, y0, color, x1, y1, color, width, 0);
 }
 

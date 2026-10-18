@@ -7,6 +7,7 @@
 #include "app/strings.hpp"
 #include "gfx/draw.hpp"
 #include "sys/log.hpp"
+#include "sys/sfx.hpp"
 #include "ui/overlays.hpp"
 
 #include <cstdio>
@@ -122,6 +123,7 @@ void showError(const ErrorInfo& info)
     }
     App::get().scenes().emplace<ui::Dialog>(gfx::Icon::Warning, gfx::color::kWarning, info.title, info.message,
                                             std::vector<ui::DialogButton>{{tr("OK"), nullptr}});
+    sfx::play(sfx::Sound::Error);
 }
 
 } // namespace tz::scenes

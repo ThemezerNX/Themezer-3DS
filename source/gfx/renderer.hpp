@@ -37,6 +37,24 @@ void popClip();
 // Seconds since start, for animations.
 float time();
 
+// While one lives, what's drawn is moved by (dx, dy), in whole pixels, and its alpha is times opacity, on top of the
+// Layers around it. Clips don't move with it.
+class Layer
+{
+public:
+    Layer(float dx, float dy, float opacity = 1.0f);
+    ~Layer();
+    Layer(const Layer&) = delete;
+    Layer& operator=(const Layer&) = delete;
+
+private:
+    float dx_, dy_;
+    float outerOpacity_;
+};
+// A colour as the Layers make it, for the drawing functions.
+Color faded(Color color);
+float opacity();
+
 #ifdef TZ_DEVTOOLS
 // The screens as the last frame left them, laid out as on the console: the top screen, the bottom one centred under
 // it. Call it after beginFrame, which waits for that frame to reach the screens.

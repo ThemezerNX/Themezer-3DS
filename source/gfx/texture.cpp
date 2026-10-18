@@ -3,6 +3,8 @@
 
 #include "gfx/texture.hpp"
 
+#include "gfx/renderer.hpp"
+
 #include <algorithm>
 #include <cstring>
 
@@ -72,6 +74,7 @@ void Picture::draw(float sx, float sy, float sw, float sh, float dx, float dy, f
 void drawTexturePart(C3D_Tex* texture, float sx, float sy, float sw, float sh, float dx, float dy, float dw, float dh,
                      float alpha)
 {
+    alpha *= opacity();
     if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0 || alpha <= 0)
         return;
     const float tw = texture->width;

@@ -51,8 +51,8 @@ constexpr float kIconX = 14;
 constexpr float kTextX = kIconX + kIconSize + 10;
 constexpr float kRight = 12; // the margin at the right edge
 
-// The selected row: a lighter band, with a bar in the page's accent.
-void highlight(float x, float y, float w, float h, gfx::Color accent);
+// The selected row's key, as the list gives it: with a bar in the page's accent.
+void highlight(float x, float y, float w, float h, bool down, gfx::Color accent);
 // Where an icon of the row goes; a placeholder of the item's kind until the icon is there.
 float iconTop(float y, float h);
 void placeholder(float x, float y, float h, gfx::Icon kind);

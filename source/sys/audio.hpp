@@ -18,6 +18,9 @@ bool init();
 void exit();
 bool available();
 
+// Two DSP channels from this one are sfx's: the music leaves them alone.
+constexpr int kEffectChannel = 18;
+
 enum class State : uint8_t
 {
     Loading, // reading the start of the music (or waiting for its download)

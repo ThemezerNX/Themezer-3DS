@@ -99,6 +99,7 @@ Config Config::load(FileSystem& sd)
     }
     readBool(root, "backgroundMusic", config.backgroundMusic);
     readBool(root, "previewMusic", config.previewMusic);
+    readBool(root, "sounds", config.sounds);
     readBool(root, "checkForUpdates", config.checkForUpdates);
     if (const char* source = json_string_value(json_object_get(root, "browse")))
         config.browseSource = catalog::parseSource(source).value_or(config.browseSource);
@@ -120,6 +121,7 @@ Expected<void> Config::save(FileSystem& sd) const
     json_t* root = json_object();
     json_object_set_new(root, "backgroundMusic", json_boolean(backgroundMusic));
     json_object_set_new(root, "previewMusic", json_boolean(previewMusic));
+    json_object_set_new(root, "sounds", json_boolean(sounds));
     json_object_set_new(root, "checkForUpdates", json_boolean(checkForUpdates));
     json_object_set_new(root, "browse", json_string(catalog::sourceKey(browseSource)));
     json_object_set_new(root, "browseSort", json_string(catalog::orderKey(browseOrder)));

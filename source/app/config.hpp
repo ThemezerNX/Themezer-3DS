@@ -31,6 +31,7 @@ struct Config
 {
     bool backgroundMusic = true;
     bool previewMusic = true; // a theme's music plays in its preview
+    bool sounds = true;       // the UI's own sounds
     bool checkForUpdates = true;
     catalog::Source browseSource = catalog::Source::Themezer;
     catalog::Order browseOrder = catalog::Order::Newest;

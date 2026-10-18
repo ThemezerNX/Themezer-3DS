@@ -11,6 +11,7 @@
 #include "scenes/frame.hpp"
 #include "sys/audio.hpp"
 #include "sys/log.hpp"
+#include "sys/sfx.hpp"
 #include "ui/overlays.hpp"
 #include "ui/widgets.hpp"
 
@@ -33,6 +34,7 @@ public:
         source_.previews->want(source_.key, source_.loader, source_.lane);
         holdMusic();
         startMusic();
+        sfx::play(sfx::Sound::Open);
     }
 
     ~FullPreview() override
@@ -55,6 +57,7 @@ public:
             hintBar_.update(input, hints_);
         if (input.pressed(KEY_B | KEY_Y | KEY_A) || (input.tap && hintsShown_ <= 0))
         {
+            sfx::play(sfx::Sound::Close);
             close();
             return;
         }
@@ -66,7 +69,10 @@ public:
         // the next item with right or R, the one before with left or L
         const int step = input.repeated(KEY_RIGHT | KEY_R) ? 1 : input.repeated(KEY_LEFT | KEY_L) ? -1 : 0;
         if (step != 0 && source_.hasNeighbour && source_.hasNeighbour(step))
+        {
+            sfx::play(sfx::Sound::Page);
             show(source_.neighbour(step));
+        }
         if (input.touching || input.down)
             hintsShown_ = 2.5f;
     }
