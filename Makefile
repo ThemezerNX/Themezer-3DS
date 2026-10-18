@@ -33,7 +33,7 @@ endif
 APP_NAME         := themezer-3ds
 # what the HOME Menu shows; also the CIA's process name, which takes 8 characters at most
 APP_TITLE        := Themezer
-APP_DESCRIPTION  := Themes, splashes and badges for your 3DS
+APP_DESCRIPTION  := Make Your 3DS Yours
 APP_AUTHOR       := Themezer
 APP_UNIQUE_ID    := 0xC7E20
 APP_PRODUCT_CODE := CTR-P-TZ3D
