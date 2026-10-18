@@ -12,6 +12,7 @@ Thread& Thread::operator=(Thread&& other) noexcept
     {
         join();
         handle_ = other.handle_;
+        kernel_ = other.kernel_;
         state_ = std::move(other.state_);
         other.handle_ = nullptr;
     }
@@ -20,13 +21,17 @@ Thread& Thread::operator=(Thread&& other) noexcept
 
 void Thread::entry(void* arg)
 {
-    static_cast<State*>(arg)->function();
+    auto* state = static_cast<State*>(arg);
+    LightEvent_Wait(&state->go);
+    state->function();
 }
 
 Thread Thread::start(std::function<void()> function, int priority, int core, size_t stackSize)
 {
     Thread thread;
-    thread.state_ = std::make_unique<State>(State{std::move(function)});
+    thread.state_ = std::make_unique<State>();
+    thread.state_->function = std::move(function);
+    LightEvent_Init(&thread.state_->go, RESET_STICKY);
     thread.handle_ = threadCreate(entry, thread.state_.get(), stackSize, priority, core, false);
     if (!thread.handle_ && core != -2)
     {
@@ -34,15 +39,28 @@ Thread Thread::start(std::function<void()> function, int priority, int core, siz
         thread.handle_ = threadCreate(entry, thread.state_.get(), stackSize, priority, -2, false);
     }
     if (!thread.handle_)
+    {
         thread.state_.reset();
+        return thread;
+    }
+    // the thread waits at the start for this, so it can't have ended yet
+    thread.kernel_ = threadGetHandle(thread.handle_);
+    LightEvent_Signal(&thread.state_->go);
     return thread;
+}
+
+bool Thread::done() const
+{
+    return !handle_ || svcWaitSynchronization(kernel_, 0) == 0;
 }
 
 void Thread::join()
 {
     if (!handle_)
         return;
-    threadJoin(handle_, U64_MAX);
+    // The kernel's handle, not threadJoin(): that returns once libctru's flag says the thread finished, and the thread
+    // still writes to the memory threadFree() frees after setting it.
+    svcWaitSynchronization(kernel_, U64_MAX);
     threadFree(handle_);
     handle_ = nullptr;
     state_.reset();

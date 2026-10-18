@@ -63,7 +63,10 @@ class Thread
 public:
     Thread() = default;
     ~Thread() { join(); }
-    Thread(Thread&& other) noexcept : handle_(other.handle_), state_(std::move(other.state_)) { other.handle_ = nullptr; }
+    Thread(Thread&& other) noexcept : handle_(other.handle_), kernel_(other.kernel_), state_(std::move(other.state_))
+    {
+        other.handle_ = nullptr;
+    }
     Thread& operator=(Thread&& other) noexcept;
     Thread(const Thread&) = delete;
     Thread& operator=(const Thread&) = delete;
@@ -72,16 +75,22 @@ public:
     static Thread start(std::function<void()> function, int priority, int core = -2, size_t stackSize = 64 * 1024);
 
     bool running() const { return handle_ != nullptr; }
+    // Whether the thread has ended, without waiting; join() then doesn't wait either.
+    bool done() const;
     void join();
 
 private:
     struct State
     {
         std::function<void()> function;
+        LightEvent go; // held at the start until start() has the kernel's handle
     };
     static void entry(void* arg);
 
     ::Thread handle_ = nullptr;
+    // libctru's thread's kernel handle, which threadGetHandle() stops giving once the thread is about to end; it's
+    // signalled once the thread has, and valid until join() frees the thread
+    Handle kernel_ = 0;
     std::unique_ptr<State> state_;
 };
 
