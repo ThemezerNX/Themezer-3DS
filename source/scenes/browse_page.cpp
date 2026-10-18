@@ -624,9 +624,9 @@ void BrowsePage::drawDetails(const Entry& entry)
 {
     // the item's icon, name, author and description, its preview blurred behind them (see backdrop())
     const TextShadow shadow;
-    constexpr float kLeft = 24;
+    constexpr float kLeft = details::kLeft;
     constexpr float kIcon = IconAtlas::kIconSize;
-    const float top = metric::kStatusBarHeight + 24;
+    constexpr float top = details::kTop;
     if (!atlas_.draw(entry.key, kLeft, top, kIcon))
         roundedRect(kLeft, top, kIcon, kIcon, metric::kRadius, color::kSurfaceRaised);
     const float textX = kLeft + kIcon + 14;
@@ -637,8 +637,8 @@ void BrowsePage::drawDetails(const Entry& entry)
     drawText(entry.item.author, textX, textTop(middle + 13, metric::kTextNormal), metric::kTextNormal,
              color::kTextDim, Align::Left, width);
     if (!entry.item.description.empty())
-        drawWrapped(entry.item.description, kLeft, top + kIcon + 18, metric::kTopWidth - 2 * kLeft,
-                    metric::kTextNormal, color::kTextDim, 4);
+        drawWrapped(entry.item.description, kLeft, top + kIcon + details::kDescriptionGap,
+                    metric::kTopWidth - 2 * kLeft, metric::kTextNormal, color::kTextDim, 4);
 
     const float factsMiddle = metric::kHeight - 22;
     float x = kLeft;

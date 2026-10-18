@@ -348,15 +348,10 @@ void BadgesPage::drawTop()
         return;
     }
     // the set's icon, name and author, its badges blurred behind them (see backdrop()), as the other tabs show an item
-    constexpr float kLeft = 24;
+    constexpr float kLeft = details::kLeft;
     constexpr float kIcon = IconAtlas::kIconSize;
+    constexpr float top = details::kTop;
     const std::string description = set->source.loose() ? tr("The pictures directly in /Badges") : std::string();
-    const auto lines = wrap(description, metric::kTopWidth - 2 * kLeft, metric::kTextNormal, 4);
-    const float blockHeight =
-        kIcon + (lines.empty() ? 0 : 16 + static_cast<float>(lines.size()) * lineHeight(metric::kTextNormal));
-    // between the status bar and the facts along the bottom
-    const float top = std::round(metric::kStatusBarHeight + (metric::kHeight - 44 - metric::kStatusBarHeight -
-                                                              blockHeight) / 2);
     if (!atlas_.draw(set->key, kLeft, top, kIcon))
     {
         roundedRect(kLeft, top, kIcon, kIcon, metric::kRadius, color::kSurfaceRaised);
@@ -372,8 +367,8 @@ void BadgesPage::drawTop()
     if (!author.empty())
         drawText(author, textX, textTop(middle + 13, metric::kTextNormal), metric::kTextNormal, color::kTextDim,
                  Align::Left, width);
-    drawWrapped(description, kLeft, top + kIcon + 16, metric::kTopWidth - 2 * kLeft, metric::kTextNormal,
-                color::kTextDim, 4);
+    drawWrapped(description, kLeft, top + kIcon + details::kDescriptionGap, metric::kTopWidth - 2 * kLeft,
+                metric::kTextNormal, color::kTextDim, 4);
 
     // what it is, along the bottom
     const float factsMiddle = metric::kHeight - 22;

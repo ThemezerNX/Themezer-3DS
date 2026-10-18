@@ -65,6 +65,15 @@ float status(gfx::Icon icon, std::string_view text, gfx::Color color, float righ
 float mark(gfx::Icon icon, gfx::Color color, float right, float y, float h);
 } // namespace row
 
+// The selected item on the top screen, in the same place on every page however long its description: its icon at the
+// top left under the status bar, the name and author beside it, the description under them.
+namespace details
+{
+constexpr float kLeft = 24;
+constexpr float kTop = gfx::metric::kStatusBarHeight + 24;
+constexpr float kDescriptionGap = 18; // from the icon to the description
+} // namespace details
+
 // A page with nothing to show: a large icon, what's the matter, and what to do, centred between top and bottom.
 void drawEmptyState(gfx::Icon icon, gfx::Color iconColor, std::string_view title, std::string_view message, float top,
                     float bottom);

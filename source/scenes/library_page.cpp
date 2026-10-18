@@ -661,16 +661,11 @@ void LibraryPage::drawDetails(const Entry& entry)
     // the item's icon, name, author and description, its preview blurred behind them (see backdrop())
     const TextShadow shadow;
     const library::Item& item = entry.item;
-    constexpr float kLeft = 24;
+    constexpr float kLeft = details::kLeft;
     constexpr float kIcon = IconAtlas::kIconSize;
+    constexpr float top = details::kTop;
     const float textWidth = metric::kTopWidth - 2 * kLeft;
     const std::string description = item.info ? item.info->description : item.source.fileName;
-    const auto lines = wrap(description, textWidth, metric::kTextNormal, 4);
-    const float blockHeight =
-        kIcon + (lines.empty() ? 0 : 16 + static_cast<float>(lines.size()) * lineHeight(metric::kTextNormal));
-    // between the status bar and the facts along the bottom
-    const float top = std::round(metric::kStatusBarHeight + (metric::kHeight - 44 - metric::kStatusBarHeight -
-                                                              blockHeight) / 2);
     if (!atlas_.draw(entry.key, kLeft, top, kIcon))
     {
         roundedRect(kLeft, top, kIcon, kIcon, metric::kRadius, color::kSurfaceRaised);
@@ -686,7 +681,7 @@ void LibraryPage::drawDetails(const Entry& entry)
     if (!author.empty())
         drawText(author, textX, textTop(middle + 13, metric::kTextNormal), metric::kTextNormal, color::kTextDim,
                  Align::Left, width);
-    drawWrapped(description, kLeft, top + kIcon + 16, textWidth, metric::kTextNormal,
+    drawWrapped(description, kLeft, top + kIcon + details::kDescriptionGap, textWidth, metric::kTextNormal,
                 item.info ? color::kTextDim : color::kTextFaint, 4);
 
     // what it is, along the bottom
