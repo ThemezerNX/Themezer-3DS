@@ -119,6 +119,20 @@ std::string nameOf(const catalog::Item& item)
     return item.name.empty() ? "#" + item.id : item.name;
 }
 
+// "12 badges", for a badge set whose site says how many, as the SD card's badge sets show it.
+std::string badgeCountOf(const catalog::Item& item)
+{
+    return trf(item.badgeCount == 1 ? "{} badge" : "{} badges", std::to_string(item.badgeCount));
+}
+
+// A row's second line: who made it, after how many badges a badge set holds, as on the SD card.
+std::string detailOf(const catalog::Item& item)
+{
+    if (item.badgeCount <= 0)
+        return item.author;
+    return item.author.empty() ? badgeCountOf(item) : badgeCountOf(item) + " \u00B7 " + item.author;
+}
+
 // Downloads a PNG on the network worker.
 Expected<Image> downloadPng(net::Client& client, const std::string& url, uint64_t maxSize, int maxWidth,
                             int maxHeight, const CancelToken& token)
@@ -651,6 +665,8 @@ void BrowsePage::drawDetails(const Entry& entry)
     };
     if (entry.onSd)
         fact(Icon::Check, tr("Downloaded"), accent().light);
+    if (entry.item.badgeCount > 0)
+        fact(Icon::Badge, badgeCountOf(entry.item), color::kTextDim);
     fact(Icon::Globe, catalog::sourceName(source_), color::kTextDim);
     if (!entry.item.audioUrl.empty())
         fact(Icon::Music, tr("Has music"), color::kTextDim);
@@ -712,7 +728,7 @@ void BrowsePage::drawBottom(float top, float bottom)
             right = row::status(Icon::Check, tr("Downloaded"), accent().light, right, y, h);
         if (!entry.item.audioUrl.empty())
             right = row::mark(Icon::Music, color::kTextFaint, right, y, h);
-        row::lines(nameOf(entry.item), entry.item.author, x, y, h, right);
+        row::lines(nameOf(entry.item), detailOf(entry.item), x, y, h, right);
     }, [this](float x, float y, float w, float h) {
         // the next page: loading, or what went wrong until it's tried again
         const float middle = y + h / 2;

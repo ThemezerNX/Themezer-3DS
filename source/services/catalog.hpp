@@ -49,6 +49,8 @@ struct Item
     // A theme's music is only in its download, as bgm.bcstm (ThemePlaza, whose own music previews are Ogg Vorbis): a
     // preview reads it from there, if it has one.
     bool musicInDownload = false;
+    // A badge set's badges, where the site says how many (Themezer); 0 where it doesn't.
+    int badgeCount = 0;
     // The zip's name on the SD card, made safe for it, ending in .zip. Empty when the site's own name for it is used
     // (ThemePlaza's: "<name> by <author> (<id>).zip").
     std::string filename;

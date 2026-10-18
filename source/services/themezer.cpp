@@ -121,6 +121,7 @@ std::optional<Item> parseItem(json_t* value)
     item.iconUrl = text(value, "iconUrl");
     item.previewUrl = text(value, "previewUrl");
     item.audioUrl = text(value, "audioUrl");
+    item.badgeCount = count(value, "badgeCount", 0);
 
     std::string filename(trim(text(value, "filename")));
     if (filename.empty())
