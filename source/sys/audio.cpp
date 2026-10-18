@@ -1110,6 +1110,19 @@ void startBackgroundMusic(const char* path)
     backgroundPlayer = std::move(player);
 }
 
+BackgroundHold::BackgroundHold()
+{
+    std::lock_guard lock(holdMutex);
+    ++interruptions;
+}
+
+BackgroundHold::~BackgroundHold()
+{
+    std::lock_guard lock(holdMutex);
+    --interruptions;
+    resumeTick = svcGetSystemTick() + kBackgroundResumeTicks;
+}
+
 void pauseBackgroundMusic()
 {
     std::lock_guard lock(backgroundMutex);

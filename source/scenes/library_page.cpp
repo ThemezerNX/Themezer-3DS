@@ -1039,6 +1039,7 @@ PreviewSource LibraryPage::previewOf(Entry& entry)
     preview.key = entry.key;
     preview.previews = &previews_;
     preview.loader = [source, kind](const CancelToken& token) { return readPreview(source, kind, token); };
+    preview.silencesMusic = kind_ == library::Kind::Theme;
     if (music)
     {
         preview.music = [source]() -> Expected<std::unique_ptr<StreamReader>> {

@@ -885,6 +885,7 @@ PreviewSource BrowsePage::previewOf(Entry& entry)
     preview.key = entry.key;
     preview.previews = &previews_;
     preview.lane = Lane::Network;
+    preview.silencesMusic = kind_ == Kind::Themes;
     const std::string url = entry.item.previewUrl;
     auto client = client_;
     preview.loader = [client, url](const CancelToken& token) -> Expected<preview::Screens> {

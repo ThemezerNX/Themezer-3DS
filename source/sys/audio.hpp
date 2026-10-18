@@ -63,6 +63,16 @@ private:
 void startBackgroundMusic(const char* path);
 // Fades it out and keeps it ready, so that turning it off and on, however quickly, starts nothing new.
 void pauseBackgroundMusic();
+// While one lives, the background music makes way as it does for a playing preview: for a preview that has no
+// music of its own, or none yet.
+class BackgroundHold
+{
+public:
+    BackgroundHold();
+    ~BackgroundHold();
+    BackgroundHold(const BackgroundHold&) = delete;
+    BackgroundHold& operator=(const BackgroundHold&) = delete;
+};
 // Stops it and frees it.
 void stopBackgroundMusic();
 bool backgroundMusicRunning();

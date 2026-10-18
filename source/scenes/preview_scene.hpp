@@ -25,6 +25,9 @@ struct PreviewSource
     // Opens the music, on a worker; empty without music.
     std::function<Expected<std::unique_ptr<StreamReader>>()> music;
     Lane musicLane = Lane::Io;
+    // A theme: the app's music makes way while it's shown, music or not, as the HOME Menu would play the theme's or
+    // none (unless previews play no music at all)
+    bool silencesMusic = false;
     // Going through the page's list without closing: whether there's an item step places away (-1 before, +1 after),
     // and that item, which the list then selects. Empty where there's no list to go through.
     std::function<bool(int step)> hasNeighbour;

@@ -15,6 +15,7 @@
 #include "ui/widgets.hpp"
 
 #include <algorithm>
+#include <optional>
 
 namespace tz::scenes
 {
@@ -30,6 +31,7 @@ public:
     explicit FullPreview(PreviewSource source) : source_(std::move(source))
     {
         source_.previews->want(source_.key, source_.loader, source_.lane);
+        holdMusic();
         startMusic();
     }
 
@@ -99,7 +101,21 @@ private:
         paused_ = false;
         source_ = std::move(next);
         source_.previews->want(source_.key, source_.loader, source_.lane);
+        holdMusic();
         startMusic();
+    }
+
+    void holdMusic()
+    {
+        if (source_.silencesMusic && App::get().config().previewMusic)
+        {
+            if (!musicHold_)
+                musicHold_.emplace();
+        }
+        else
+        {
+            musicHold_.reset();
+        }
     }
 
     void startMusic()
@@ -128,6 +144,7 @@ private:
     }
 
     PreviewSource source_;
+    std::optional<audio::BackgroundHold> musicHold_;
     std::unique_ptr<audio::Player> player_;
     JobGuard musicJob_;
     bool paused_ = false;
