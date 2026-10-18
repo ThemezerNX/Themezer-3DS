@@ -38,7 +38,6 @@ using catalog::Source;
 namespace
 {
 
-constexpr float kKindBarHeight = 28;
 constexpr float kSearchLineHeight = 22;
 // the sub-tabs: the three kinds, then the QR code scanner
 constexpr int kQrTab = 3;
@@ -201,12 +200,33 @@ const char* orderLabel(catalog::Order order)
 BrowsePage::BrowsePage() : source_(App::get().config().browseSource)
 {
     list_.setRowHeight(metric::kRowHeight);
-    kinds_.setTabs({
+}
+
+std::vector<ui::Tab> BrowsePage::tabs() const
+{
+    return {
         {tr("Themes"), accent::kThemes},
         {tr("Splashes"), accent::kSplashes},
         {tr("Badges"), accent::kBadges},
         {{}, accent::kApp, Icon::Qr},
-    });
+    };
+}
+
+void BrowsePage::selectTab(int tab)
+{
+    const bool wasScanning = scanningTab();
+    tab_ = tab;
+    // while hidden, onShow starts what the tab needs
+    if (!shown_)
+        return;
+    if (scanningTab())
+    {
+        qr_.start();
+        return;
+    }
+    if (wasScanning)
+        qr_.stop();
+    switchKind(static_cast<Kind>(tab_));
 }
 
 BrowsePage::~BrowsePage()
@@ -227,20 +247,22 @@ Accent BrowsePage::accent() const
 
 void BrowsePage::onShow()
 {
+    shown_ = true;
     if (scanningTab())
         qr_.start();
-    else if (state_ == State::Idle)
-        reload();
+    else
+        switchKind(static_cast<Kind>(tab_));
 }
 
 void BrowsePage::onHide()
 {
+    shown_ = false;
     qr_.stop();
 }
 
 bool BrowsePage::scanningTab() const
 {
-    return kinds_.selected() == kQrTab;
+    return tab_ == kQrTab;
 }
 
 void BrowsePage::reload()
@@ -478,25 +500,6 @@ void BrowsePage::tick(float)
 
 void BrowsePage::update(ui::Input& input, float dt)
 {
-    // the kinds and the QR code scanner, under the tabs: the D-pad's left and right, or a tap
-    if (kinds_.update(input))
-    {
-        if (scanningTab())
-        {
-            qr_.start();
-        }
-        else
-        {
-            qr_.stop();
-            switchKind(static_cast<Kind>(kinds_.selected()));
-        }
-        return;
-    }
-    if (input.pressed(KEY_SELECT))
-    {
-        switchSource(otherSource(source_));
-        return;
-    }
     if (scanningTab())
     {
         if (auto text = qr_.update())
@@ -585,8 +588,8 @@ std::vector<ui::Hint> BrowsePage::hints() const
 
 float BrowsePage::listTop(float top) const
 {
-    // under the kinds, and the search when there is one
-    return top + kKindBarHeight + (query_.empty() ? 0 : kSearchLineHeight);
+    // under the search when there is one
+    return top + (query_.empty() ? 0 : kSearchLineHeight);
 }
 
 std::shared_ptr<Picture> BrowsePage::backdrop() const
@@ -653,17 +656,16 @@ void BrowsePage::drawDetails(const Entry& entry)
 
 void BrowsePage::drawBottom(float top, float bottom)
 {
-    kinds_.draw(0, top, metric::kBottomWidth, kKindBarHeight, metric::kTextSmall);
     if (scanningTab())
     {
-        qr_.drawBottom(top + kKindBarHeight, bottom);
+        qr_.drawBottom(top, bottom);
         return;
     }
 
     // what's searched for, above the results
     if (!query_.empty())
     {
-        const float middle = top + kKindBarHeight + kSearchLineHeight / 2;
+        const float middle = top + kSearchLineHeight / 2;
         icon(Icon::Search, 14, std::round(middle - metric::kIcon / 2), metric::kIcon, color::kTextDim);
         drawText(query_, 14 + metric::kIcon + 6, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText,
                  Align::Left, metric::kBottomWidth - 48);
@@ -922,7 +924,7 @@ std::vector<ui::Action> BrowsePage::menuActions()
          source_ == Source::Themezer ? trf("Now: {}", tr(orderLabel(App::get().config().browseOrder)))
                                      : std::string(tr("Only on Themezer")),
          source_ == Source::Themezer, false, [this] { chooseOrder(); }},
-        {Icon::Globe, trf("Browse {} instead", catalog::sourceName(other)), tr("Or press SELECT"), true, false,
+        {Icon::Globe, trf("Browse {} instead", catalog::sourceName(other)), {}, true, false,
          [this, other] { switchSource(other); }},
         {Icon::Qr, tr("Type an item's ID"), tr("From its page on Themezer or ThemePlaza"), true, false,
          [this] { enterId(); }},

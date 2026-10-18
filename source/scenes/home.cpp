@@ -14,6 +14,7 @@
 #include "scenes/browse_page.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace tz::scenes
 {
@@ -21,30 +22,39 @@ namespace tz::scenes
 namespace
 {
 
+constexpr int kLocalTabs = 3; // themes, splashes and badges on the SD card
+
+// Two modes, each with its tabs: what's on the SD card, and what's online (the same kinds, and the QR code scanner). The
+// button at the start of the tab bar, or SELECT, switches them, staying on the same kind.
 class HomeScene final : public ui::Scene
 {
 public:
     HomeScene()
     {
-        pages_.push_back(std::make_unique<LibraryPage>(library::Kind::Theme));
-        pages_.push_back(std::make_unique<LibraryPage>(library::Kind::Splash));
-        pages_.push_back(std::make_unique<BadgesPage>());
-        pages_.push_back(std::make_unique<BrowsePage>());
+        local_.push_back(std::make_unique<LibraryPage>(library::Kind::Theme));
+        local_.push_back(std::make_unique<LibraryPage>(library::Kind::Splash));
+        local_.push_back(std::make_unique<BadgesPage>());
+        for (const auto& page : local_)
+            localTabs_.push_back(page->tab());
 
-        std::vector<ui::Tab> tabs;
-        for (const auto& page : pages_)
-            tabs.push_back(page->tab());
-        tabs_.setTabs(std::move(tabs));
-
-        current_ = std::clamp(App::get().config().lastTab, 0, static_cast<int>(pages_.size()) - 1);
-        tabs_.select(current_);
-        pages_[current_]->onShow();
+        // lastTab: 0 to 2 are the SD card's tabs, the ones after them online; 3 was the one online tab before
+        const int onlineTabs = static_cast<int>(browse_.tabs().size());
+        const int last = std::clamp(App::get().config().lastTab, 0, kLocalTabs + onlineTabs - 1);
+        online_ = last >= kLocalTabs;
+        if (online_)
+            onlineTab_ = last - kLocalTabs;
+        else
+            localTab_ = last;
+        browse_.selectTab(onlineTab_);
+        showTabs();
+        page().onShow();
     }
 
     void tick(float dt) override
     {
-        for (auto& page : pages_)
+        for (auto& page : local_)
             page->tick(dt);
+        browse_.tick(dt);
         backdrop_.set(page().backdrop(), page().accent().solid);
         backdrop_.tick(dt);
     }
@@ -53,8 +63,17 @@ public:
     {
         hints_ = page().hints();
         hints_.push_back({KEY_START, tr("Menu")});
+        hints_.push_back({KEY_SELECT, online_ ? tr("SD card") : tr("Online")});
         hintBar_.update(input, hints_);
 
+        // the mode button first: the tab bar takes a tap left of its tabs for the tab before
+        if (input.pressed(KEY_SELECT) || (input.tap && modeButtonHit(input)))
+        {
+            if (input.tap)
+                input.consumeTouch();
+            switchMode();
+            return;
+        }
         if (tabs_.update(input))
             switchTo(tabs_.selected());
 
@@ -81,26 +100,83 @@ public:
     {
         using namespace gfx;
         backdrop_.draw(0.72f);
-        tabs_.draw(0, 0, metric::kBottomWidth, metric::kTabBarHeight, metric::kTextNormal);
+        drawModeButton();
+        tabs_.draw(kModeButton, 0, metric::kBottomWidth - kModeButton, metric::kTabBarHeight, metric::kTextNormal);
         page().drawBottom(metric::kTabBarHeight, metric::kHeight - metric::kHintBarHeight);
         hintBar_.draw(hints_);
     }
 
 private:
-    Page& page() { return *pages_[current_]; }
+    // the round button at the start of the tab bar, as tall as it
+    static constexpr float kModeButton = gfx::metric::kTabBarHeight;
+
+    Page& page() { return online_ ? static_cast<Page&>(browse_) : *local_[localTab_]; }
+
+    bool modeButtonHit(const ui::Input& input) const
+    {
+        return input.x >= 0 && input.x < kModeButton && input.y >= 0 && input.y < gfx::metric::kTabBarHeight;
+    }
+
+    void drawModeButton()
+    {
+        using namespace gfx;
+        const float size = metric::kTabBarHeight - 6;
+        roundedRect(3, 3, size, size, size / 2, color::kSurface);
+        const float at = std::round(3 + (size - metric::kIcon) / 2);
+        icon(online_ ? Icon::Globe : Icon::SdCard, at, at, metric::kIcon,
+             online_ ? accent::kApp.light : color::kText);
+    }
+
+    void showTabs()
+    {
+        tabs_.setTabs(online_ ? browse_.tabs() : localTabs_);
+        tabs_.select(online_ ? onlineTab_ : localTab_);
+    }
+
+    // To the other mode, on the same kind; from the QR code scanner, back to the tab last shown on the SD card.
+    void switchMode()
+    {
+        page().onHide();
+        if (online_)
+        {
+            if (onlineTab_ < kLocalTabs)
+                localTab_ = onlineTab_;
+        }
+        else
+        {
+            onlineTab_ = localTab_;
+            browse_.selectTab(onlineTab_);
+        }
+        online_ = !online_;
+        showTabs();
+        page().onShow();
+        remember();
+    }
 
     void switchTo(int index)
     {
-        if (index == current_)
-            return;
-        page().onHide();
-        current_ = index;
-        page().onShow();
-        App::get().config().lastTab = index;
+        if (online_)
+        {
+            onlineTab_ = index;
+            browse_.selectTab(index);
+        }
+        else if (index != localTab_)
+        {
+            page().onHide();
+            localTab_ = index;
+            page().onShow();
+        }
+        remember();
     }
 
-    std::vector<std::unique_ptr<Page>> pages_;
-    int current_ = 0;
+    void remember() { App::get().config().lastTab = online_ ? kLocalTabs + onlineTab_ : localTab_; }
+
+    std::vector<std::unique_ptr<Page>> local_;
+    std::vector<ui::Tab> localTabs_;
+    BrowsePage browse_;
+    bool online_ = false;
+    int localTab_ = 0;
+    int onlineTab_ = 0;
     ui::TabBar tabs_;
     ui::HintBar hintBar_;
     std::vector<ui::Hint> hints_;

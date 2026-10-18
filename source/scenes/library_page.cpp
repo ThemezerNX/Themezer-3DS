@@ -573,6 +573,12 @@ void LibraryPage::update(ui::Input& input, float dt)
         }
     }
 
+    // picking themes for a shuffle, A installs them
+    if (kind_ == library::Kind::Theme && !shuffle_.empty() && input.pressed(KEY_A))
+    {
+        installShuffle();
+        return;
+    }
     if (event == ui::ListView::Event::Activated && entry)
     {
         openActions();
@@ -585,8 +591,6 @@ void LibraryPage::update(ui::Input& input, float dt)
         openPreview(*entry);
     else if (kind_ == library::Kind::Theme && input.pressed(KEY_X))
         toggleShuffle(*entry);
-    else if (kind_ == library::Kind::Theme && !shuffle_.empty() && input.pressed(KEY_SELECT))
-        installShuffle();
     else if (!shuffle_.empty() && input.pressed(KEY_B))
     {
         shuffle_.clear();
@@ -607,7 +611,7 @@ std::vector<ui::Hint> LibraryPage::hints() const
         const bool picked = entry && std::any_of(shuffle_.begin(), shuffle_.end(),
                                                  [&](const ShufflePick& pick) { return pick.key == entry->key; });
         hints.push_back({KEY_X, picked ? tr("Unpick") : tr("Shuffle")});
-        hints.push_back({KEY_SELECT, trf("Install {}", std::to_string(shuffle_.size()))});
+        hints.push_back({KEY_A, trf("Install {}", std::to_string(shuffle_.size()))});
         hints.push_back({KEY_B, tr("Clear")});
         return hints;
     }

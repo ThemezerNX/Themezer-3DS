@@ -73,6 +73,8 @@ ICONS = {
     "battery_charging": "battery-charging",
     "images": "images",
     "keyboard": "keyboard",
+    # the SD card: Lucide has none, and its SIM card has the same shape
+    "sd_card": "card-sim",
 }
 
 # The icons also drawn large.

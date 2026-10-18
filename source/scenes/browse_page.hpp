@@ -41,6 +41,10 @@ public:
     std::shared_ptr<gfx::Picture> backdrop() const override;
     std::vector<ui::Action> menuActions() override;
 
+    // Its tabs, which the home scene shows when it's online: the kinds, then the QR code scanner.
+    std::vector<ui::Tab> tabs() const;
+    void selectTab(int tab);
+
 private:
     struct Entry
     {
@@ -76,7 +80,7 @@ private:
     bool scanningTab() const;
     void downloadScanned(const std::string& text);
     void enterId();
-    // Where the list starts, below the kinds and the search.
+    // Where the list starts, below the search when there is one.
     float listTop(float top) const;
     Entry* selected();
     Entry* find(uint64_t key);
@@ -103,7 +107,8 @@ private:
     // the next page failed: what went wrong, and when it's tried again
     std::string moreError_;
     uint64_t moreRetryAt_ = 0;
-    ui::TabBar kinds_{KEY_LEFT, KEY_RIGHT};
+    int tab_ = 0;
+    bool shown_ = false;
     QrView qr_;
     // the folders' generations last checked for downloads, by App::Folder
     uint32_t seenGenerations_[3] = {};

@@ -61,6 +61,7 @@ constexpr size_t kIconIndex[] = {
     icons_battery_charging_idx,
     icons_images_idx,
     icons_keyboard_idx,
+    icons_sd_card_idx,
 };
 static_assert(std::size(kIconIndex) == static_cast<size_t>(Icon::Count), "an icon is missing from kIconIndex");
 

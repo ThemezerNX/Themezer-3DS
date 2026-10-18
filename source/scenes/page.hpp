@@ -14,8 +14,9 @@
 namespace tz::scenes
 {
 
-// One tab of the home scene: themes, splashes, badges, or Themezer. The home scene draws the frame around it
-// (backdrop, status bar, tabs, hints); the page draws its content and handles its keys.
+// A page of the home scene: themes, splashes or badges on the SD card, or what's online (all of that mode's tabs). The
+// home scene draws the frame around it (backdrop, status bar, mode button, tabs, hints); the page draws its content and
+// handles its keys.
 class Page
 {
 public:
