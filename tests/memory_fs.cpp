@@ -146,6 +146,12 @@ tz::Expected<tz::DirEntry> MemoryFs::stat(std::string_view path)
     return fail(Errc::NotFound, std::string(path));
 }
 
+uint64_t MemoryFs::modifiedTime(std::string_view path)
+{
+    const auto it = times_.find(std::string(path));
+    return it == times_.end() ? 0 : it->second;
+}
+
 void MemoryFs::put(const std::string& path, tz::Bytes data)
 {
     std::string dir(tz::path::parent(path));

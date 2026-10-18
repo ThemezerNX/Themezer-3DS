@@ -66,6 +66,7 @@ private:
     void requestIcons();
     void checkOnSd(size_t from);
     void search();
+    void chooseOrder();
     void switchKind(catalog::Kind kind);
     void switchSource(catalog::Source source);
     void openActions();

@@ -114,6 +114,9 @@ public:
     virtual Expected<std::vector<DirEntry>> list(std::string_view path) = 0;
     // NotFound when there is nothing there.
     virtual Expected<DirEntry> stat(std::string_view path) = 0;
+    // When the file or folder at path last changed, as the archive keeps it, for putting things in that order; 0 when it
+    // can't say.
+    virtual uint64_t modifiedTime(std::string_view) { return 0; }
 
     bool exists(std::string_view path) { return stat(path).has_value(); }
 

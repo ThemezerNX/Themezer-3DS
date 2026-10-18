@@ -29,11 +29,14 @@ public:
     tz::Expected<void> rename(std::string_view from, std::string_view to) override;
     tz::Expected<std::vector<tz::DirEntry>> list(std::string_view path) override;
     tz::Expected<tz::DirEntry> stat(std::string_view path) override;
+    uint64_t modifiedTime(std::string_view path) override;
 
     // Direct access for tests.
     void put(const std::string& path, tz::Bytes data);
     tz::Bytes& data(const std::string& path) { return *files_.at(path); }
     bool hasFile(const std::string& path) const { return files_.contains(path); }
+    // What modifiedTime gives for path; 0 until set.
+    void setModified(const std::string& path, uint64_t time) { times_[path] = time; }
     size_t writes() const { return writes_; }
 
     // Makes the next writes fail, to test error handling.
@@ -44,6 +47,7 @@ private:
     bool fixedSize_;
     std::map<std::string, std::shared_ptr<tz::Bytes>> files_;
     std::set<std::string> directories_{"/"};
+    std::map<std::string, uint64_t> times_;
     size_t writes_ = 0;
     size_t failAfter_ = static_cast<size_t>(-1);
 };

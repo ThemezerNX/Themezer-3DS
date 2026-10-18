@@ -156,6 +156,45 @@ TEST(library_natural_sort)
     CHECK_EQ(items[2].displayName(), std::string("Zebra"));
 }
 
+TEST(library_sort_by_time)
+{
+    test::MemoryFs sd;
+    sd.put("/Themes/old.zip", {});
+    sd.put("/Themes/new.zip", {});
+    sd.put("/Themes/Folder/info.smdh", {});
+    sd.setModified("/Themes/old.zip", 100);
+    sd.setModified("/Themes/new.zip", 300);
+    sd.setModified("/Themes/Folder/info.smdh", 200);
+    const library::Source oldZip{"/Themes/old.zip", "old.zip", true, 0};
+    const library::Source newZip{"/Themes/new.zip", "new.zip", true, 0};
+    const library::Source folder{"/Themes/Folder", "Folder", false, 0};
+    const library::Source unknown{"/Themes/unknown.zip", "unknown.zip", true, 0};
+    // a folder the SD card has no time for goes by its info.smdh
+    CHECK_EQ(library::modifiedTime(sd, folder), uint64_t{200});
+    CHECK_EQ(library::modifiedTime(sd, unknown), uint64_t{0});
+
+    std::vector<library::Item> items(5);
+    const library::Source sources[] = {unknown, oldZip, folder, newZip, {"/Themes/tie.zip", "tie.zip", true, 0}};
+    for (size_t i = 0; i < items.size(); ++i)
+    {
+        items[i].source = sources[i];
+        items[i].modified = library::modifiedTime(sd, sources[i]);
+    }
+    items[4].modified = 300; // the same time as new.zip: then by name
+    auto names = [&] {
+        std::string out;
+        for (const library::Item& item : items)
+            out += item.displayName() + ",";
+        return out;
+    };
+    library::sort(items, library::Sort::Newest);
+    CHECK_EQ(names(), std::string("new,tie,Folder,old,unknown,"));
+    library::sort(items, library::Sort::Oldest);
+    CHECK_EQ(names(), std::string("old,Folder,new,tie,unknown,"));
+    CHECK(library::byTime(library::Sort::Newest) && library::byTime(library::Sort::Oldest));
+    CHECK(!library::byTime(library::Sort::Name));
+}
+
 TEST(library_download_names)
 {
     auto theme = library::parseDownloadName("Darth Vader Theme Theme by Jeageruzumaki (Themezer-T1ED55)");

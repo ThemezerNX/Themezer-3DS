@@ -66,7 +66,8 @@ private:
     };
 
     void load();
-    void onScanned(std::vector<library::Source> sources, std::vector<std::pair<library::Source, library::Info>> cached);
+    void onScanned(std::vector<library::Source> sources, std::vector<std::pair<library::Source, library::Info>> cached,
+                   std::vector<uint64_t> times);
     void onInfo(const library::Source& source, Expected<library::Info> info);
     void prioritiseVisible();
     void startInfoReader();
@@ -76,6 +77,11 @@ private:
     void focusInstalled();
     void rebuildIndex();
     void resort(bool keepSelection);
+    // The order the page's kind is in, in the settings.
+    library::Sort& sortSetting();
+    void chooseSort();
+    // Reads the listed items' modified times, then puts them in order again.
+    void readTimes();
 
     Entry* selectedEntry();
     Entry* find(uint64_t key);
@@ -112,6 +118,7 @@ private:
     bool focusedInstalled_ = false;
     float cacheSaveIn_ = -1;
     uint32_t generation_ = 0; // of the folder, when it was read
+    bool timesRead_ = false; // whether the items' modified times were read, for the orders by time
 
     // what the HOME Menu (or Luma) has installed now
     std::vector<library::FileId> installedBodies_;

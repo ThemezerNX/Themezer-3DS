@@ -33,7 +33,7 @@ public:
     Expected<DirEntry> stat(std::string_view path) override;
 
     // When a file on the SD card was last changed, in milliseconds since 2000; 0 when unknown.
-    uint64_t modifiedTime(std::string_view path);
+    uint64_t modifiedTime(std::string_view path) override;
 
     FS_Archive handle() const { return archive_; }
 

@@ -70,13 +70,27 @@ struct Details
     std::array<uint16_t, 48 * 48> icon{};
 };
 
+// The orders Themezer lists in (app/v1's sort); ThemePlaza lists in its own.
+enum class Order : uint8_t
+{
+    Newest,
+    Oldest,
+    MostDownloaded,
+    LeastDownloaded,
+    MostTrending, // by the website's trending score
+    LeastTrending,
+};
+// "newest", "oldest", "most-downloaded", ..., "least-trending": the API's names, and config.json's.
+const char* orderKey(Order order);
+std::optional<Order> parseOrder(std::string_view key);
+
 // "Themezer", "ThemePlaza"
 const char* sourceName(Source source);
 // The source's name in config.json.
 const char* sourceKey(Source source);
 std::optional<Source> parseSource(std::string_view key);
 
-Expected<Page> fetchPage(net::Client& client, Source source, Kind kind, int page, std::string_view query,
+Expected<Page> fetchPage(net::Client& client, Source source, Kind kind, int page, std::string_view query, Order order,
                          const CancelToken& cancel);
 // Reads item.detailsUrl.
 Expected<Details> fetchDetails(net::Client& client, const Item& item, int language, const CancelToken& cancel);

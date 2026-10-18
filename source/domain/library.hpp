@@ -82,6 +82,8 @@ struct Item
 {
     Source source;
     std::optional<Info> info; // until it's loaded, the item shows its file name
+    // When its file last changed (modifiedTime), read only for the orders by it; 0 when unknown.
+    uint64_t modified = 0;
 
     // The name to show: from its info, else from a Themezer file name, else the file name without ".zip".
     std::string displayName() const;
@@ -108,7 +110,14 @@ enum class Sort : uint8_t
     Name,
     Author,
     FileName,
+    Newest, // by when the file last changed: when it was downloaded, for a download
+    Oldest,
 };
+
+// Whether the order needs the items' modified times.
+bool byTime(Sort sort);
+// When an item's file last changed: the zip's, or the folder's (else its info.smdh's); 0 when the SD card can't say.
+uint64_t modifiedTime(FileSystem& sd, const Source& source);
 
 void sort(std::vector<Item>& items, Sort sort);
 // Whether x comes before y in that order: sort()'s comparison, for sorting things that hold items.

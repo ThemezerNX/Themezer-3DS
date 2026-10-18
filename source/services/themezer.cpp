@@ -137,10 +137,10 @@ std::optional<Item> parseItem(json_t* value)
 
 } // namespace
 
-std::string pageUrl(Kind kind, int page, std::string_view query)
+std::string pageUrl(Kind kind, int page, std::string_view query, catalog::Order order)
 {
     return std::string(kApiUrl) + '/' + kindPath(kind) + "?page=" + std::to_string(page) +
-           "&q=" + net::urlEncode(query);
+           "&q=" + net::urlEncode(query) + "&sort=" + catalog::orderKey(order);
 }
 
 Expected<Page> parsePage(ByteSpan json)
@@ -168,10 +168,11 @@ Expected<Page> parsePage(ByteSpan json)
     return page;
 }
 
-Expected<Page> fetchPage(net::Client& client, Kind kind, int page, std::string_view query, const CancelToken& cancel)
+Expected<Page> fetchPage(net::Client& client, Kind kind, int page, std::string_view query, catalog::Order order,
+                         const CancelToken& cancel)
 {
     net::Request request;
-    request.url = pageUrl(kind, page, query);
+    request.url = pageUrl(kind, page, query, order);
     request.accept = {"application/json"};
     request.maxSize = kMaxPageSize;
     request.cancel = &cancel;

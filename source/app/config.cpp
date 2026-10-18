@@ -23,6 +23,10 @@ const char* sortName(library::Sort sort)
         return "author";
     case library::Sort::FileName:
         return "file";
+    case library::Sort::Newest:
+        return "newest";
+    case library::Sort::Oldest:
+        return "oldest";
     case library::Sort::Name:
         break;
     }
@@ -40,6 +44,10 @@ library::Sort parseSort(const char* name, library::Sort fallback)
         return library::Sort::FileName;
     if (value == "name")
         return library::Sort::Name;
+    if (value == "newest")
+        return library::Sort::Newest;
+    if (value == "oldest")
+        return library::Sort::Oldest;
     return fallback;
 }
 
@@ -94,6 +102,8 @@ Config Config::load(FileSystem& sd)
     readBool(root, "checkForUpdates", config.checkForUpdates);
     if (const char* source = json_string_value(json_object_get(root, "browse")))
         config.browseSource = catalog::parseSource(source).value_or(config.browseSource);
+    if (const char* order = json_string_value(json_object_get(root, "browseSort")))
+        config.browseOrder = catalog::parseOrder(order).value_or(config.browseOrder);
     // the names the app used before this version
     readBool(root, "Background Music", config.backgroundMusic);
     readBool(root, "Check For Updates", config.checkForUpdates);
@@ -112,6 +122,7 @@ Expected<void> Config::save(FileSystem& sd) const
     json_object_set_new(root, "previewMusic", json_boolean(previewMusic));
     json_object_set_new(root, "checkForUpdates", json_boolean(checkForUpdates));
     json_object_set_new(root, "browse", json_string(catalog::sourceKey(browseSource)));
+    json_object_set_new(root, "browseSort", json_string(catalog::orderKey(browseOrder)));
     json_object_set_new(root, "themeSort", json_string(sortName(themeSort)));
     json_object_set_new(root, "splashSort", json_string(sortName(splashSort)));
     json_object_set_new(root, "lastTab", json_integer(lastTab));

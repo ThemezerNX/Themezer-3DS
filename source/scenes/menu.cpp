@@ -159,6 +159,11 @@ void openMenu(std::vector<ui::Action> pageActions)
     App::get().scenes().emplace<MenuScene>(tr("Menu"), std::move(actions));
 }
 
+void openChoice(std::string title, std::vector<ui::Action> options)
+{
+    App::get().scenes().emplace<MenuScene>(std::move(title), std::move(options));
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Settings
 

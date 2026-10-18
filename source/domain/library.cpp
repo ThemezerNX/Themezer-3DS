@@ -457,10 +457,31 @@ bool comesBefore(const Item& x, const Item& y, Sort order)
         const int c = compareNatural(ax, ay);
         return c != 0 ? c < 0 : byName(x, y);
     }
+    case Sort::Newest:
+    case Sort::Oldest:
+        // unknown times last either way
+        if ((x.modified == 0) != (y.modified == 0))
+            return x.modified != 0;
+        if (x.modified != y.modified)
+            return order == Sort::Newest ? x.modified > y.modified : x.modified < y.modified;
+        return byName(x, y);
     case Sort::FileName:
         break;
     }
     return compareNatural(x.source.fileName, y.source.fileName) < 0;
+}
+
+bool byTime(Sort sort)
+{
+    return sort == Sort::Newest || sort == Sort::Oldest;
+}
+
+uint64_t modifiedTime(FileSystem& sd, const Source& source)
+{
+    const uint64_t time = sd.modifiedTime(source.path);
+    if (time || source.zip)
+        return time;
+    return sd.modifiedTime(path::join(source.path, "info.smdh"));
 }
 
 void sort(std::vector<Item>& items, Sort order)

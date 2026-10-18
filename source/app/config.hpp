@@ -33,6 +33,7 @@ struct Config
     bool previewMusic = true; // a theme's music plays in its preview
     bool checkForUpdates = true;
     catalog::Source browseSource = catalog::Source::Themezer;
+    catalog::Order browseOrder = catalog::Order::Newest;
     library::Sort themeSort = library::Sort::Name;
     library::Sort splashSort = library::Sort::Name;
     int lastTab = 0;

@@ -17,6 +17,7 @@
 #include "scenes/errors.hpp"
 #include "scenes/frame.hpp"
 #include "scenes/install.hpp"
+#include "scenes/menu.hpp"
 #include "scenes/preview_scene.hpp"
 #include "sys/log.hpp"
 
@@ -162,17 +163,25 @@ void LibraryPage::load()
         infoQueue_->pending.clear();
     }
     const library::Kind kind = kind_;
+    // a call to the SD card for each file, so only for the orders that need them
+    const bool withTimes = library::byTime(sortSetting());
     struct Scan
     {
         Expected<std::vector<library::Source>> sources;
         std::vector<std::pair<library::Source, library::Info>> cached;
+        std::vector<uint64_t> times;
     };
-    jobs::run(Lane::Io, token_, [this, kind, token = token_](const CancelToken&) {
+    jobs::run(Lane::Io, token_, [this, kind, withTimes, token = token_](const CancelToken&) {
         auto scan = std::make_shared<Scan>();
         FileSystem& sd = App::get().sd();
         scan->sources = library::scan(sd, library::root(kind));
         if (scan->sources)
+        {
             scan->cached = library::loadCache(sd, cachePath(kind), kind);
+            if (withTimes)
+                for (const library::Source& source : *scan->sources)
+                    scan->times.push_back(library::modifiedTime(sd, source));
+        }
         jobs::post([this, token, scan] {
             if (token.cancelled())
                 return;
@@ -182,15 +191,16 @@ void LibraryPage::load()
                 error_ = describe(scan->sources.error()).message;
                 return;
             }
-            onScanned(std::move(*scan->sources), std::move(scan->cached));
+            onScanned(std::move(*scan->sources), std::move(scan->cached), std::move(scan->times));
         });
     }, 5);
     refreshInstalled();
 }
 
 void LibraryPage::onScanned(std::vector<library::Source> sources,
-                            std::vector<std::pair<library::Source, library::Info>> cached)
+                            std::vector<std::pair<library::Source, library::Info>> cached, std::vector<uint64_t> times)
 {
+    timesRead_ = !times.empty() || sources.empty();
     std::unordered_map<std::string, library::Info*> byPath;
     for (auto& [source, info] : cached)
         byPath.emplace(source.path, &info);
@@ -211,6 +221,8 @@ void LibraryPage::onScanned(std::vector<library::Source> sources,
         }
         if (!entry.item.info)
             missing.push_back(source);
+        if (entries_.size() < times.size())
+            entry.item.modified = times[entries_.size()];
         entry.item.source = std::move(source);
         entries_.push_back(std::move(entry));
     }
@@ -342,8 +354,7 @@ void LibraryPage::rebuildIndex()
 void LibraryPage::resort(bool keepSelection)
 {
     const uint64_t selectedKey = keepSelection && selectedEntry() ? selectedEntry()->key : 0;
-    const library::Sort order = kind_ == library::Kind::Theme ? App::get().config().themeSort
-                                                              : App::get().config().splashSort;
+    const library::Sort order = sortSetting();
     // sort the items, keeping each entry's state with it
     std::stable_sort(entries_.begin(), entries_.end(),
                      [order](const Entry& a, const Entry& b) { return library::comesBefore(a.item, b.item, order); });
@@ -1025,22 +1036,82 @@ void LibraryPage::openPreview(Entry& entry)
 // ---------------------------------------------------------------------------------------------------------------------
 // The menu's actions for this page
 
+namespace
+{
+
+const char* sortLabel(library::Sort sort)
+{
+    switch (sort)
+    {
+    case library::Sort::Author:
+        return "Author";
+    case library::Sort::FileName:
+        return "File name";
+    case library::Sort::Newest:
+        return "Newest first";
+    case library::Sort::Oldest:
+        return "Newest last";
+    case library::Sort::Name:
+        break;
+    }
+    return "Name";
+}
+
+} // namespace
+
+library::Sort& LibraryPage::sortSetting()
+{
+    return kind_ == library::Kind::Theme ? App::get().config().themeSort : App::get().config().splashSort;
+}
+
+void LibraryPage::readTimes()
+{
+    // the items as they are, so a shuffle being picked and the selection stay
+    std::vector<library::Source> sources;
+    sources.reserve(entries_.size());
+    for (const Entry& entry : entries_)
+        sources.push_back(entry.item.source);
+    jobs::run(Lane::Io, token_, [this, sources = std::move(sources), token = token_](const CancelToken&) {
+        auto times = std::make_shared<std::vector<uint64_t>>();
+        FileSystem& sd = App::get().sd();
+        for (const library::Source& source : sources)
+            times->push_back(library::modifiedTime(sd, source));
+        jobs::post([this, token, sources, times] {
+            if (token.cancelled())
+                return;
+            for (size_t i = 0; i < sources.size(); ++i)
+                if (Entry* entry = find(keyOf(sources[i].path)))
+                    entry->item.modified = (*times)[i];
+            timesRead_ = true;
+            resort(true);
+        });
+    });
+}
+
+void LibraryPage::chooseSort()
+{
+    std::vector<ui::Action> options;
+    for (library::Sort sort : {library::Sort::Name, library::Sort::Author, library::Sort::FileName,
+                               library::Sort::Newest, library::Sort::Oldest})
+    {
+        options.push_back({sort == sortSetting() ? Icon::SquareCheck : Icon::Square, tr(sortLabel(sort)), {}, true,
+                           false, [this, sort] {
+                               sortSetting() = sort;
+                               App::get().saveConfig();
+                               if (library::byTime(sort) && !timesRead_)
+                                   readTimes();
+                               else
+                                   resort(true);
+                           }});
+    }
+    openChoice(tr("Sort"), std::move(options));
+}
+
 std::vector<ui::Action> LibraryPage::menuActions()
 {
     std::vector<ui::Action> actions;
-    const library::Sort current =
-        kind_ == library::Kind::Theme ? App::get().config().themeSort : App::get().config().splashSort;
-    const library::Sort next = current == library::Sort::Name
-                                   ? library::Sort::Author
-                                   : (current == library::Sort::Author ? library::Sort::FileName : library::Sort::Name);
-    const char* nextName = next == library::Sort::Name ? "Sort by name"
-                                                       : (next == library::Sort::Author ? "Sort by author"
-                                                                                        : "Sort by file name");
-    actions.push_back({Icon::Sort, tr(nextName), {}, state_ == State::Ready, false, [this, next] {
-                           (kind_ == library::Kind::Theme ? App::get().config().themeSort
-                                                          : App::get().config().splashSort) = next;
-                           resort(true);
-                       }});
+    actions.push_back({Icon::Sort, tr("Sort"), trf("Now: {}", tr(sortLabel(sortSetting()))), state_ == State::Ready,
+                       false, [this] { chooseSort(); }});
     if (kind_ == library::Kind::Theme)
     {
         actions.push_back({Icon::Save, tr("Save the current theme to the SD card"), tr("Into /Themes"), true, false,

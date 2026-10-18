@@ -17,6 +17,7 @@
 #include "scenes/download.hpp"
 #include "scenes/errors.hpp"
 #include "scenes/frame.hpp"
+#include "scenes/menu.hpp"
 #include "scenes/preview_scene.hpp"
 #include "services/themeplaza.hpp"
 #include "services/themezer.hpp"
@@ -175,6 +176,26 @@ void downloadFromThemezer(const std::string& quickId)
         }));
 }
 
+const char* orderLabel(catalog::Order order)
+{
+    switch (order)
+    {
+    case catalog::Order::Oldest:
+        return "Newest last";
+    case catalog::Order::MostDownloaded:
+        return "Most downloaded";
+    case catalog::Order::LeastDownloaded:
+        return "Least downloaded";
+    case catalog::Order::MostTrending:
+        return "Most trending";
+    case catalog::Order::LeastTrending:
+        return "Least trending";
+    case catalog::Order::Newest:
+        break;
+    }
+    return "Newest first";
+}
+
 } // namespace
 
 BrowsePage::BrowsePage() : source_(App::get().config().browseSource)
@@ -254,12 +275,13 @@ void BrowsePage::fetchPage(int page)
     const Source source = source_;
     const Kind kind = kind_;
     const std::string query = query_;
+    const catalog::Order order = App::get().config().browseOrder;
     auto client = client_;
     jobs::run(
         Lane::Network, token_,
-        [this, client, source, kind, query, page, token = token_](const CancelToken&) {
+        [this, client, source, kind, query, order, page, token = token_](const CancelToken&) {
             auto result = std::make_shared<Expected<catalog::Page>>(
-                catalog::fetchPage(*client, source, kind, page, query, token));
+                catalog::fetchPage(*client, source, kind, page, query, order, token));
             jobs::post([this, result, token] {
                 if (token.cancelled())
                     return;
@@ -872,12 +894,34 @@ void BrowsePage::openPreview(Entry& entry)
     App::get().scenes().push(makePreviewScene(std::move(preview)));
 }
 
+void BrowsePage::chooseOrder()
+{
+    std::vector<ui::Action> options;
+    const catalog::Order current = App::get().config().browseOrder;
+    for (catalog::Order order : {catalog::Order::Newest, catalog::Order::Oldest, catalog::Order::MostDownloaded,
+                                 catalog::Order::LeastDownloaded, catalog::Order::MostTrending,
+                                 catalog::Order::LeastTrending})
+    {
+        options.push_back({order == current ? Icon::SquareCheck : Icon::Square, tr(orderLabel(order)), {}, true, false,
+                           [this, order] {
+                               App::get().config().browseOrder = order;
+                               App::get().saveConfig();
+                               reload();
+                           }});
+    }
+    openChoice(tr("Sort"), std::move(options));
+}
+
 std::vector<ui::Action> BrowsePage::menuActions()
 {
     const Source other = otherSource(source_);
     return {
         {Icon::Search, trf("Search {}", catalog::sourceName(source_)),
          query_.empty() ? std::string() : trf("Now: \"{}\"", query_), true, false, [this] { search(); }},
+        {Icon::Sort, tr("Sort"),
+         source_ == Source::Themezer ? trf("Now: {}", tr(orderLabel(App::get().config().browseOrder)))
+                                     : std::string(tr("Only on Themezer")),
+         source_ == Source::Themezer, false, [this] { chooseOrder(); }},
         {Icon::Globe, trf("Browse {} instead", catalog::sourceName(other)), tr("Or press SELECT"), true, false,
          [this, other] { switchSource(other); }},
         {Icon::Qr, tr("Type an item's ID"), tr("From its page on Themezer or ThemePlaza"), true, false,
