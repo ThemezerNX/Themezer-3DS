@@ -70,9 +70,23 @@ float mark(gfx::Icon icon, gfx::Color color, float right, float y, float h);
 namespace details
 {
 constexpr float kLeft = 24;
-constexpr float kTop = gfx::metric::kStatusBarHeight + 24;
+constexpr float kTop = gfx::metric::kStatusBarHeight + 36; // room above for the site, online
 constexpr float kDescriptionGap = 18; // from the icon to the description
 } // namespace details
+
+// The facts along the bottom of the top screen, as a list row has them: what the item is from the left (has music,
+// how many badges), what's going on with it from the right (in use, picked for a shuffle, downloaded), so that
+// neither moves the other.
+class FactsLine
+{
+public:
+    void left(gfx::Icon which, std::string_view text, gfx::Color tint);
+    void right(gfx::Icon which, std::string_view text, gfx::Color tint);
+
+private:
+    float left_ = details::kLeft;
+    float right_ = gfx::metric::kTopWidth - details::kLeft;
+};
 
 // An item the top screen has nothing to show of: its name, and why underneath, in the middle of the screen.
 void drawNothingToShow(std::string_view name, std::string_view why);

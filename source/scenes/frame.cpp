@@ -153,6 +153,29 @@ float mark(Icon which, Color tint, float right, float y, float h)
 
 } // namespace row
 
+namespace
+{
+constexpr float kFactsMiddle = metric::kHeight - 22;
+constexpr float kFactGap = 16;
+constexpr float kFactIconGap = 4;
+} // namespace
+
+void FactsLine::left(Icon which, std::string_view text, Color tint)
+{
+    icon(which, left_, std::round(kFactsMiddle - metric::kIcon / 2), metric::kIcon, tint);
+    left_ += metric::kIcon + kFactIconGap;
+    left_ += drawText(text, left_, textTop(kFactsMiddle, metric::kTextSmall), metric::kTextSmall, tint) + kFactGap;
+}
+
+void FactsLine::right(Icon which, std::string_view text, Color tint)
+{
+    const float x = std::round(right_ - textWidth(text, metric::kTextSmall));
+    drawText(text, x, textTop(kFactsMiddle, metric::kTextSmall), metric::kTextSmall, tint);
+    const float iconX = x - kFactIconGap - metric::kIcon;
+    icon(which, iconX, std::round(kFactsMiddle - metric::kIcon / 2), metric::kIcon, tint);
+    right_ = iconX - kFactGap;
+}
+
 void drawNothingToShow(std::string_view name, std::string_view why)
 {
     const float x = metric::kTopWidth / 2;

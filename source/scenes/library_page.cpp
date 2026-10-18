@@ -686,23 +686,18 @@ void LibraryPage::drawDetails(const Entry& entry)
     drawWrapped(description, kLeft, top + kIcon + details::kDescriptionGap, textWidth, metric::kTextNormal,
                 item.info ? color::kTextDim : color::kTextFaint, 4);
 
-    // what it is, along the bottom
-    const float factsMiddle = metric::kHeight - 22;
-    float x = kLeft;
-    auto fact = [&](Icon which, const std::string& text, Color tint) {
-        icon(which, x, std::round(factsMiddle - metric::kIcon / 2), metric::kIcon, tint);
-        x += metric::kIcon + 4;
-        x += drawText(text, x, textTop(factsMiddle, metric::kTextSmall), metric::kTextSmall, tint) + 16;
-    };
+    // what it is, along the bottom, and what's going on with it at the right
+    FactsLine facts;
+    if (item.info && item.info->hasMusic)
+        facts.left(Icon::Music, tr("Has music"), color::kTextDim);
     if (const char* status = statusOf(entry))
-        fact(Icon::Check, tr(status), accent().light);
+        facts.right(Icon::Check, tr(status), accent().light);
     for (size_t i = 0; i < shuffle_.size(); ++i)
         if (shuffle_[i].key == entry.key)
-            fact(Icon::Shuffle,
-                 trf(shuffle_[i].music ? "Shuffle pick {}" : "Shuffle pick {} without music", std::to_string(i + 1)),
-                 accent().light);
-    if (item.info && item.info->hasMusic)
-        fact(Icon::Music, tr("Has music"), color::kTextDim);
+            facts.right(Icon::Shuffle,
+                        trf(shuffle_[i].music ? "Shuffle pick {}" : "Shuffle pick {} without music",
+                            std::to_string(i + 1)),
+                        accent().light);
 }
 
 void LibraryPage::drawBottom(float top, float bottom)

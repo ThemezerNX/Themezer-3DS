@@ -350,23 +350,18 @@ void BadgesPage::drawTop()
     drawWrapped(description, kLeft, top + kIcon + details::kDescriptionGap, metric::kTopWidth - 2 * kLeft,
                 metric::kTextNormal, color::kTextDim, 4);
 
-    // what it is, along the bottom
-    const float factsMiddle = metric::kHeight - 22;
-    float x = kLeft;
-    auto fact = [&](Icon which, const std::string& text, Color tint) {
-        icon(which, x, std::round(factsMiddle - metric::kIcon / 2), metric::kIcon, tint);
-        x += metric::kIcon + 4;
-        x += drawText(text, x, textTop(factsMiddle, metric::kTextSmall), metric::kTextSmall, tint) + 16;
-    };
+    // what it is, along the bottom, and what's going on with it at the right
+    FactsLine facts;
     if (set->summarized)
-        fact(Icon::Badge, trf(set->summary.badges == 1 ? "{} badge" : "{} badges", std::to_string(set->summary.badges)),
-             color::kTextDim);
-    if (!set->included)
-        fact(Icon::Square, tr("Left out"), color::kTextFaint);
+        facts.left(Icon::Badge,
+                   trf(set->summary.badges == 1 ? "{} badge" : "{} badges", std::to_string(set->summary.badges)),
+                   color::kTextDim);
     if (installedCount_ >= 0)
-        fact(Icon::Info, trf("The HOME Menu has {} now", std::to_string(installedCount_)), color::kTextDim);
+        facts.left(Icon::Info, trf("The HOME Menu has {} now", std::to_string(installedCount_)), color::kTextDim);
     else if (storageBusy_)
-        fact(Icon::Info, tr("The HOME Menu is using its badges"), color::kTextFaint);
+        facts.left(Icon::Info, tr("The HOME Menu is using its badges"), color::kTextFaint);
+    if (!set->included)
+        facts.right(Icon::Square, tr("Left out"), color::kTextFaint);
 }
 
 void BadgesPage::drawBottom(float top, float bottom)

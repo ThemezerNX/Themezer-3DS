@@ -643,6 +643,11 @@ void BrowsePage::drawDetails(const Entry& entry)
     constexpr float kLeft = details::kLeft;
     constexpr float kIcon = IconAtlas::kIconSize;
     constexpr float top = details::kTop;
+    // the site it's from, over its icon and name
+    const float siteMiddle = top - 16;
+    icon(Icon::Globe, kLeft, std::round(siteMiddle - metric::kIcon / 2), metric::kIcon, color::kTextDim);
+    drawText(catalog::sourceName(source_), kLeft + metric::kIcon + 4, textTop(siteMiddle, metric::kTextSmall),
+             metric::kTextSmall, color::kTextDim);
     if (!atlas_.draw(entry.key, kLeft, top, kIcon))
         roundedRect(kLeft, top, kIcon, kIcon, metric::kRadius, color::kSurfaceRaised);
     const float textX = kLeft + kIcon + 14;
@@ -656,20 +661,14 @@ void BrowsePage::drawDetails(const Entry& entry)
         drawWrapped(entry.item.description, kLeft, top + kIcon + details::kDescriptionGap,
                     metric::kTopWidth - 2 * kLeft, metric::kTextNormal, color::kTextDim, 4);
 
-    const float factsMiddle = metric::kHeight - 22;
-    float x = kLeft;
-    auto fact = [&](Icon which, const std::string& text, Color tint) {
-        icon(which, x, std::round(factsMiddle - metric::kIcon / 2), metric::kIcon, tint);
-        x += metric::kIcon + 4;
-        x += drawText(text, x, textTop(factsMiddle, metric::kTextSmall), metric::kTextSmall, tint) + 16;
-    };
-    if (entry.onSd)
-        fact(Icon::Check, tr("Downloaded"), accent().light);
+    // what it is, along the bottom, and what's going on with it at the right
+    FactsLine facts;
     if (entry.item.badgeCount > 0)
-        fact(Icon::Badge, badgeCountOf(entry.item), color::kTextDim);
-    fact(Icon::Globe, catalog::sourceName(source_), color::kTextDim);
+        facts.left(Icon::Badge, badgeCountOf(entry.item), color::kTextDim);
     if (!entry.item.audioUrl.empty())
-        fact(Icon::Music, tr("Has music"), color::kTextDim);
+        facts.left(Icon::Music, tr("Has music"), color::kTextDim);
+    if (entry.onSd)
+        facts.right(Icon::Check, tr("Downloaded"), accent().light);
 }
 
 void BrowsePage::drawBottom(float top, float bottom)
