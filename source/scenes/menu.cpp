@@ -5,6 +5,7 @@
 
 #include "app/app.hpp"
 #include "app/strings.hpp"
+#include "app_version.h"
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"

@@ -3,6 +3,7 @@
 
 #include "sys/net.hpp"
 
+#include "app_version.h"
 #include "core/path.hpp"
 #include "core/utf.hpp"
 #include "sys/log.hpp"

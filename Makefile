@@ -90,7 +90,6 @@ INCLUDE  := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 DEFINES  := -D__3DS__ \
             -DAPP_NAME='"$(APP_NAME)"' \
             -DAPP_TITLE='"$(APP_TITLE)"' \
-            -DAPP_VERSION='"$(VERSION)"' \
             -DUPDATE_URL='"$(UPDATE_URL)"' \
             $(if $(filter 1,$(DEVTOOLS)),-DTZ_DEVTOOLS) \
             $(if $(PKGCONFIG),$(shell $(PKGCONFIG) --cflags-only-other $(PKGS)))
@@ -113,6 +112,9 @@ CFILES   := $(foreach dir,$(SOURCES),$(shell find $(dir) -name '*.c' 2>/dev/null
 CPPFILES := $(foreach dir,$(SOURCES),$(shell find $(dir) -name '*.cpp' 2>/dev/null))
 OFILES   := $(addprefix $(BUILD)/,$(CPPFILES:.cpp=.o) $(CFILES:.c=.o))
 DEPFILES := $(OFILES:.o=.d)
+# The version is in a header rewritten only when it changes, so a new commit rebuilds the files that show it, which a -D
+# define wouldn't. By its full path, as the .d files name it.
+VERSION_H := $(CURDIR)/$(BUILD)/gen/app_version.h
 
 GFXFILES := $(wildcard $(GFX)/*.t3s)
 T3XFILES := $(patsubst $(GFX)/%.t3s,$(ROMFS)/gfx/%.t3x,$(GFXFILES))
@@ -129,7 +131,7 @@ CIA      := $(OUT)/$(TARGET).cia
 MAKEROM    ?= makerom
 BANNERTOOL ?= bannertool
 
-.PHONY: all 3dsx cia test send preview clean update-certs
+.PHONY: all 3dsx cia test send preview clean update-certs FORCE
 
 all: 3dsx cia
 
@@ -158,6 +160,14 @@ $(BUILD)/third_party/%.o: CFLAGS += -w
 ZXING_FLAGS := -fexceptions -DZXING_INTERNAL -I$(CURDIR)/third_party/zxing-cpp
 $(BUILD)/third_party/zxing-cpp/%.o: CXXFLAGS += -w $(ZXING_FLAGS)
 $(BUILD)/source/services/qr_zxing.o: CXXFLAGS += $(ZXING_FLAGS)
+
+$(VERSION_H): FORCE
+	@mkdir -p $(@D)
+	@printf '// The version of the app, from the Makefile\n#pragma once\n#define APP_VERSION "%s"\n' '$(VERSION)' > $@.new
+	@if cmp -s $@.new $@; then rm $@.new; else mv $@.new $@; fi
+
+# before anything is compiled; then the .d files say which files include it
+$(OFILES): | $(VERSION_H)
 
 $(ROMFS)/gfx/%.t3x $(BUILD)/gen/%.h: $(GFX)/%.t3s
 	@mkdir -p $(ROMFS)/gfx $(BUILD)/gen

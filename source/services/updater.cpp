@@ -3,6 +3,7 @@
 
 #include "services/updater.hpp"
 
+#include "app_version.h"
 #include "core/path.hpp"
 #include "core/version.hpp"
 #include "sys/fs.hpp"

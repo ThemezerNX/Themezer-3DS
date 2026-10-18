@@ -3,6 +3,7 @@
 
 #include "sys/log.hpp"
 
+#include "app_version.h"
 #include "sys/thread.hpp"
 
 #include <3ds.h>

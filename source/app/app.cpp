@@ -6,6 +6,7 @@
 #include "app/autopilot.hpp"
 
 #include "app/strings.hpp"
+#include "app_version.h"
 #include "domain/badges.hpp"
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
