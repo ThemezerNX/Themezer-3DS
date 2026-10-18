@@ -4,6 +4,7 @@
 #include "services/catalog.hpp"
 
 #include "core/path.hpp"
+#include "domain/item_ids.hpp"
 #include "core/smdh.hpp"
 #include "services/themeplaza.hpp"
 #include "services/themezer.hpp"
@@ -87,17 +88,11 @@ Expected<Details> fetchDetails(net::Client& client, const Item& item, int langua
 
 bool isDownloadOf(const Item& item, std::string_view fileName)
 {
-    if (!item.filename.empty())
-        return path::equalsIgnoreCase(fileName, item.filename);
-    // the site's own name: "<name> by <author> (<id>).zip", or "... (<id>) (2).zip" for a second copy
-    if (item.id.empty() || !path::hasExtension(fileName, "zip"))
+    if (!path::hasExtension(fileName, "zip"))
         return false;
-    const std::string tag = " (" + item.id + ")";
-    const std::string_view stem = path::stem(fileName);
-    if (stem.ends_with(tag))
-        return true;
-    const size_t copy = stem.rfind(" (");
-    return copy != std::string_view::npos && stem.substr(0, copy).ends_with(tag);
+    // by the ID in its name first, which stays when a site changes how it names the rest
+    return ids::fileNameHasId(path::stem(fileName), item.id) ||
+           (!item.filename.empty() && path::equalsIgnoreCase(fileName, item.filename));
 }
 
 } // namespace tz::catalog

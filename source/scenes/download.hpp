@@ -20,9 +20,11 @@ struct Saved
     uint64_t size = 0;
 };
 
-// Downloads a zip and saves it in the folder for what it turns out to be (/Themes, /Splashes or /Badges), under the
-// server's name for it, else fallbackName. A name already taken gets a number. Shows the progress, and errors.
-void downloadToSd(std::string url, std::string title, std::string fallbackName, std::function<void(Saved)> done);
+// Downloads a zip and saves it in the folder for what it turns out to be (/Themes, /Splashes or /Badges), under name
+// when there is one (the catalog's name for it, by which it's recognised later), else the server's name for it, else
+// fallbackName. A name already taken gets a number. Shows the progress, and errors.
+void downloadToSd(std::string url, std::string title, std::string name, std::string fallbackName,
+                  std::function<void(Saved)> done);
 
 // Asks whether to install what was just saved, and does.
 void offerInstall(const Saved& saved, const std::string& name);

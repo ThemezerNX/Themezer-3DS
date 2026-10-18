@@ -95,11 +95,12 @@ void askToReplace(const Saved& saved, std::shared_ptr<MemoryReader> unsaved, std
 
 } // namespace
 
-void downloadToSd(std::string url, std::string title, std::string fallbackName, std::function<void(Saved)> done)
+void downloadToSd(std::string url, std::string title, std::string name, std::string fallbackName,
+                  std::function<void(Saved)> done)
 {
     App::get().scenes().push(ui::ProgressOverlay::start<Expected<Fetched>>(
         {std::move(title), Lane::Network, true, false, gfx::color::kPrimary},
-        [url, fallbackName](ui::TaskProgress& task, const CancelToken& token) -> Expected<Fetched> {
+        [url, name, fallbackName](ui::TaskProgress& task, const CancelToken& token) -> Expected<Fetched> {
             task.setStatus(tr("Downloading"));
             net::Request request;
             request.url = url;
@@ -124,11 +125,11 @@ void downloadToSd(std::string url, std::string title, std::string fallbackName, 
             if (!folder)
                 return fail(Errc::Unsupported, "neither a theme, a splash nor badges");
 
-            std::string name = response.filename.empty() ? fallbackName : response.filename;
-            name = path::sanitizeFilename(name.empty() ? std::string("download") : name);
+            std::string chosen = !name.empty() ? name : !response.filename.empty() ? response.filename : fallbackName;
+            chosen = path::sanitizeFilename(chosen.empty() ? std::string("download") : chosen);
             FileSystem& sd = App::get().sd();
             TZ_CHECK(sd.createDirectories(folder));
-            fetched.saved.path = path::join(folder, std::string(path::stem(name)) + ".zip");
+            fetched.saved.path = path::join(folder, std::string(path::stem(chosen)) + ".zip");
             fetched.saved.size = reader->size();
             if (sd.exists(fetched.saved.path))
             {

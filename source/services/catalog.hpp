@@ -97,8 +97,8 @@ Expected<Page> fetchPage(net::Client& client, Source source, Kind kind, int page
 // Reads item.detailsUrl.
 Expected<Details> fetchDetails(net::Client& client, const Item& item, int language, const CancelToken& cancel);
 
-// Whether a file in the kind's folder on the SD card is this item's download: by item.filename, or without one (the
-// site names it, as ThemePlaza does), by the "(<id>)" at the end of its name.
+// Whether a file in the kind's folder on the SD card is this item's download: by the item's ID in its name
+// ("(Themezer-<id>)" or "(<id>)", see ids::fileNameHasId), else by item.filename.
 bool isDownloadOf(const Item& item, std::string_view fileName);
 
 } // namespace tz::catalog

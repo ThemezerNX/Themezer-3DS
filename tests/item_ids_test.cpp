@@ -38,3 +38,19 @@ TEST(item_ids_themeplaza)
     CHECK(!ids::themePlazaIdInLink("https://themeplaza.art/user/152151").has_value());
     CHECK(!ids::themePlazaIdInLink("152151").has_value());
 }
+
+TEST(item_ids_in_file_names)
+{
+    // Themezer's tag and ThemePlaza's, wherever the rest of the name puts them, in any case
+    CHECK(ids::fileNameHasId("Mario Theme by mira (Themezer-T1ED69)", "T1ED69"));
+    CHECK(ids::fileNameHasId("mario (themezer-t1ed69) (2)", "T1ED69"));
+    CHECK(ids::fileNameHasId("(Themezer-T1ED69) Mario by someone new", "T1ED69"));
+    CHECK(ids::fileNameHasId("Mario by mira (152151)", "152151"));
+    CHECK(ids::fileNameHasId("Mario by mira (152151) (2)", "152151"));
+    // a longer or another ID, a bare one, or none
+    CHECK(!ids::fileNameHasId("Mario (Themezer-T1ED690)", "T1ED69"));
+    CHECK(!ids::fileNameHasId("Mario (Themezer-T1ED6)", "T1ED69"));
+    CHECK(!ids::fileNameHasId("Mario T1ED69", "T1ED69"));
+    CHECK(!ids::fileNameHasId("Mario (1521510)", "152151"));
+    CHECK(!ids::fileNameHasId("Mario (Themezer-T1ED69)", ""));
+}

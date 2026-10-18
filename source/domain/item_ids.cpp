@@ -3,6 +3,8 @@
 
 #include "domain/item_ids.hpp"
 
+#include "core/path.hpp"
+
 #include <algorithm>
 #include <cctype>
 
@@ -89,6 +91,19 @@ std::optional<std::string> themePlazaIdInLink(std::string_view url)
         return std::nullopt;
     }
     return std::nullopt;
+}
+
+bool fileNameHasId(std::string_view fileName, std::string_view id)
+{
+    if (id.empty())
+        return false;
+    const auto contains = [fileName](const std::string& tag) {
+        for (size_t at = 0; at + tag.size() <= fileName.size(); ++at)
+            if (path::equalsIgnoreCase(fileName.substr(at, tag.size()), tag))
+                return true;
+        return false;
+    };
+    return contains("(Themezer-" + std::string(id) + ")") || contains("(" + std::string(id) + ")");
 }
 
 } // namespace tz::ids

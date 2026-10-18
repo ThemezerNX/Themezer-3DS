@@ -157,7 +157,7 @@ std::string savedName(const Saved& saved)
 // Downloads one of ThemePlaza's items by its id, and offers to install it.
 void downloadFromThemePlaza(const std::string& id)
 {
-    downloadToSd(themeplaza::itemOf(id).downloadUrl, trf("Downloading #{} from ThemePlaza", id),
+    downloadToSd(themeplaza::itemOf(id).downloadUrl, trf("Downloading #{} from ThemePlaza", id), {},
                  "ThemePlaza " + id + ".zip", [](Saved saved) { offerInstall(saved, savedName(saved)); });
 }
 
@@ -185,7 +185,7 @@ void downloadFromThemezer(const std::string& quickId)
             }
             const std::string name = found->item.name.empty() ? quickId : found->item.name;
             downloadToSd(found->item.downloadUrl, trf("Downloading {}", name), found->item.filename,
-                         [name](Saved saved) { offerInstall(saved, name); });
+                         found->item.filename, [name](Saved saved) { offerInstall(saved, name); });
         }));
 }
 
@@ -770,7 +770,7 @@ void BrowsePage::downloadScanned(const std::string& text)
     }
     // Themezer's links are https; an old http one is asked for securely
     const std::string url = http ? "https://" + text.substr(7) : text;
-    downloadToSd(url, tr("Downloading from the QR code"), "download.zip",
+    downloadToSd(url, tr("Downloading from the QR code"), {}, "download.zip",
                  [](Saved saved) { offerInstall(saved, savedName(saved)); });
 }
 
@@ -857,10 +857,8 @@ void BrowsePage::download(Entry& entry, bool install)
 {
     const std::string name = nameOf(entry.item);
     const uint64_t key = entry.key;
-    const std::string fallback = entry.item.filename.empty()
-                                     ? std::string(catalog::sourceName(source_)) + " " + entry.item.id + ".zip"
-                                     : entry.item.filename;
-    downloadToSd(entry.item.downloadUrl, trf("Downloading {}", name), fallback,
+    const std::string fallback = std::string(catalog::sourceName(source_)) + " " + entry.item.id + ".zip";
+    downloadToSd(entry.item.downloadUrl, trf("Downloading {}", name), entry.item.filename, fallback,
                  [this, name, key, install, token = token_](Saved saved) {
                      if (!token.cancelled())
                          if (Entry* e = find(key))
