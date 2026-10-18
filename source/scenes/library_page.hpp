@@ -6,6 +6,7 @@
 #include "domain/library.hpp"
 #include "gfx/icon_atlas.hpp"
 #include "scenes/page.hpp"
+#include "scenes/preview_scene.hpp"
 #include "scenes/previews.hpp"
 #include "sys/jobs.hpp"
 #include "sys/thread.hpp"
@@ -92,6 +93,7 @@ private:
     void toggleShuffle(Entry& entry);
     void confirmDelete(Entry& entry);
     void openPreview(Entry& entry);
+    PreviewSource previewOf(Entry& entry);
     void resetTheme();
     void removeSplash();
     void saveInstalled();

@@ -25,6 +25,10 @@ struct PreviewSource
     // Opens the music, on a worker; empty without music.
     std::function<Expected<std::unique_ptr<StreamReader>>()> music;
     Lane musicLane = Lane::Io;
+    // Going through the page's list without closing: whether there's an item step places away (-1 before, +1 after),
+    // and that item, which the list then selects. Empty where there's no list to go through.
+    std::function<bool(int step)> hasNeighbour;
+    std::function<PreviewSource(int step)> neighbour;
 };
 
 // A preview on both screens at full size, as the HOME Menu would show it, with the theme's music playing.

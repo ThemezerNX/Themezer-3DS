@@ -5,6 +5,7 @@
 
 #include "gfx/icon_atlas.hpp"
 #include "scenes/page.hpp"
+#include "scenes/preview_scene.hpp"
 #include "scenes/previews.hpp"
 #include "scenes/qr_view.hpp"
 #include "services/catalog.hpp"
@@ -76,6 +77,8 @@ private:
     void openActions();
     void download(Entry& entry, bool install);
     void openPreview(Entry& entry);
+    PreviewSource previewOf(Entry& entry);
+    void fetchNearTheEnd();
     void drawDetails(const Entry& entry);
     bool scanningTab() const;
     void downloadScanned(const std::string& text);

@@ -1023,6 +1023,14 @@ void LibraryPage::confirmDelete(Entry& entry)
 
 void LibraryPage::openPreview(Entry& entry)
 {
+    // a choice, as moving in the list is: the list stops jumping to the installed theme and sorting itself under it,
+    // which would change the item the preview steps from
+    interacted_ = true;
+    App::get().scenes().push(makePreviewScene(previewOf(entry)));
+}
+
+PreviewSource LibraryPage::previewOf(Entry& entry)
+{
     const library::Source source = entry.item.source;
     const library::Kind kind = kind_;
     const bool music = kind_ == library::Kind::Theme && entry.item.info && entry.item.info->hasMusic;
@@ -1038,7 +1046,16 @@ void LibraryPage::openPreview(Entry& entry)
             return package.stream(kMusicName);
         };
     }
-    App::get().scenes().push(makePreviewScene(std::move(preview)));
+    // the selected entry's neighbours in the list
+    preview.hasNeighbour = [this](int step) {
+        const int index = list_.selected() + step;
+        return index >= 0 && index < static_cast<int>(entries_.size());
+    };
+    preview.neighbour = [this](int step) {
+        list_.select(list_.selected() + step);
+        return previewOf(*selectedEntry());
+    };
+    return preview;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

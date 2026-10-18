@@ -485,6 +485,9 @@ BrowsePage::Entry* BrowsePage::find(uint64_t key)
 void BrowsePage::tick(float)
 {
     qr_.tick();
+    // here rather than in update(), so that it goes on, and retries, under a preview stepping through the list
+    if (shown_ && !scanningTab() && state_ == State::Ready)
+        fetchNearTheEnd();
 
     // the site was changed in the settings
     if (App::get().config().browseSource != source_)
@@ -537,12 +540,6 @@ void BrowsePage::update(ui::Input& input, float dt)
     list_.setFooter(hasMore() ? metric::kRowHeight : 0);
     const auto event = list_.update(input, dt);
     requestIcons();
-
-    // the next page, before the end is reached
-    const int count = static_cast<int>(entries_.size());
-    if (hasMore() && osGetTime() >= moreRetryAt_ &&
-        (list_.selected() >= count - kPrefetchRows || list_.visibleRange().second >= count - 2))
-        fetchPage(page_ + 1);
 
     Entry* entry = selected();
     if (!entry)
@@ -867,7 +864,21 @@ void BrowsePage::download(Entry& entry, bool install)
                  });
 }
 
+// The next page, before the end is reached.
+void BrowsePage::fetchNearTheEnd()
+{
+    const int count = static_cast<int>(entries_.size());
+    if (hasMore() && osGetTime() >= moreRetryAt_ &&
+        (list_.selected() >= count - kPrefetchRows || list_.visibleRange().second >= count - 2))
+        fetchPage(page_ + 1);
+}
+
 void BrowsePage::openPreview(Entry& entry)
+{
+    App::get().scenes().push(makePreviewScene(previewOf(entry)));
+}
+
+PreviewSource BrowsePage::previewOf(Entry& entry)
 {
     PreviewSource preview;
     preview.title = nameOf(entry.item);
@@ -898,7 +909,16 @@ void BrowsePage::openPreview(Entry& entry)
             return streamFromZipInOrder(net::streamForward(zip, kMaxZipSize), "bgm.bcstm");
         };
     }
-    App::get().scenes().push(makePreviewScene(std::move(preview)));
+    // the selected entry's neighbours in the list, which goes on loading as the preview gets near its end (see tick())
+    preview.hasNeighbour = [this](int step) {
+        const int index = list_.selected() + step;
+        return index >= 0 && index < static_cast<int>(entries_.size());
+    };
+    preview.neighbour = [this](int step) {
+        list_.select(list_.selected() + step);
+        return previewOf(*selected());
+    };
+    return preview;
 }
 
 void BrowsePage::chooseOrder()

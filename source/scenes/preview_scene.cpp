@@ -44,6 +44,10 @@ public:
         hints_ = {{KEY_B, tr("Close")}};
         if (player_)
             hints_.push_back({KEY_X, paused_ ? tr("Play") : tr("Pause")});
+        if (source_.hasNeighbour && source_.hasNeighbour(-1))
+            hints_.push_back({KEY_LEFT, tr("Previous")});
+        if (source_.hasNeighbour && source_.hasNeighbour(1))
+            hints_.push_back({KEY_RIGHT, tr("Next")});
         if (hintsShown_ > 0)
             hintBar_.update(input, hints_);
         if (input.pressed(KEY_B | KEY_Y | KEY_A) || (input.tap && hintsShown_ <= 0))
@@ -56,6 +60,10 @@ public:
             paused_ = !paused_;
             player_->setPaused(paused_);
         }
+        // the next item with right or R, the one before with left or L
+        const int step = input.repeated(KEY_RIGHT | KEY_R) ? 1 : input.repeated(KEY_LEFT | KEY_L) ? -1 : 0;
+        if (step != 0 && source_.hasNeighbour && source_.hasNeighbour(step))
+            show(source_.neighbour(step));
         if (input.touching || input.down)
             hintsShown_ = 2.5f;
     }
@@ -84,6 +92,16 @@ public:
     }
 
 private:
+    void show(PreviewSource next)
+    {
+        musicJob_.cancel();
+        player_.reset();
+        paused_ = false;
+        source_ = std::move(next);
+        source_.previews->want(source_.key, source_.loader, source_.lane);
+        startMusic();
+    }
+
     void startMusic()
     {
         // turned off in the settings
