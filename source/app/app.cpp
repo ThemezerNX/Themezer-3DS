@@ -54,8 +54,8 @@ std::optional<RegionIds> regionIds(u8 region)
     }
 }
 
-// HOME Menu notification: the POWER button was pressed. The HOME Menu opens its power menu, and cancelling it
-// reloads the theme.
+// HOME Menu notification: the POWER button was pressed. The HOME Menu opens its power menu, and leaving it with
+// "Go to HOME Menu" reloads the theme.
 constexpr u32 kPowerButtonNotification = 0x202;
 
 } // namespace
@@ -289,20 +289,20 @@ void App::requestExit()
     {
         gfx::Icon icon = gfx::Icon::Theme;
         const char* title = tr("Your new theme is ready");
-        const char* text = tr("Close the app to see it. The HOME Menu then asks whether to power off: choose Cancel "
-                              "there, and it shows your new theme.");
+        const char* text = tr("Close the app to see it. The HOME Menu then asks whether to power off: choose Go to "
+                              "HOME Menu there, and it shows your new theme.");
         if (badgesChanged_ && themeChanged_)
         {
             title = tr("Your new theme and badges are ready");
-            text = tr("Close the app to see them. The HOME Menu then asks whether to power off: choose Cancel there, and "
-                      "it shows your new theme and badges.");
+            text = tr("Close the app to see them. The HOME Menu then asks whether to power off: choose Go to HOME Menu "
+                      "there, and it shows your new theme and badges.");
         }
         else if (badgesChanged_)
         {
             icon = gfx::Icon::Badge;
             title = tr("Your new badges are ready");
-            text = tr("Close the app to see them. The HOME Menu then asks whether to power off: choose Cancel there, and "
-                      "it shows your new badges.");
+            text = tr("Close the app to see them. The HOME Menu then asks whether to power off: choose Go to HOME Menu "
+                      "there, and it shows your new badges.");
         }
         scenes_.emplace<ui::Dialog>(icon, gfx::color::kPrimaryLight, title, text,
                                     std::vector<ui::DialogButton>{cancel, {tr("Close app"), closing(AfterExit::ReloadHome)}});
