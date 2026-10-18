@@ -39,14 +39,12 @@ public:
         for (const auto& page : local_)
             localTabs_.push_back(page->tab());
 
-        // lastTab: 0 to 2 are the SD card's tabs, the ones after them online; 3 was the one online tab before
-        const int onlineTabs = static_cast<int>(browse_.tabs().size());
-        const int last = std::clamp(App::get().config().lastTab, 0, kLocalTabs + onlineTabs - 1);
-        online_ = last >= kLocalTabs;
-        if (online_)
-            onlineTab_ = last - kLocalTabs;
-        else
-            localTab_ = last;
+        // It opens on the SD card, on the kind last shown, online or not. lastTab: 0 to 2 are the SD card's tabs, the
+        // ones after them online, in the same order, then the QR code scanner, which has no kind (themes, then).
+        const int last = std::max(0, App::get().config().lastTab);
+        const int kind = last < kLocalTabs ? last : last - kLocalTabs;
+        localTab_ = kind < kLocalTabs ? kind : 0;
+        onlineTab_ = localTab_;
         browse_.selectTab(onlineTab_);
         showTabs();
         page().onShow();
