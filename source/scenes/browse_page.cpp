@@ -622,9 +622,9 @@ void BrowsePage::drawDetails(const Entry& entry)
         x += metric::kIcon + 4;
         x += drawText(text, x, textTop(factsMiddle, metric::kTextSmall), metric::kTextSmall, tint) + 16;
     };
-    fact(Icon::Globe, catalog::sourceName(source_), color::kTextDim);
     if (entry.onSd)
         fact(Icon::Check, tr("Downloaded"), accent().light);
+    fact(Icon::Globe, catalog::sourceName(source_), color::kTextDim);
     if (!entry.item.audioUrl.empty())
         fact(Icon::Music, tr("Has music"), color::kTextDim);
 }
