@@ -484,6 +484,8 @@ BrowsePage::Entry* BrowsePage::find(uint64_t key)
 
 void BrowsePage::tick(float)
 {
+    qr_.tick();
+
     // the site was changed in the settings
     if (App::get().config().browseSource != source_)
         switchSource(App::get().config().browseSource);

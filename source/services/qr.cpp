@@ -108,8 +108,10 @@ struct QrScanner::Impl
 
     Expected<void> open();
 
-    // The camera thread.
+    // The camera thread: starts the driver, captures until the stop signal, stops the driver.
     void capture();
+    // False if capturing ended without the stop signal: it didn't start, or the camera stopped.
+    bool captureFrames();
     bool configureCamera(Handle& bufferError, s16& transferUnit);
     bool receiveInto(Handle& received, uint16_t* buffer, s16 transferUnit);
     void publish(const uint16_t* frame);
@@ -145,22 +147,23 @@ struct QrScanner::Impl
     std::string resultText;
     std::atomic<bool> found{false};
 
-    bool cameraOpen = false;
+    // Written once by the camera thread, before failed is set.
+    Error failure;
+    std::atomic<bool> failed{false};
+
     Thread captureThread;
     Thread decodeThread;
 };
 
 QrScanner::Impl::~Impl()
 {
-    // Both threads watch the stop event, and the camera thread turns the camera off on its way out.
+    // Both threads watch the stop event, and the camera thread stops the driver on its way out, so that nothing can
+    // still be writing to the buffers once it has ended.
     if (stopEvent)
         svcSignalEvent(stopEvent);
     decodeThread.join();
     captureThread.join();
 
-    // the driver goes before the buffers, so that nothing can still be writing to them
-    if (cameraOpen)
-        camExit();
     for (uint16_t* buffer : dma)
     {
         if (buffer)
@@ -188,21 +191,36 @@ Expected<void> QrScanner::Impl::open()
     if (!dma[0] || !dma[1] || !latest || !decodeFrame || !grey)
         return fail(Errc::OutOfMemory, "QR scanner buffers");
 
-    const Result opened = camInit();
-    if (R_FAILED(opened))
-        return fail(cameraError(opened));
-    cameraOpen = true;
-
-    captureThread = Thread::start([this] { capture(); }, kCapturePriority, kSystemCore, kCaptureStack);
-    if (!captureThread.running())
-        return fail(Errc::OutOfMemory, "camera thread");
+    // The decode thread first: if the camera thread can't start, it alone is waited for, and it waits for nothing but
+    // the stop signal.
     decodeThread = Thread::start([this] { decode(); }, priority::kWorker, kAppCore, kDecodeStack);
     if (!decodeThread.running())
         return fail(Errc::OutOfMemory, "QR decode thread");
+    captureThread = Thread::start([this] { capture(); }, kCapturePriority, kSystemCore, kCaptureStack);
+    if (!captureThread.running())
+        return fail(Errc::OutOfMemory, "camera thread");
     return {};
 }
 
 void QrScanner::Impl::capture()
+{
+    const Result opened = camInit();
+    if (R_FAILED(opened))
+    {
+        failure = cameraError(opened);
+        failed.store(true, std::memory_order_release);
+        return;
+    }
+    // stopped while the driver was starting: no need to turn the camera on
+    if (!stopping(0) && !captureFrames())
+    {
+        failure = Error{Errc::Busy, 0, "camera stopped capturing"};
+        failed.store(true, std::memory_order_release);
+    }
+    camExit();
+}
+
+bool QrScanner::Impl::captureFrames()
 {
     // What the thread waits for: the stop signal, the end of a frame's transfer, the camera port's buffer overflowing.
     Handle events[3] = {stopEvent, 0, 0};
@@ -255,6 +273,7 @@ void QrScanner::Impl::capture()
         svcCloseHandle(received);
     if (bufferError)
         svcCloseHandle(bufferError);
+    return stopping(0);
 }
 
 bool QrScanner::Impl::configureCamera(Handle& bufferError, s16& transferUnit)
@@ -381,6 +400,23 @@ bool QrScanner::latestFrame(std::vector<uint16_t>& frame)
     std::memcpy(frame.data(), impl_->latest.get(), kFrameBytes);
     impl_->framesShown = impl_->frames;
     return true;
+}
+
+std::optional<Error> QrScanner::failure() const
+{
+    if (!impl_->failed.load(std::memory_order_acquire))
+        return std::nullopt;
+    return impl_->failure;
+}
+
+void QrScanner::stop()
+{
+    svcSignalEvent(impl_->stopEvent);
+}
+
+bool QrScanner::stopped() const
+{
+    return impl_->decodeThread.done() && impl_->captureThread.done();
 }
 
 std::optional<std::string> QrScanner::result() const

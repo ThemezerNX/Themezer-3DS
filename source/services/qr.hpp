@@ -24,11 +24,19 @@ public:
     static constexpr int kWidth = 640;
     static constexpr int kHeight = 480;
 
-    // Starts the outer camera, and looks for QR codes in its pictures on a thread of its own.
-    // Busy when the camera is in use, NotAllowed when the camera service can't be used (some ways of starting
-    // homebrew don't allow it).
+    // Starts the outer camera, and looks for QR codes in its pictures, on threads of their own: the camera driver
+    // takes up to a second to start, and as long to stop, so neither holds up the caller. Fails only when out of
+    // memory; the camera's own errors come from failure().
     static Expected<std::unique_ptr<QrScanner>> start();
-    ~QrScanner(); // stops the camera
+    ~QrScanner(); // stops the camera, waiting for it unless stopped() already
+
+    // Why the camera didn't start, once it's known: Busy when the camera is in use, NotAllowed when the camera
+    // service can't be used (some ways of starting homebrew don't allow it).
+    std::optional<Error> failure() const;
+
+    // Asks the camera to stop, without waiting for it; stopped() once it has, and then the scanner goes at once.
+    void stop();
+    bool stopped() const;
 
     QrScanner(const QrScanner&) = delete;
     QrScanner& operator=(const QrScanner&) = delete;

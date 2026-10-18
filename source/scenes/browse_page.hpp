@@ -21,7 +21,7 @@ namespace tz::scenes
 
 // A site's catalogue, Themezer's or ThemePlaza's: themes, splash screens and badge sets, searched and browsed a page
 // at a time (the next page loads as the list nears its end), with icons and previews downloaded as they're looked at.
-// A last tab scans QR codes, or takes an item's ID typed in. SELECT switches between the sites.
+// A last tab scans QR codes, or takes an item's ID typed in. The START menu switches between the sites.
 class BrowsePage final : public Page
 {
 public:

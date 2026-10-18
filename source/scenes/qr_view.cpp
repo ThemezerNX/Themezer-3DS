@@ -18,6 +18,15 @@ namespace tz::scenes
 
 using namespace gfx;
 
+namespace
+{
+
+// The tab goes on screen, and its tab bar moves, before anything about the camera starts. A camera turned straight
+// off again isn't turned on.
+constexpr u64 kOpenDelayMs = 100;
+
+} // namespace
+
 QrView::QrView()
 {
     textureReady_ = C3D_TexInit(&texture_, 512, 256, GPU_RGB565);
@@ -28,6 +37,7 @@ QrView::QrView()
 QrView::~QrView()
 {
     scanner_.reset();
+    closing_.reset();
     if (textureReady_)
         C3D_TexDelete(&texture_);
 }
@@ -40,43 +50,66 @@ void QrView::start()
     hasFrame_ = false;
     problem_.reset();
     starting_ = true;
+    openAt_ = osGetTime() + kOpenDelayMs;
 }
 
 void QrView::open()
 {
     auto scanner = QrScanner::start();
     if (scanner)
-    {
         scanner_ = std::move(*scanner);
-        return;
-    }
-    if (scanner.error().code == Errc::NotAllowed && App::get().homebrew())
+    else
+        showProblem(scanner.error());
+}
+
+void QrView::showProblem(const Error& error)
+{
+    if (error.code == Errc::NotAllowed && App::get().homebrew())
         problem_ = ErrorInfo{tr("The camera isn't available"),
                              tr("Started this way, the app can't use the camera. Install the CIA version to scan QR "
                                 "codes.")};
-    else if (scanner.error().code == Errc::Busy)
+    else if (error.code == Errc::Busy)
         problem_ = ErrorInfo{tr("The camera is busy"), tr("Something else is using the camera. Try again in a moment.")};
     else
-        problem_ = describe(scanner.error());
+        problem_ = describe(error);
 }
 
 void QrView::stop()
 {
     starting_ = false;
-    scanner_.reset();
     hasFrame_ = false;
+    if (!scanner_)
+        return;
+    // off on its own threads, as that takes a while: tick() lets it go then
+    scanner_->stop();
+    closing_ = std::move(scanner_);
+}
+
+void QrView::tick()
+{
+    if (closing_ && closing_->stopped())
+        closing_.reset();
 }
 
 std::optional<std::string> QrView::update()
 {
     if (starting_)
     {
-        starting_ = false;
-        open();
+        if (!closing_ && osGetTime() >= openAt_)
+        {
+            starting_ = false;
+            open();
+        }
         return std::nullopt;
     }
     if (!scanner_)
         return std::nullopt;
+    if (auto failure = scanner_->failure())
+    {
+        showProblem(*failure);
+        stop();
+        return std::nullopt;
+    }
     if (textureReady_ && scanner_->latestFrame(frame_))
     {
         // the middle of the picture, in the top screen's shape, scaled down to it (640 to 400 pixels wide) as it goes
