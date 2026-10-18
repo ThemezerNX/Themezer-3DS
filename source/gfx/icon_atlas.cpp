@@ -5,6 +5,7 @@
 
 #include "gfx/texture.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstring>
@@ -21,11 +22,11 @@ constexpr int kPixels = IconAtlas::kIconSize * IconAtlas::kIconSize;
 // the corners' radius, as the placeholders have it: 6 pixels on a row's 36-pixel icon
 constexpr float kCornerRadius = 8;
 
-// Which pixels of an icon, in the order of its 8x8 tiles, are inside its rounded corners. RGBA5551 has one bit of
-// alpha; the GPU's filtering softens the edge where the icon is drawn smaller.
-std::array<bool, kPixels> roundedMask()
+// How much of each pixel of an icon, in the order of its 8x8 tiles, is inside its rounded corners, 0 to 255: the
+// corners stay smooth where the icon is drawn at its own size, on the top screen.
+std::array<uint8_t, kPixels> roundedMask()
 {
-    std::array<bool, kPixels> inside{};
+    std::array<uint8_t, kPixels> inside{};
     constexpr int size = IconAtlas::kIconSize;
     for (int i = 0; i < kPixels; ++i)
     {
@@ -38,29 +39,31 @@ std::array<bool, kPixels> roundedMask()
         const float cy = y < kCornerRadius ? kCornerRadius : (y >= size - kCornerRadius ? size - kCornerRadius : -1);
         if (cx < 0 || cy < 0)
         {
-            inside[i] = true;
+            inside[i] = 255;
             continue;
         }
         const float dx = x + 0.5f - cx;
         const float dy = y + 0.5f - cy;
-        inside[i] = dx * dx + dy * dy <= kCornerRadius * kCornerRadius;
+        // the pixel's centre half a pixel inside the edge is all in, half a pixel outside it all out
+        const float covered = std::clamp(kCornerRadius - std::sqrt(dx * dx + dy * dy) + 0.5f, 0.0f, 1.0f);
+        inside[i] = static_cast<uint8_t>(std::lround(covered * 255));
     }
     return inside;
 }
 
-// RGB565 to RGBA5551, opaque or not
-uint16_t withAlphaBit(uint16_t rgb565, bool opaque)
+// RGB565 to the GPU's RGBA8 (red in the top byte), with that alpha
+uint32_t withAlpha(uint16_t rgb565, uint8_t alpha)
 {
-    const uint16_t red = rgb565 >> 11;
-    const uint16_t green = (rgb565 >> 6) & 0x1F;
-    const uint16_t blue = rgb565 & 0x1F;
-    return static_cast<uint16_t>((red << 11) | (green << 6) | (blue << 1) | (opaque ? 1 : 0));
+    const uint32_t red = rgb565 >> 11;
+    const uint32_t green = (rgb565 >> 5) & 0x3F;
+    const uint32_t blue = rgb565 & 0x1F;
+    return ((red << 3 | red >> 2) << 24) | ((green << 2 | green >> 4) << 16) | ((blue << 3 | blue >> 2) << 8) | alpha;
 }
 } // namespace
 
 IconAtlas::IconAtlas()
 {
-    ready_ = C3D_TexInit(&texture_, kTextureSize, kTextureSize, GPU_RGBA5551);
+    ready_ = C3D_TexInit(&texture_, kTextureSize, kTextureSize, GPU_RGBA8);
     if (ready_)
     {
         C3D_TexSetFilter(&texture_, GPU_LINEAR, GPU_LINEAR);
@@ -113,21 +116,21 @@ void IconAtlas::put(uint64_t key, const uint16_t* tiledIcon)
 
     // An SMDH icon is six rows of six 8x8 tiles; in the texture each row of tiles is contiguous too, so a row of tiles
     // is 6 * 64 pixels in a row. The corners are cut round on the way.
-    static const std::array<bool, kPixels> mask = roundedMask();
+    static const std::array<uint8_t, kPixels> mask = roundedMask();
     const int column = index % kPerRow;
     const int row = index / kPerRow;
-    auto* destination = static_cast<uint16_t*>(texture_.data);
+    auto* destination = static_cast<uint32_t*>(texture_.data);
     constexpr int kRowPixels = kTilesPerIconRow * 64;
     for (int tileRow = 0; tileRow < kTilesPerIconRow; ++tileRow)
     {
         const int textureTileRow = row * kTilesPerIconRow + tileRow;
         const int textureTileColumn = column * kTilesPerIconRow;
-        uint16_t* to = destination + (textureTileRow * (kTextureSize / 8) + textureTileColumn) * 64;
+        uint32_t* to = destination + (textureTileRow * (kTextureSize / 8) + textureTileColumn) * 64;
         const int from = tileRow * kRowPixels;
         for (int i = 0; i < kRowPixels; ++i)
-            to[i] = withAlphaBit(tiledIcon[from + i], mask[static_cast<size_t>(from + i)]);
+            to[i] = withAlpha(tiledIcon[from + i], mask[static_cast<size_t>(from + i)]);
         // only the part written goes to the GPU's view of memory
-        GSPGPU_FlushDataCache(to, kRowPixels * sizeof(uint16_t));
+        GSPGPU_FlushDataCache(to, kRowPixels * sizeof(uint32_t));
     }
 }
 

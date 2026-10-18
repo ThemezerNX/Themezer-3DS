@@ -101,20 +101,32 @@ int largeIndex(Icon which)
 
 constexpr float kPi = 3.14159265f;
 
-void corner(float cx, float cy, float radius, float startAngle, Color color)
+// A quarter circle, the quarter-th clockwise from 3 o'clock (y points down), as a fan of triangles, which don't
+// overlap, so translucent colours stay even. The GPU doesn't smooth edges, so the fan stops half a pixel short of the
+// edge and a ring fades the colour out over the pixel across it, as much as a pixel there is covered.
+void corner(float cx, float cy, float radius, int quarter, Color color)
 {
-    // a quarter circle as a fan of triangles, which don't overlap, so translucent colours stay even
-    constexpr int kSteps = 5;
-    float previousX = cx + radius * std::cos(startAngle);
-    float previousY = cy + radius * std::sin(startAngle);
-    for (int i = 1; i <= kSteps; ++i)
+    const int steps = std::clamp(static_cast<int>(std::ceil(radius / 2)), 3, 8);
+    const float start = (kPi / 2) * static_cast<float>(quarter);
+    const float inner = std::max(0.0f, radius - 0.5f);
+    const float outer = radius + 0.5f;
+    const Color clear = withAlpha(color, 0);
+    float cos0 = std::cos(start);
+    float sin0 = std::sin(start);
+    for (int i = 1; i <= steps; ++i)
     {
-        const float angle = startAngle + (kPi / 2) * static_cast<float>(i) / kSteps;
-        const float x = cx + radius * std::cos(angle);
-        const float y = cy + radius * std::sin(angle);
-        C2D_DrawTriangle(cx, cy, color, previousX, previousY, color, x, y, color, 0);
-        previousX = x;
-        previousY = y;
+        const float angle = start + (kPi / 2) * static_cast<float>(i) / static_cast<float>(steps);
+        const float cos1 = std::cos(angle);
+        const float sin1 = std::sin(angle);
+        const float ix0 = cx + inner * cos0, iy0 = cy + inner * sin0;
+        const float ix1 = cx + inner * cos1, iy1 = cy + inner * sin1;
+        const float ox0 = cx + outer * cos0, oy0 = cy + outer * sin0;
+        const float ox1 = cx + outer * cos1, oy1 = cy + outer * sin1;
+        C2D_DrawTriangle(cx, cy, color, ix0, iy0, color, ix1, iy1, color, 0);
+        C2D_DrawTriangle(ix0, iy0, color, ox0, oy0, clear, ox1, oy1, clear, 0);
+        C2D_DrawTriangle(ix0, iy0, color, ox1, oy1, clear, ix1, iy1, color, 0);
+        cos0 = cos1;
+        sin0 = sin1;
     }
 }
 
@@ -205,17 +217,17 @@ void roundedRect(float x, float y, float w, float h, float radius, Color color)
     rect(x + radius, y, w - 2 * radius, h, color);
     rect(x, y + radius, radius, h - 2 * radius, color);
     rect(x + w - radius, y + radius, radius, h - 2 * radius, color);
-    corner(x + radius, y + radius, radius, kPi, color);
-    corner(x + w - radius, y + radius, radius, kPi * 1.5f, color);
+    corner(x + radius, y + radius, radius, 2, color);
+    corner(x + w - radius, y + radius, radius, 3, color);
     corner(x + w - radius, y + h - radius, radius, 0, color);
-    corner(x + radius, y + h - radius, radius, kPi * 0.5f, color);
+    corner(x + radius, y + h - radius, radius, 1, color);
 }
 
 void circle(float cx, float cy, float radius, Color color)
 {
     // four quarter fans, as the rounded corners are drawn: citro2d's own circles don't show in Azahar
     for (int quarter = 0; quarter < 4; ++quarter)
-        corner(cx, cy, radius, kPi * 0.5f * static_cast<float>(quarter), color);
+        corner(cx, cy, radius, quarter, color);
 }
 
 void line(float x0, float y0, float x1, float y1, float width, Color color)

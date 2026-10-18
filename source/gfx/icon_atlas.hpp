@@ -11,7 +11,8 @@ namespace tz::gfx
 {
 
 // The 48x48 icons of the items in a list, kept in one texture: a hundred at a time, the least recently drawn
-// making room for new ones. Icons are SMDH-style tiled RGB565, which goes into the texture as it is.
+// making room for new ones. Icons are SMDH-style tiled RGB565; the texture is RGBA8, for the smooth alpha of their
+// rounded corners.
 class IconAtlas
 {
 public:
