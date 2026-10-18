@@ -66,6 +66,8 @@ private:
     };
 
     void reload();
+    // Pulled down: the first page again, the list there staying until it comes.
+    void refresh();
     void fetchPage(int page);
     bool hasMore() const;
     void requestIcons();
@@ -107,6 +109,7 @@ private:
     std::shared_ptr<net::Client> iconClient_ = std::make_shared<net::Client>();
     // icons asked for and not there yet (see requestIcons())
     int iconsInFlight_ = 0;
+    bool refreshing_ = false; // the first page is loading again for a pull, over the list there
     // the next page failed: what went wrong, and when it's tried again
     std::string moreError_;
     uint64_t moreRetryAt_ = 0;

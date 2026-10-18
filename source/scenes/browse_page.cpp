@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <array>
+#include <unordered_map>
 
 namespace tz::scenes
 {
@@ -46,6 +47,8 @@ constexpr int kQrTab = 3;
 constexpr int kPrefetchRows = 6;
 // how long a next page that failed waits before it's tried again
 constexpr uint64_t kMoreRetryMs = 3000;
+// the room kept open over the list while a pull refreshes it, for the spinner
+constexpr float kRefreshGap = 40;
 // the spinner's radius in the row under the list while more loads
 constexpr float kFooterSpinner = 8;
 // icons asked for at a time: the one loading and the next, so that the icons lane never waits, and what's asked for
@@ -295,7 +298,28 @@ void BrowsePage::reload()
     fetching_ = false;
     moreError_.clear();
     moreRetryAt_ = 0;
+    refreshing_ = false;
+    list_.holdTop(0);
     state_ = State::Loading;
+    fetchPage(1);
+}
+
+void BrowsePage::refresh()
+{
+    // the loads for the list there stop: its icons not there yet are asked for again if the page fails
+    token_.cancel();
+    token_ = CancelToken();
+    iconsInFlight_ = 0;
+    for (Entry& entry : entries_)
+    {
+        if (!entry.iconShown)
+            entry.iconRequested = false;
+    }
+    fetching_ = false;
+    moreError_.clear();
+    moreRetryAt_ = 0;
+    refreshing_ = true;
+    list_.holdTop(kRefreshGap);
     fetchPage(1);
 }
 
@@ -323,6 +347,27 @@ void BrowsePage::fetchPage(int page)
                 if (token.cancelled())
                     return;
                 fetching_ = false;
+                // a refresh: the old rows, to take what's still right from them, and the one selected
+                std::unordered_map<uint64_t, Entry> before;
+                uint64_t selectedKey = 0;
+                const bool refreshed = refreshing_;
+                if (refreshing_)
+                {
+                    // the gap over the list shuts; on a failure the list stays as it was
+                    refreshing_ = false;
+                    list_.holdTop(0);
+                    if (!*result)
+                    {
+                        ui::toast(describe(result->error()).title, ui::ToastKind::Error);
+                        checkOnSd(0); // the refresh stopped the one that was going
+                        return;
+                    }
+                    if (const Entry* chosen = selected())
+                        selectedKey = chosen->key;
+                    for (Entry& entry : entries_)
+                        before.emplace(entry.key, std::move(entry));
+                    entries_.clear();
+                }
                 if (!*result)
                 {
                     if (entries_.empty())
@@ -350,9 +395,33 @@ void BrowsePage::fetchPage(int page)
                     if (find(entry.key))
                         continue;
                     entry.item = std::move(item);
+                    if (const auto was = before.find(entry.key); was != before.end())
+                    {
+                        // listed before the refresh: still on the SD card, and a site that lists only ids gave its
+                        // name, author and description with its icon, which needn't be fetched again
+                        entry.onSd = was->second.onSd;
+                        if (!entry.item.detailsUrl.empty() && !was->second.item.name.empty())
+                        {
+                            entry.item.name = std::move(was->second.item.name);
+                            entry.item.author = std::move(was->second.item.author);
+                            entry.item.description = std::move(was->second.item.description);
+                        }
+                    }
+                    // its icon there already (a refresh, the icons and previews of items still listed kept): not
+                    // loaded again, unless its name and author come with it and they aren't there
+                    if (atlas_.has(entry.key) && (entry.item.detailsUrl.empty() || !entry.item.name.empty()))
+                        entry.iconRequested = entry.iconShown = true;
                     entries_.push_back(std::move(entry));
                 }
                 list_.setCount(static_cast<int>(entries_.size()));
+                if (refreshed)
+                {
+                    // the one selected again, if it's among the rows the list shows at its top, where it stays
+                    const auto again = std::find_if(entries_.begin(), entries_.end(),
+                                                    [&](const Entry& entry) { return entry.key == selectedKey; });
+                    const int index = static_cast<int>(again - entries_.begin());
+                    list_.select(again != entries_.end() && index < list_.rowsPerPage() ? index : 0);
+                }
                 state_ = State::Ready;
                 checkOnSd(from);
                 requestIcons();
@@ -445,7 +514,8 @@ void BrowsePage::requestIcons()
                             found->item.author = std::move(got.author);
                             found->item.description = std::move(got.description);
                             atlas_.put(key, got.icon.data());
-                            found->iconShown = true;
+                            // asked for by the list a refresh replaced, maybe: not asked for again
+                            found->iconRequested = found->iconShown = true;
                         }
                     }
                     requestIcons();
@@ -475,7 +545,7 @@ void BrowsePage::requestIcons()
                 if (Entry* found = icon ? find(key) : nullptr)
                 {
                     atlas_.put(key, icon->data());
-                    found->iconShown = true;
+                    found->iconRequested = found->iconShown = true;
                 }
                 requestIcons();
             });
@@ -554,7 +624,10 @@ void BrowsePage::update(ui::Input& input, float dt)
     list_.setBounds(0, top, metric::kBottomWidth, metric::kHeight - top - metric::kHintBarHeight);
     // a row under the last one while there's more to load
     list_.setFooter(hasMore() ? metric::kRowHeight : 0);
+    list_.setPullToRefresh(!refreshing_ && !entries_.empty());
     const auto event = list_.update(input, dt);
+    if (event == ui::ListView::Event::Pulled)
+        refresh();
     requestIcons();
 
     Entry* entry = selected();
@@ -743,6 +816,19 @@ void BrowsePage::drawBottom(float top, float bottom)
         drawText(text, left + 2 * kFooterSpinner + 8, textTop(middle, metric::kTextSmall), metric::kTextSmall,
                  color::kTextDim);
     }, [this](float x, float y, float w, float h, bool down) { row::highlight(x, y, w, h, down, accent().solid); });
+
+    // in the gap a pull opens over the list: the spinner's dots, coming in as it's pulled, in the accent once it's far
+    // enough, turning while it refreshes
+    const float pull = list_.pull();
+    if (pull > 0)
+    {
+        const bool far = refreshing_ || pull >= ui::ListView::kPullDistance;
+        pushClip(0, listTop, metric::kBottomWidth, pull);
+        spinner(metric::kBottomWidth / 2, listTop + std::min(pull, kRefreshGap) / 2, 9,
+                far ? accent().light : color::kTextDim,
+                refreshing_ ? 1.0f : std::min(0.999f, pull / ui::ListView::kPullDistance));
+        popClip();
+    }
 }
 
 void BrowsePage::downloadScanned(const std::string& text)
@@ -814,9 +900,19 @@ void BrowsePage::switchSource(Source source)
     }
     ui::toast(trf("Browsing {}", catalog::sourceName(source)));
     if (!scanningTab())
+    {
         reload();
+    }
     else
-        state_ = State::Idle; // loads when a kind is chosen again
+    {
+        // loads when a kind is chosen again; what's loading for the old site stops
+        token_.cancel();
+        token_ = CancelToken();
+        fetching_ = false;
+        refreshing_ = false;
+        list_.holdTop(0);
+        state_ = State::Idle;
+    }
 }
 
 void BrowsePage::search()

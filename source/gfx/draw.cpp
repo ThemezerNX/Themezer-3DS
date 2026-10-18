@@ -252,15 +252,17 @@ void shadow(float x, float y, float w, float h, float size)
     gradientH(x + w, y, size, h, dark, clear);
 }
 
-void spinner(float cx, float cy, float radius, Color color)
+void spinner(float cx, float cy, float radius, Color color, float shown)
 {
-    // a head and a fading tail of dots, going round
+    // a head and a fading tail of dots, going round; or as many dots as shown, from the top, still
     constexpr int kDots = 8;
-    const float turn = std::fmod(time() * 1.4f, 1.0f);
-    for (int i = 0; i < kDots; ++i)
+    const bool whole = shown >= 1;
+    const float turn = whole ? std::fmod(time() * 1.4f, 1.0f) : 0.75f;
+    const int dots = whole ? kDots : static_cast<int>(std::ceil(std::max(0.0f, shown) * kDots));
+    for (int i = 0; i < dots; ++i)
     {
         const float angle = 2 * kPi * (turn + static_cast<float>(i) / kDots);
-        const float fade = static_cast<float>(i + 1) / kDots;
+        const float fade = whole ? static_cast<float>(i + 1) / kDots : 1.0f;
         circle(cx + radius * std::cos(angle), cy + radius * std::sin(angle), radius * 0.16f + radius * 0.08f * fade,
                withAlpha(color, fade));
     }

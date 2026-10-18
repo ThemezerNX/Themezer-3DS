@@ -80,7 +80,8 @@ void line(float x0, float y0, float x1, float y1, float width, Color color);
 // A soft shadow around a rectangle.
 void shadow(float x, float y, float w, float h, float size);
 // A turning arc, for things that are loading.
-void spinner(float cx, float cy, float radius, Color color);
+// shown below 1: that much of it, from the top round, standing still, as for a pull that isn't far enough yet
+void spinner(float cx, float cy, float radius, Color color, float shown = 1);
 void progressBar(float x, float y, float w, float h, float fraction, Color track, Color fill);
 // Covers the whole current screen.
 void fill(Color color);

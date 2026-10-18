@@ -6,6 +6,7 @@
 #include "ui/entrance.hpp"
 #include "ui/input.hpp"
 
+#include <algorithm>
 #include <functional>
 #include <utility>
 
@@ -13,8 +14,9 @@ namespace tz::ui
 {
 
 // A vertical list on the bottom screen: the D-pad moves the selection (left and right by a page), a touch selects a
-// row and a second one opens it, and a drag scrolls with a fling. Only the visible rows are drawn; the selected one is
-// on a card raised on a ledge, which sinks into it under a finger, or as A opens it.
+// row and a second one opens it, and a drag scrolls with a fling. Dragged past an end, the list gives less and less and
+// springs back when let go, and a fling that runs into an end bounces off it. Only the visible rows are drawn; the
+// selected one is on a card raised on a ledge, which sinks into it under a finger, or as A opens it.
 class ListView
 {
 public:
@@ -23,7 +25,10 @@ public:
         None,
         Moved,     // the selection changed
         Activated, // A, or a tap on the selected row
+        Pulled,    // with setPullToRefresh: pulled down kPullDistance past the top and let go
     };
+
+    static constexpr float kPullDistance = 56;
 
     void setBounds(float x, float y, float width, float height);
     void setRowHeight(float height) { rowHeight_ = height; }
@@ -35,6 +40,12 @@ public:
 
     int selected() const { return selected_; }
     void select(int index, bool animate = true);
+
+    void setPullToRefresh(bool on) { pullToRefresh_ = on; }
+    // Room kept open above the first row, for a refresh's spinner; 0 springs it shut.
+    void holdTop(float gap);
+    // How far the rows are down from the top of the list, pulled or held: where something over them can go.
+    float pull() const { return std::max(0.0f, -scroll_); }
 
     Event update(Input& input, float dt);
 
@@ -55,7 +66,13 @@ public:
     bool settled() const;
 
 private:
+    float minScroll() const { return -topGap_; }
     float maxScroll() const;
+    // How far the scroll is past an end: below 0 past the top, above it past the bottom.
+    float overscroll() const;
+    // After the rows or the room under them change: the target in range, the scroll as it is, past an end too, for
+    // the spring to bring back, but no further than a row past the end. wasPast: it was past an end before.
+    void fitScroll(bool wasPast);
     void keepSelectionVisible();
     int rowAt(float y) const; // -1 for none
 
@@ -73,6 +90,11 @@ private:
     float highlight_ = 0;    // where the highlight is, from the top of the rows
     bool dragging_ = false;
     bool pressedInside_ = false;
+    bool pullToRefresh_ = false;
+    bool pulledFar_ = false; // as far as kPullDistance, in this drag
+    float topGap_ = 0;
+    float touchX_ = 0; // where the touch the list saw start started
+    float touchY_ = 0;
     float pressedUntil_ = 0; // the selected row's card is sunk until then
     Entrance entrance_;
 };

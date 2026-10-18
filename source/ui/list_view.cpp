@@ -3,6 +3,7 @@
 
 #include "ui/list_view.hpp"
 
+#include "core/motion.hpp"
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
 #include "sys/sfx.hpp"
@@ -18,6 +19,9 @@ namespace
 {
 constexpr float kFollow = 16.0f;   // how fast the scroll catches up with its target
 constexpr float kFriction = 4.0f;  // how fast a fling slows down
+constexpr float kSpring = 18.0f;   // how fast the list comes back from past an end (the spring's angular frequency)
+// A fling meets an end at most this fast, so that it bounces off by 30 pixels or so, however hard it was flung.
+constexpr float kBounceSpeed = 1400.0f;
 constexpr float kGlide = 24.0f;    // how fast the highlight goes to the selected row
 constexpr float kScrollbarWidth = 3.0f;
 // The selected row's key: centred in the row with its ledge under it, sinking into it while pressed and a moment at
@@ -37,24 +41,52 @@ void ListView::setBounds(float x, float y, float width, float height)
 
 void ListView::setCount(int count)
 {
+    const bool wasPast = overscroll() != 0;
     count_ = std::max(0, count);
     selected_ = std::clamp(selected_, 0, std::max(0, count_ - 1));
-    // emptied for a reload: the highlight starts again at the top, not where the old rows had it
+    // emptied for a reload: the next rows start at the top, not where the old ones were
     if (count_ == 0)
-        highlight_ = 0;
-    target_ = std::clamp(target_, 0.0f, maxScroll());
-    scroll_ = std::clamp(scroll_, 0.0f, maxScroll());
+        highlight_ = scroll_ = target_ = velocity_ = 0;
+    fitScroll(wasPast);
 }
 
 void ListView::setFooter(float height)
 {
     height = std::max(0.0f, height);
-    // unchanged, it leaves a drag past the end alone
     if (height == footer_)
         return;
+    const bool wasPast = overscroll() != 0;
     footer_ = height;
-    target_ = std::clamp(target_, 0.0f, maxScroll());
-    scroll_ = std::clamp(scroll_, 0.0f, maxScroll());
+    fitScroll(wasPast);
+}
+
+void ListView::fitScroll(bool wasPast)
+{
+    target_ = std::clamp(target_, minScroll(), maxScroll());
+    scroll_ = std::min(scroll_, maxScroll() + rowHeight_);
+    // rows came under a bounce at the end: the spring's speed back isn't a fling
+    if (wasPast && overscroll() == 0)
+        velocity_ = 0;
+}
+
+void ListView::holdTop(float gap)
+{
+    const bool wasPast = overscroll() != 0;
+    // resting at the top, it rests at the gap's edge instead: the gap springs open, and shut again
+    if (target_ <= minScroll() + 0.5f)
+        target_ = -gap;
+    topGap_ = gap;
+    if (wasPast && overscroll() == 0)
+        velocity_ = 0;
+}
+
+float ListView::overscroll() const
+{
+    if (scroll_ < minScroll())
+        return scroll_ - minScroll();
+    if (scroll_ > maxScroll())
+        return scroll_ - maxScroll();
+    return 0;
 }
 
 void ListView::select(int index, bool animate)
@@ -82,15 +114,17 @@ int ListView::rowsPerPage() const
 
 void ListView::keepSelectionVisible()
 {
-    // a row of margin above and below the selection, where there is one; under the last row, the footer
+    // a row of margin above and below the selection, where there is one; over the first row, the gap held open, and
+    // under the last, the footer
     const float top = selected_ * rowHeight_;
     const float margin = height_ > rowHeight_ * 3 ? rowHeight_ * 0.6f : 0.0f;
+    const float above = selected_ == 0 ? std::max(margin, topGap_) : margin;
     const float below = selected_ == count_ - 1 ? std::max(margin, footer_) : margin;
-    if (top - margin < target_)
-        target_ = top - margin;
+    if (top - above < target_)
+        target_ = top - above;
     else if (top + rowHeight_ + below > target_ + height_)
         target_ = top + rowHeight_ + below - height_;
-    target_ = std::clamp(target_, 0.0f, maxScroll());
+    target_ = std::clamp(target_, minScroll(), maxScroll());
     velocity_ = 0;
 }
 
@@ -163,8 +197,15 @@ ListView::Event ListView::update(Input& input, float dt)
 
     // touch: drag to scroll, tap to select, tap the selected row to open it
     const bool inside = input.x >= x_ && input.x < x_ + width_ && input.y >= y_ && input.y < y_ + height_;
-    if (input.touchStarted)
-        pressedInside_ = inside;
+    // a touch the list didn't see end, or start (a scene was over it), leaves no drag behind
+    if (input.touchStarted || (!input.touching && !input.touchEnded) ||
+        (input.touching && (input.startX != touchX_ || input.startY != touchY_)))
+    {
+        dragging_ = pulledFar_ = false;
+        pressedInside_ = input.touchStarted && inside;
+        touchX_ = input.startX;
+        touchY_ = input.startY;
+    }
     // a finger on the selected row holds it down, until it lifts or starts a drag
     if (pressedInside_ && input.touching && !input.dragging && inside && count_ > 0 && rowAt(input.y) == selected_)
         pressedUntil_ = gfx::time() + kPressTime;
@@ -173,15 +214,31 @@ ListView::Event ListView::update(Input& input, float dt)
     if (pressedInside_ && input.dragging)
     {
         dragging_ = true;
-        scroll_ = std::clamp(scroll_ - input.dy, -rowHeight_, maxScroll() + rowHeight_);
+        // past an end, the list follows the finger less and less, and goes no further than it's high
+        const float over = overscroll();
+        scroll_ -= input.dy * (over != 0 ? motion::rubberGive(over, height_) : 1.0f);
         target_ = scroll_;
         velocity_ = 0;
+        if (pullToRefresh_)
+        {
+            // far enough to refresh: a tick to say so
+            const bool far = pull() >= kPullDistance;
+            if (far && !pulledFar_)
+                sfx::play(sfx::Sound::Cursor);
+            pulledFar_ = far;
+        }
     }
     if (input.touchEnded && pressedInside_)
     {
         if (dragging_)
         {
             velocity_ = -input.velocityY;
+            if (pulledFar_ && event == Event::None)
+            {
+                event = Event::Pulled;
+                sfx::play(sfx::Sound::Page);
+            }
+            pulledFar_ = false;
         }
         else if (input.tap && inside && count_ > 0)
         {
@@ -209,22 +266,46 @@ ListView::Event ListView::update(Input& input, float dt)
 
     if (!dragging_)
     {
-        if (velocity_ != 0)
+        const float over = overscroll();
+        target_ = std::clamp(target_, minScroll(), maxScroll());
+        // past an end and going back to it (not to a row the D-pad chose): a spring, which a fling bounces off
+        if (over != 0 && std::fabs(target_ - (scroll_ - over)) < 0.5f)
         {
-            target_ += velocity_ * dt;
-            velocity_ *= std::exp(-kFriction * dt);
-            if (std::fabs(velocity_) < 20.0f)
-                velocity_ = 0;
-            if (target_ < 0 || target_ > maxScroll())
+            float left = over;
+            velocity_ = std::clamp(velocity_, -kBounceSpeed, kBounceSpeed);
+            motion::springStep(left, velocity_, kSpring, dt);
+            if (std::fabs(left) < 0.5f && std::fabs(velocity_) < 20.0f)
             {
+                left = 0;
                 velocity_ = 0;
-                target_ = std::clamp(target_, 0.0f, maxScroll());
             }
-            scroll_ = target_;
+            scroll_ += left - over;
+        }
+        else if (over == 0 && velocity_ != 0)
+        {
+            // a fling, slowing down; one that reaches an end meets the spring there, no faster than kBounceSpeed
+            const float next = scroll_ + velocity_ * dt;
+            const float end = next > maxScroll() ? maxScroll() : (next < minScroll() ? minScroll() : next);
+            if (end != next)
+            {
+                const float rest = dt * (next - end) / (next - scroll_);
+                float past = 0;
+                velocity_ = std::clamp(velocity_, -kBounceSpeed, kBounceSpeed);
+                motion::springStep(past, velocity_, kSpring, rest);
+                scroll_ = end + past;
+            }
+            else
+            {
+                scroll_ = next;
+                velocity_ *= std::exp(-kFriction * dt);
+                if (std::fabs(velocity_) < 20.0f)
+                    velocity_ = 0;
+            }
+            target_ = std::clamp(scroll_, minScroll(), maxScroll());
         }
         else
         {
-            target_ = std::clamp(target_, 0.0f, maxScroll());
+            velocity_ = 0;
             scroll_ += (target_ - scroll_) * std::min(1.0f, dt * kFollow);
         }
     }
