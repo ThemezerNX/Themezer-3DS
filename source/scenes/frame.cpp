@@ -177,6 +177,19 @@ void FactsLine::right(Icon which, std::string_view text, Color tint)
     right_ = iconX - kFactGap;
 }
 
+namespace details
+{
+
+void origin(Icon which, std::string_view where)
+{
+    const float middle = kTop - 16;
+    icon(which, kLeft, std::round(middle - metric::kIcon / 2), metric::kIcon, color::kTextDim);
+    drawText(where, kLeft + metric::kIcon + 4, textTop(middle, metric::kTextSmall), metric::kTextSmall,
+             color::kTextDim);
+}
+
+} // namespace details
+
 void drawNothingToShow(std::string_view name, std::string_view why)
 {
     const float x = metric::kTopWidth / 2;

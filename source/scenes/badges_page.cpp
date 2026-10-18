@@ -337,6 +337,7 @@ void BadgesPage::drawTop()
     constexpr float kIcon = IconAtlas::kIconSize;
     constexpr float top = details::kTop;
     const std::string description = set->source.loose() ? tr("The pictures directly in /Badges") : std::string();
+    details::origin(Icon::SdCard, tr("SD card"));
     if (!atlas_.draw(set->key, kLeft, top, kIcon))
     {
         roundedRect(kLeft, top, kIcon, kIcon, metric::kRadius, color::kSurfaceRaised);

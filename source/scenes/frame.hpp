@@ -70,8 +70,10 @@ float mark(gfx::Icon icon, gfx::Color color, float right, float y, float h);
 namespace details
 {
 constexpr float kLeft = 24;
-constexpr float kTop = gfx::metric::kStatusBarHeight + 36; // room above for the site, online
+constexpr float kTop = gfx::metric::kStatusBarHeight + 36; // room above for where it's from
 constexpr float kDescriptionGap = 18; // from the icon to the description
+// Where it's from, over its icon and name: the site online, the SD card on the SD card's pages.
+void origin(gfx::Icon icon, std::string_view where);
 } // namespace details
 
 // The facts along the bottom of the top screen, as a list row has them: what the item is from the left (has music,

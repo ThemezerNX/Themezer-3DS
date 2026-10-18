@@ -719,11 +719,7 @@ void BrowsePage::drawDetails(const Entry& entry)
     constexpr float kLeft = details::kLeft;
     constexpr float kIcon = IconAtlas::kIconSize;
     constexpr float top = details::kTop;
-    // the site it's from, over its icon and name
-    const float siteMiddle = top - 16;
-    icon(Icon::Globe, kLeft, std::round(siteMiddle - metric::kIcon / 2), metric::kIcon, color::kTextDim);
-    drawText(catalog::sourceName(source_), kLeft + metric::kIcon + 4, textTop(siteMiddle, metric::kTextSmall),
-             metric::kTextSmall, color::kTextDim);
+    details::origin(Icon::Globe, catalog::sourceName(source_));
     if (!atlas_.draw(entry.key, kLeft, top, kIcon))
         roundedRect(kLeft, top, kIcon, kIcon, metric::kRadius, color::kSurfaceRaised);
     const float textX = kLeft + kIcon + 14;

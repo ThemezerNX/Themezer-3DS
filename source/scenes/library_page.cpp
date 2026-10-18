@@ -671,6 +671,7 @@ void LibraryPage::drawDetails(const Entry& entry)
     constexpr float top = details::kTop;
     const float textWidth = metric::kTopWidth - 2 * kLeft;
     const std::string description = item.info ? item.info->description : item.source.fileName;
+    details::origin(Icon::SdCard, tr("SD card"));
     if (!atlas_.draw(entry.key, kLeft, top, kIcon))
     {
         roundedRect(kLeft, top, kIcon, kIcon, metric::kRadius, color::kSurfaceRaised);
