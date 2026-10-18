@@ -55,7 +55,9 @@ public:
             hints_.push_back({KEY_RIGHT, tr("Next")});
         if (hintsShown_ > 0)
             hintBar_.update(input, hints_);
-        if (input.pressed(KEY_B | KEY_Y | KEY_A) || (input.tap && hintsShown_ <= 0))
+        if (input.touchStarted)
+            tapCloses_ = hintsShown_ <= 0;
+        if (input.pressed(KEY_B | KEY_Y | KEY_A) || (input.tap && tapCloses_))
         {
             sfx::play(sfx::Sound::Close);
             close();
@@ -155,6 +157,7 @@ private:
     JobGuard musicJob_;
     bool paused_ = false;
     float hintsShown_ = 2.5f;
+    bool tapCloses_ = false; // the touch began with the hints hidden: lifted, it closes the preview
     ui::HintBar hintBar_;
     std::vector<ui::Hint> hints_;
 };

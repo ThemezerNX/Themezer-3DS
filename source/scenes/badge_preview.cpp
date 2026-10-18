@@ -77,7 +77,9 @@ public:
             hints_.push_back({KEY_RIGHT, tr("Next")});
         if (hintsShown_ > 0)
             hintBar_.update(input, hints_);
-        if (input.pressed(KEY_B | KEY_Y | KEY_A) || (input.tap && hintsShown_ <= 0))
+        if (input.touchStarted)
+            tapCloses_ = hintsShown_ <= 0;
+        if (input.pressed(KEY_B | KEY_Y | KEY_A) || (input.tap && tapCloses_))
         {
             sfx::play(sfx::Sound::Close);
             close();
@@ -279,6 +281,7 @@ private:
     float scroll_ = 0;
     float velocity_ = 0; // of a fling or a bounce
     float hintsShown_ = 2.5f;
+    bool tapCloses_ = false; // the touch began with the hints hidden: lifted, it closes the preview
     ui::HintBar hintBar_;
     std::vector<ui::Hint> hints_;
 };
