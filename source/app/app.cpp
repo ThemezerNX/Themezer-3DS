@@ -98,6 +98,7 @@ bool App::init(int argc, char** argv)
     sd_ = std::move(*sd);
     moveOldAppFolder(*sd_);
     (void)sd_->createDirectories(kAppFolder);
+    (void)sd_->removeFile(kInstallOncePath);
     config_ = Config::load(*sd_);
 
     jobs::init();

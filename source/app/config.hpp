@@ -19,6 +19,9 @@ constexpr const char* kConfigPath = TZ_APP_FOLDER "/config.json";
 constexpr const char* kCacheFolder = TZ_APP_FOLDER "/cache";
 constexpr const char* kBadgeBackupFolder = TZ_APP_FOLDER "/badge-backup";
 constexpr const char* kBadgeExportFolder = TZ_APP_FOLDER "/Badge exports";
+// A download installed without being kept: written here, installed, and removed again (also when the app starts, for
+// one an install that didn't finish left). Not in a folder the library reads.
+constexpr const char* kInstallOncePath = TZ_APP_FOLDER "/download.zip";
 // what went wrong, for a bug report; written with stdio, hence sdmc:
 constexpr const char* kLogPath = "sdmc:" TZ_APP_FOLDER "/log.txt";
 // The folder of the app's first builds: what's in it moves to kAppFolder once, but the app itself if it's there.

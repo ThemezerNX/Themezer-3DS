@@ -150,22 +150,14 @@ Expected<Image> downloadPng(net::Client& client, const std::string& url, uint64_
     return decodePng(response.body, maxWidth, maxHeight);
 }
 
-// What a saved download is called: its name in the file's name, as Themezer and ThemePlaza name them, else the file's.
-std::string savedName(const Saved& saved)
-{
-    const std::string_view stem = path::stem(path::filename(saved.path));
-    const auto download = library::parseDownloadName(stem);
-    return download ? download->name : std::string(stem);
-}
-
-// Downloads one of ThemePlaza's items by its id, and offers to install it.
+// Downloads one of ThemePlaza's items by its id, and asks what to do with it.
 void downloadFromThemePlaza(const std::string& id)
 {
-    downloadToSd(themeplaza::itemOf(id).downloadUrl, trf("Downloading #{} from ThemePlaza", id), {},
-                 "ThemePlaza " + id + ".zip", [](Saved saved) { offerInstall(saved, savedName(saved)); });
+    downloadAndAsk(themeplaza::itemOf(id).downloadUrl, trf("Downloading #{} from ThemePlaza", id), {},
+                   "ThemePlaza " + id + ".zip", {});
 }
 
-// Looks up a quick ID on Themezer, then downloads what it is, and offers to install it.
+// Looks up a quick ID on Themezer, then downloads what it is, and asks what to do with it.
 void downloadFromThemezer(const std::string& quickId)
 {
     App::get().scenes().push(ui::ProgressOverlay::start<Expected<themezer::Found>>(
@@ -188,8 +180,8 @@ void downloadFromThemezer(const std::string& quickId)
                 return;
             }
             const std::string name = found->item.name.empty() ? quickId : found->item.name;
-            downloadToSd(found->item.downloadUrl, trf("Downloading {}", name), found->item.filename,
-                         found->item.filename, [name](Saved saved) { offerInstall(saved, name); });
+            downloadAndAsk(found->item.downloadUrl, trf("Downloading {}", name), found->item.filename,
+                           found->item.filename, name);
         }));
 }
 
@@ -853,8 +845,7 @@ void BrowsePage::downloadScanned(const std::string& text)
     }
     // Themezer's links are https; an old http one is asked for securely
     const std::string url = http ? "https://" + text.substr(7) : text;
-    downloadToSd(url, tr("Downloading from the QR code"), {}, "download.zip",
-                 [](Saved saved) { offerInstall(saved, savedName(saved)); });
+    downloadAndAsk(url, tr("Downloading from the QR code"), {}, "download.zip", {});
 }
 
 void BrowsePage::enterId()
@@ -963,7 +954,7 @@ void BrowsePage::download(Entry& entry, bool install)
                      else if (install && saved.kind == ContentKind::Splash)
                          installSplash(source, name, splashes::Screens::Both, [](bool) {});
                      else if (saved.kind == ContentKind::Badges)
-                         offerInstall(saved, name);
+                         badgesSaved(saved, name);
                      else
                          ui::toast(trf("{} is saved in {}", name, std::string(path::parent(saved.path))),
                                    ui::ToastKind::Success);

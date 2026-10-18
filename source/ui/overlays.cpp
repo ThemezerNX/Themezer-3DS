@@ -3,6 +3,7 @@
 
 #include "ui/overlays.hpp"
 
+#include "app/strings.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
 #include "sys/sfx.hpp"
@@ -10,6 +11,7 @@
 #include <3ds.h>
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <mutex>
 
 namespace tz::ui
@@ -40,6 +42,21 @@ constexpr float kSheetRow = 36;
 constexpr float kSheetPadding = 6;
 constexpr int kSheetMaxRows = 6;
 constexpr float kButtonHeight = 30;
+
+// How much of a download is in: "1.2 of 3.4 MB", or "1.2 MB" while its size isn't known; nothing before it starts.
+std::string downloaded(const net::Progress& download)
+{
+    const uint64_t received = download.received.load(std::memory_order_relaxed);
+    const uint64_t total = download.total.load(std::memory_order_relaxed);
+    if (received == 0)
+        return {};
+    const auto megabytes = [](uint64_t bytes) {
+        char text[16];
+        std::snprintf(text, sizeof(text), "%.1f", static_cast<double>(bytes) / (1024.0 * 1024.0));
+        return std::string(text);
+    };
+    return total > 0 ? trf("{} of {} MB", megabytes(received), megabytes(total)) : trf("{} MB", megabytes(received));
+}
 
 } // namespace
 
@@ -230,28 +247,38 @@ void Dialog::choose(size_t button)
         buttons_[button].run();
 }
 
+u32 Dialog::keyOf(size_t button) const
+{
+    if (buttons_[button].key)
+        return buttons_[button].key;
+    if (buttons_.size() == 1)
+        return KEY_A | KEY_B;
+    return button == 0 ? KEY_B : KEY_A;
+}
+
 void Dialog::update(Input& input, float dt)
 {
     approach(appear_, 1, dt, 12);
-    if (buttons_.size() == 1)
+    for (size_t i = 0; i < buttons_.size(); ++i)
     {
-        if (input.pressed(KEY_A | KEY_B))
-            choose(0);
+        if (input.pressed(keyOf(i)))
+        {
+            choose(i);
+            return;
+        }
     }
-    else
+    if (input.tap)
     {
-        if (input.pressed(KEY_A))
-            choose(1);
-        else if (input.pressed(KEY_B))
-            choose(0);
-    }
-    if (input.tap && input.y >= buttonsY_ && input.y < buttonsY_ + kButtonHeight)
-    {
-        const float width = (metric::kBottomWidth - 40) / static_cast<float>(buttons_.size());
-        const int index = static_cast<int>((input.x - 20) / width);
-        if (input.x >= 20 && index >= 0 && index < static_cast<int>(buttons_.size()))
-            choose(static_cast<size_t>(index));
-        input.consumeTouch();
+        for (size_t i = 0; i < boxes_.size(); ++i)
+        {
+            const Box& box = boxes_[i];
+            if (input.x >= box.x && input.x < box.x + box.w && input.y >= box.y && input.y < box.y + box.h)
+            {
+                input.consumeTouch();
+                choose(i);
+                return;
+            }
+        }
     }
 }
 
@@ -268,8 +295,11 @@ void Dialog::drawBottom()
     const float messageWidth = width - 32;
     const auto lines = wrap(message_, messageWidth, metric::kTextSmall, 6);
     const float messageHeight = static_cast<float>(lines.size()) * lineHeight(metric::kTextSmall);
+    // more than two buttons: the last, wide, under the others
+    const bool twoRows = buttons_.size() > 2;
+    const float buttonsHeight = twoRows ? 2 * kButtonHeight + 6 : kButtonHeight;
     const float height = 16 + kIconSize + 10 + lineHeight(metric::kTextNormal) + 6 + messageHeight + 16 +
-                         kButtonHeight + 14;
+                         buttonsHeight + 14;
     const float x = 12;
     const float y = std::round((metric::kHeight - height) / 2 + (1 - ease(appear_)) * 20);
 
@@ -281,21 +311,29 @@ void Dialog::drawBottom()
     at += lineHeight(metric::kTextNormal) + 6;
     drawWrapped(message_, x + 16, at, messageWidth, metric::kTextSmall, color::kTextDim, 6, Align::Center);
 
-    buttonsY_ = y + height - 14 - kButtonHeight;
-    const float slotWidth = (metric::kBottomWidth - 40) / static_cast<float>(buttons_.size());
-    const float middle = buttonsY_ + kButtonHeight / 2;
+    const float buttonsTop = y + height - 14 - buttonsHeight;
+    const size_t inRow = twoRows ? buttons_.size() - 1 : buttons_.size();
+    const float slotWidth = (metric::kBottomWidth - 40) / static_cast<float>(inRow);
+    boxes_.clear();
+    for (size_t i = 0; i < buttons_.size(); ++i)
+    {
+        const bool wide = twoRows && i + 1 == buttons_.size();
+        boxes_.push_back(wide ? Box{23, buttonsTop + kButtonHeight + 6, metric::kBottomWidth - 46, kButtonHeight}
+                              : Box{std::round(20 + slotWidth * static_cast<float>(i) + 3), buttonsTop,
+                                    std::round(slotWidth - 6), kButtonHeight});
+    }
     for (size_t i = 0; i < buttons_.size(); ++i)
     {
         const DialogButton& button = buttons_[i];
+        const Box& box = boxes_[i];
         const bool primary = i + 1 == buttons_.size() && buttons_.size() > 1;
-        const float bx = std::round(20 + slotWidth * static_cast<float>(i) + 3);
-        const float bw = std::round(slotWidth - 6);
         const Color fillColor = primary ? (button.danger ? color::kDanger : color::kPrimary) : color::kSurfaceHigh;
-        roundedRect(bx, buttonsY_, bw, kButtonHeight, kButtonHeight / 2, fillColor);
-        const u32 key = buttons_.size() == 1 ? KEY_A : (i == 0 ? KEY_B : KEY_A);
+        roundedRect(box.x, box.y, box.w, box.h, box.h / 2, fillColor);
+        // a message's one button shows A, which B also presses
+        const u32 key = keyOf(i) == static_cast<u32>(KEY_A | KEY_B) ? static_cast<u32>(KEY_A) : keyOf(i);
         const Color textColor = primary ? color::kOnAccent : color::kText;
-        const std::string label = ellipsize(button.label, bw - 12 - hintWidth(key, ""), metric::kTextNormal);
-        drawHint(key, label, bx + (bw - hintWidth(key, label)) / 2, middle, textColor, textColor);
+        const std::string label = ellipsize(button.label, box.w - 12 - hintWidth(key, ""), metric::kTextNormal);
+        drawHint(key, label, box.x + (box.w - hintWidth(key, label)) / 2, box.y + box.h / 2, textColor, textColor);
     }
 }
 
@@ -371,7 +409,10 @@ void ProgressOverlay::drawBottom()
 
     drawText(options_.title, x + 16, textTop(y + 24, metric::kTextNormal), metric::kTextNormal, color::kText,
              Align::Left, width - 32);
-    const std::string status = progress_->status();
+    // what the task says it's doing, or else how much of its download is in
+    std::string status = progress_->status();
+    if (status.empty())
+        status = downloaded(progress_->download);
     drawText(status, x + 16, textTop(y + 44, metric::kTextSmall), metric::kTextSmall, color::kTextDim, Align::Left,
              width - 32);
 

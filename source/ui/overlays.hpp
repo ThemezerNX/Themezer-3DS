@@ -69,12 +69,15 @@ struct DialogButton
     std::string label;
     std::function<void()> run;
     bool danger = false;
+    // The button that chooses it; 0 for the usual ones (see Dialog).
+    u32 key = 0;
 };
 
 class Dialog final : public Scene
 {
 public:
-    // With one button, it's a message; with two, [0] is the cancelling one (B) and [1] the confirming one (A).
+    // With one button, it's a message; with two, [0] is the cancelling one (B) and [1] the confirming one (A). More,
+    // each with its key: [0] still B, the last one A and wide, under the others.
     Dialog(gfx::Icon icon, gfx::Color iconColor, std::string title, std::string message,
            std::vector<DialogButton> buttons);
     void update(Input& input, float dt) override;
@@ -84,13 +87,18 @@ public:
 
 private:
     void choose(size_t button);
+    u32 keyOf(size_t button) const;
     gfx::Icon icon_;
     gfx::Color iconColor_;
     std::string title_;
     std::string message_;
     std::vector<DialogButton> buttons_;
     float appear_ = 0;
-    float buttonsY_ = 0;
+    struct Box
+    {
+        float x, y, w, h;
+    };
+    std::vector<Box> boxes_; // where the last draw put the buttons, for taps
 };
 
 // Whether a progress overlay holds the HOME button off now, its task writing the system's files. The app decides
