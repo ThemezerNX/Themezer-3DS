@@ -242,7 +242,7 @@ ui::Tab BrowsePage::tab() const
 
 Accent BrowsePage::accent() const
 {
-    return accentOf(kind_);
+    return scanningTab() ? accent::kApp : accentOf(kind_);
 }
 
 void BrowsePage::onShow()
@@ -596,6 +596,9 @@ float BrowsePage::listTop(float top) const
 
 std::shared_ptr<Picture> BrowsePage::backdrop() const
 {
+    // the scanner has no item, so nothing of the list's behind it
+    if (scanningTab())
+        return nullptr;
     auto* self = const_cast<BrowsePage*>(this);
     const Entry* entry = self->selected();
     if (!entry)
