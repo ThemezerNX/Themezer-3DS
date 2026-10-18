@@ -79,7 +79,13 @@ public:
 
         if (input.pressed(KEY_START))
         {
-            openMenu(page().menuActions());
+            // SELECT's hint doesn't always fit on the bar, so the menu says what it does
+            std::vector<ui::Action> actions{{online_ ? gfx::Icon::SdCard : gfx::Icon::Globe,
+                                             online_ ? tr("Show the SD card") : tr("Browse online"),
+                                             tr("Or press SELECT"), true, false, [this] { switchMode(); }}};
+            for (ui::Action& action : page().menuActions())
+                actions.push_back(std::move(action));
+            openMenu(std::move(actions));
             return;
         }
         page().update(input, dt);
