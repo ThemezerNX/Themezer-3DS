@@ -24,9 +24,9 @@ public:
     static constexpr int kWidth = 640;
     static constexpr int kHeight = 480;
 
-    // Starts the outer camera, and looks for QR codes in its pictures, on threads of their own: the camera driver
-    // takes up to a second to start, and as long to stop, so neither holds up the caller. Fails only when out of
-    // memory; the camera's own errors come from failure().
+    // Starts the outer camera, and looks for QR codes in its pictures, on threads of their own: the camera takes a
+    // while to start and to stop, so neither holds up the caller. Fails only when out of memory; the camera's own
+    // errors come from failure().
     static Expected<std::unique_ptr<QrScanner>> start();
     ~QrScanner(); // stops the camera, waiting for it unless stopped() already
 
@@ -37,6 +37,10 @@ public:
     // Asks the camera to stop, without waiting for it; stopped() once it has, and then the scanner goes at once.
     void stop();
     bool stopped() const;
+
+    // The camera driver stays started from the first scanner on, for the next one to start quickly; this stops it,
+    // once no scanner is left.
+    static void stopDriver();
 
     QrScanner(const QrScanner&) = delete;
     QrScanner& operator=(const QrScanner&) = delete;

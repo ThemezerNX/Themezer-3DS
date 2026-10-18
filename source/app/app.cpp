@@ -11,6 +11,7 @@
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
 #include "scenes/home.hpp"
+#include "services/qr.hpp"
 #include "sys/audio.hpp"
 #include "sys/jobs.hpp"
 #include "sys/log.hpp"
@@ -349,6 +350,7 @@ void App::shutdown()
     if (log::hadErrors() && sd_)
         log::save(kLogPath);
     scenes_ = ui::SceneStack();
+    QrScanner::stopDriver(); // the scenes' scanners are gone
     audio::stopBackgroundMusic();
     jobs::shutdown();
     audio::exit();

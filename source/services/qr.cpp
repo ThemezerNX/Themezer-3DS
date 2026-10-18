@@ -51,6 +51,10 @@ constexpr size_t kDecodePixels = static_cast<size_t>(kDecodeWidth) * kDecodeHeig
 // How long stopping waits for the frame in flight, in 1 ms steps; a frame takes 33.
 constexpr int kStopPolls = 500;
 
+// The camera driver, started by the first scanner and kept until the app ends. An Old 3DS took 0.1 s to start it the
+// first time, but 1.2 s when it had stopped it shortly before, and 0.6 s to stop it.
+std::atomic<bool> driverStarted{false};
+
 // Logs a camera call that failed; true if it worked.
 bool check(Result result, const char* what)
 {
@@ -204,20 +208,20 @@ Expected<void> QrScanner::Impl::open()
 
 void QrScanner::Impl::capture()
 {
-    const Result opened = camInit();
+    const Result opened = driverStarted.load(std::memory_order_acquire) ? 0 : camInit();
     if (R_FAILED(opened))
     {
         failure = cameraError(opened);
         failed.store(true, std::memory_order_release);
         return;
     }
+    driverStarted.store(true, std::memory_order_release);
     // stopped while the driver was starting: no need to turn the camera on
     if (!stopping(0) && !captureFrames())
     {
         failure = Error{Errc::Busy, 0, "camera stopped capturing"};
         failed.store(true, std::memory_order_release);
     }
-    camExit();
 }
 
 bool QrScanner::Impl::captureFrames()
@@ -400,6 +404,12 @@ bool QrScanner::latestFrame(std::vector<uint16_t>& frame)
     std::memcpy(frame.data(), impl_->latest.get(), kFrameBytes);
     impl_->framesShown = impl_->frames;
     return true;
+}
+
+void QrScanner::stopDriver()
+{
+    if (driverStarted.exchange(false))
+        camExit();
 }
 
 std::optional<Error> QrScanner::failure() const
