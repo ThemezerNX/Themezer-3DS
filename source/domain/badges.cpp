@@ -429,8 +429,6 @@ public:
                     std::string file = path::join(set.folderPath, entry.name);
                     if (path::equalsIgnoreCase(entry.name, kSetIconName))
                         folderIcon = PictureFile{entry.name, std::move(file)};
-                    else if (path::equalsIgnoreCase(entry.name, kSetPreviewName))
-                        continue;
                     else if (path::hasExtension(entry.name, "png"))
                         files.pictures.push_back({entry.name, std::move(file)});
                     else if (path::hasExtension(entry.name, "zip"))
@@ -510,7 +508,7 @@ private:
             const ZipEntry& entry = entries[i];
             const std::string_view name = path::filename(entry.name);
             if (entry.isDirectory() || hiddenName(name) || !path::hasExtension(name, "png") ||
-                path::equalsIgnoreCase(name, kSetIconName) || path::equalsIgnoreCase(name, kSetPreviewName))
+                path::equalsIgnoreCase(name, kSetIconName))
                 continue;
             const std::vector<std::string_view> parts = path::split(entry.name);
             if (std::any_of(parts.begin(), parts.end(), [](std::string_view part) { return hiddenName(part); }))
@@ -804,8 +802,7 @@ Expected<std::vector<SetSource>> findSets(FileSystem& sd, std::string_view root,
             if (download)
                 set.author = download->author;
         }
-        else if (path::hasExtension(entry.name, "png") && !path::equalsIgnoreCase(entry.name, kSetIconName) &&
-                 !path::equalsIgnoreCase(entry.name, kSetPreviewName))
+        else if (path::hasExtension(entry.name, "png") && !path::equalsIgnoreCase(entry.name, kSetIconName))
         {
             loose.push_back(path::join(root, entry.name));
         }

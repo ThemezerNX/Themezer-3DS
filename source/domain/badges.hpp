@@ -24,8 +24,6 @@ constexpr uint32_t kManagerSize = 0xD4A8;
 constexpr int kMaxBadges = 1000;
 constexpr int kMaxSets = 100;
 constexpr const char* kSetIconName = "_seticon.png";
-// Themezer's picture of a set on both screens, in the zips it serves: not a badge
-constexpr const char* kSetPreviewName = "preview.png";
 
 // One set on the SD card. A folder and a zip with the same name are one set; the PNGs directly in the badge folder
 // make one more set of their own.
