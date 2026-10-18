@@ -153,6 +153,18 @@ float mark(Icon which, Color tint, float right, float y, float h)
 
 } // namespace row
 
+void drawNothingToShow(std::string_view name, std::string_view why)
+{
+    const float x = metric::kTopWidth / 2;
+    const float middle = metric::kHeight / 2;
+    const float width = metric::kTopWidth - 2 * details::kLeft;
+    if (!name.empty())
+        drawText(name, x, textTop(middle - 12, metric::kTextTitle), metric::kTextTitle, color::kText, Align::Center,
+                 width);
+    drawText(why, x, textTop(name.empty() ? middle : middle + 14, metric::kTextNormal), metric::kTextNormal,
+             color::kTextDim, Align::Center, width);
+}
+
 void drawEmptyState(Icon which, Color iconColor, std::string_view title, std::string_view message, float top,
                     float bottom)
 {

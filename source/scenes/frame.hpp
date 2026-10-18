@@ -74,6 +74,9 @@ constexpr float kTop = gfx::metric::kStatusBarHeight + 24;
 constexpr float kDescriptionGap = 18; // from the icon to the description
 } // namespace details
 
+// An item the top screen has nothing to show of: its name, and why underneath, in the middle of the screen.
+void drawNothingToShow(std::string_view name, std::string_view why);
+
 // A page with nothing to show: a large icon, what's the matter, and what to do, centred between top and bottom.
 void drawEmptyState(gfx::Icon icon, gfx::Color iconColor, std::string_view title, std::string_view message, float top,
                     float bottom);

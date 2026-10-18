@@ -8,6 +8,7 @@
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
+#include "scenes/frame.hpp"
 #include "sys/audio.hpp"
 #include "sys/log.hpp"
 #include "ui/overlays.hpp"
@@ -75,8 +76,7 @@ public:
         if (pictures && pictures->top)
             pictures->top->draw(0, 0, metric::kTopWidth, metric::kHeight);
         else if (pictures && pictures->missing)
-            drawText(tr("This one has no preview."), metric::kTopWidth / 2, textTop(metric::kHeight / 2, metric::kTextNormal),
-                     metric::kTextNormal, color::kTextDim, Align::Center);
+            drawNothingToShow(source_.title, tr("has no preview"));
         else
             spinner(metric::kTopWidth / 2, metric::kHeight / 2, 14, color::kText);
     }
