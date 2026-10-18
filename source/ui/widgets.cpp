@@ -20,6 +20,28 @@ namespace
 constexpr float kHintGap = 12;
 constexpr float kHintMargin = 8;
 
+// Where a button's hint goes, left to right as on a Switch: the others first, then SELECT (-), START (+), Y, X, B, A.
+int hintRank(u32 key)
+{
+    switch (key)
+    {
+    case KEY_SELECT:
+        return 1;
+    case KEY_START:
+        return 2;
+    case KEY_Y:
+        return 3;
+    case KEY_X:
+        return 4;
+    case KEY_B:
+        return 5;
+    case KEY_A:
+        return 6;
+    default:
+        return 0;
+    }
+}
+
 bool isWordButton(u32 key)
 {
     return key == KEY_START || key == KEY_SELECT;
@@ -144,17 +166,26 @@ void HintBar::draw(const std::vector<Hint>& hints, float alpha)
     if (total() > metric::kBottomWidth)
         labelSize = metric::kTextSmall;
 
-    const float middle = y_ + 1 + (height_ - 1) / 2;
-    float x = kHintMargin;
+    // right-aligned in that order, A last; laid out from the right, so the ones that don't fit are on the left
+    std::vector<const Hint*> order;
+    order.reserve(hints.size());
     for (const Hint& hint : hints)
+        order.push_back(&hint);
+    std::stable_sort(order.begin(), order.end(),
+                     [](const Hint* a, const Hint* b) { return hintRank(a->key) < hintRank(b->key); });
+    const float middle = y_ + 1 + (height_ - 1) / 2;
+    float x = metric::kBottomWidth - kHintMargin;
+    for (auto it = order.rbegin(); it != order.rend(); ++it)
     {
+        const Hint& hint = **it;
         const float width = hintWidth(hint.key, hint.label, labelSize);
-        if (x + width > metric::kBottomWidth)
+        if (x - width < 0)
             break;
+        x -= width;
         drawHint(hint.key, hint.label, x, middle, withAlpha(color::kText, alpha), withAlpha(color::kTextDim, alpha),
                  labelSize);
         spots_.push_back({x - gap / 2, width + gap, hint.key});
-        x += width + gap;
+        x -= gap;
     }
 }
 
