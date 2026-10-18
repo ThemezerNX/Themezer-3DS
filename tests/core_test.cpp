@@ -26,6 +26,9 @@ TEST(sanitize_filename)
     CHECK_EQ(path::sanitizeFilename("a/b:c?"), std::string("a-b-c-"));
     CHECK_EQ(path::sanitizeFilename("  name. . "), std::string("name"));
     CHECK_EQ(path::sanitizeFilename("..."), std::string("untitled"));
+    CHECK_EQ(path::sanitizeFilename(".hack"), std::string("hack"));
+    CHECK_EQ(path::sanitizeFilename(" ../../Themes/x.zip"), std::string("-..-Themes-x.zip"));
+    CHECK_EQ(path::sanitizeFilename(std::string_view("a\0b\n", 4)), std::string("ab"));
     // cut on a character boundary: "é" is two bytes
     CHECK_EQ(path::sanitizeFilename("aé", 2), std::string("a"));
 }

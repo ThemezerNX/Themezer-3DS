@@ -25,8 +25,9 @@ std::vector<std::string_view> split(std::string_view path);
 
 bool hasExtension(std::string_view path, std::string_view extension); // case-insensitive, without the dot
 
-// Makes a name that FAT can store: characters it forbids become '-', control characters are dropped, trailing dots
-// and spaces are trimmed, and it is cut to maxBytes without splitting a UTF-8 sequence. Never returns "".
+// Makes a name that FAT can store: characters it forbids become '-', control characters are dropped, dots and spaces
+// are trimmed from both ends (a leading dot would hide it), and it is cut to maxBytes without splitting a UTF-8
+// sequence. Never returns "", "." or "..".
 std::string sanitizeFilename(std::string_view name, size_t maxBytes = 200);
 
 // ASCII-only case-insensitive comparison, which is how the SD card compares names.

@@ -109,8 +109,9 @@ std::string sanitizeFilename(std::string_view name, size_t maxBytes)
 
     while (!result.empty() && (result.back() == '.' || result.back() == ' '))
         result.pop_back();
+    // and leading dots: a name starting with one is hidden, and the library leaves those out
     size_t leading = 0;
-    while (leading < result.size() && result[leading] == ' ')
+    while (leading < result.size() && (result[leading] == ' ' || result[leading] == '.'))
         ++leading;
     result.erase(0, leading);
 
