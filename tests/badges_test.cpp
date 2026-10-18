@@ -633,6 +633,13 @@ TEST(badges_preview_and_icons)
     auto all = badges::previewBadges(sd, (*sets)[1], 100, token);
     REQUIRE(all.has_value());
     CHECK_EQ(all->size(), size_t(4));
+    // every badge, in order, as many as the summary counts, and none after visit says stop
+    int visited = 0;
+    REQUIRE(badges::eachBadge(sd, animals, [&](Image) { return ++visited > 0; }, token).has_value());
+    CHECK_EQ(visited, summary->badges);
+    visited = 0;
+    REQUIRE(badges::eachBadge(sd, animals, [&](Image) { return ++visited < 2; }, token).has_value());
+    CHECK_EQ(visited, 2);
 
     auto icon = badges::setIcon(sd, animals);
     REQUIRE(icon.has_value());

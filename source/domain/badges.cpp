@@ -844,11 +844,9 @@ Expected<Image> setIcon(FileSystem& sd, const SetSource& set)
     return decodeIcon(png);
 }
 
-Expected<std::vector<Image>> previewBadges(FileSystem& sd, const SetSource& set, int max, const CancelToken& cancel)
+Expected<void> eachBadge(FileSystem& sd, const SetSource& set, const std::function<bool(Image)>& visit,
+                         const CancelToken& cancel)
 {
-    std::vector<Image> badges;
-    if (max <= 0)
-        return badges;
     const SetFiles files = TZ_TRY(SetFiles::open(sd, set));
     for (const PictureFile& picture : files.pictures)
     {
@@ -860,13 +858,24 @@ Expected<std::vector<Image>> previewBadges(FileSystem& sd, const SetSource& set,
         auto sheet = decodeSheet(*png);
         if (!sheet)
             continue;
-        const bool more = forEachBadge(*sheet, [&](Image badge) {
-            badges.push_back(std::move(badge));
-            return static_cast<int>(badges.size()) < max;
-        });
-        if (!more)
+        if (!forEachBadge(*sheet, visit))
             break;
     }
+    return {};
+}
+
+Expected<std::vector<Image>> previewBadges(FileSystem& sd, const SetSource& set, int max, const CancelToken& cancel)
+{
+    std::vector<Image> badges;
+    if (max <= 0)
+        return badges;
+    TZ_CHECK(eachBadge(
+        sd, set,
+        [&](Image badge) {
+            badges.push_back(std::move(badge));
+            return static_cast<int>(badges.size()) < max;
+        },
+        cancel));
     return badges;
 }
 

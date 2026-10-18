@@ -6,6 +6,7 @@
 #include "domain/badges.hpp"
 #include "gfx/icon_atlas.hpp"
 #include "scenes/page.hpp"
+#include "scenes/badge_preview.hpp"
 #include "scenes/previews.hpp"
 #include "sys/jobs.hpp"
 #include "ui/list_view.hpp"
@@ -56,6 +57,7 @@ private:
     void openActions();
     void install();
     void openPreview(const Set& set);
+    BadgePreviewSource previewOf(const Set& set);
     void installSets(std::vector<badges::SetSource> chosen);
     void uninstall();
     void exportBadges();

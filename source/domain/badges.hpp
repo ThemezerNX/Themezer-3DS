@@ -53,7 +53,12 @@ Expected<SetSummary> summarize(FileSystem& sd, const SetSource& set);
 // The set's icon (_seticon.png, 48x48). NotFound without one.
 Expected<Image> setIcon(FileSystem& sd, const SetSource& set);
 
-// The set's first badges as 64x64 images, sheets cut into their badges, for a preview.
+// Each of the set's badges as a 64x64 image, in order, sheets cut into their badges, until visit returns false.
+// Pictures that can't be read are left out.
+Expected<void> eachBadge(FileSystem& sd, const SetSource& set, const std::function<bool(Image)>& visit,
+                         const CancelToken& cancel);
+
+// The set's first badges, as eachBadge() gives them, for a preview.
 Expected<std::vector<Image>> previewBadges(FileSystem& sd, const SetSource& set, int max, const CancelToken& cancel);
 
 struct InstallResult

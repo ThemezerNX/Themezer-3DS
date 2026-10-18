@@ -11,7 +11,6 @@
 #include "gfx/text.hpp"
 #include "scenes/errors.hpp"
 #include "scenes/frame.hpp"
-#include "scenes/preview_scene.hpp"
 #include "sys/act.hpp"
 #include "sys/log.hpp"
 
@@ -33,14 +32,6 @@ constexpr int kPreviewColumns = 7;
 constexpr int kPreviewRows = 3;
 constexpr int kPreviewBadge = 48;
 constexpr int kPreviewGap = 6;
-// the full preview (Y): 4 rows of 7 on the top screen and of 5 on the bottom one, centred
-constexpr int kFullTopColumns = 7;
-constexpr int kFullBottomColumns = 5;
-constexpr int kFullRows = 4;
-constexpr int kFullTop = (240 - kFullRows * kPreviewBadge - (kFullRows - 1) * kPreviewGap) / 2;
-constexpr int kFullBadges = (kFullTopColumns + kFullBottomColumns) * kFullRows;
-// told apart from the list's picture of the same set, which is the top screen's alone
-constexpr uint64_t kFullPreviewKey = 0x9E3779B97F4A7C15ULL;
 
 uint64_t keyOf(const badges::SetSource& set)
 {
@@ -104,17 +95,6 @@ preview::Screens grid(const std::vector<Image>& pictures)
     preview::Screens screens;
     screens.top = backdrop(400);
     placeBadges(screens.top, pictures, kPreviewColumns, kPreviewRows, 30);
-    return screens;
-}
-
-// As many of a set's badges as fill both screens, top first, for its full preview.
-preview::Screens fullGrid(const std::vector<Image>& pictures)
-{
-    preview::Screens screens;
-    screens.top = backdrop(400);
-    const size_t onTop = placeBadges(screens.top, pictures, kFullTopColumns, kFullRows, kFullTop);
-    screens.bottom = backdrop(320);
-    placeBadges(*screens.bottom, std::span(pictures).subspan(onTop), kFullBottomColumns, kFullRows, kFullTop);
     return screens;
 }
 
@@ -452,18 +432,23 @@ void BadgesPage::openActions()
 
 void BadgesPage::openPreview(const Set& set)
 {
-    const badges::SetSource source = set.source;
-    PreviewSource preview;
-    preview.title = set.source.name;
-    preview.key = set.key ^ kFullPreviewKey;
-    preview.previews = &previews_;
-    preview.loader = [source](const CancelToken& token) -> Expected<preview::Screens> {
-        auto pictures = TZ_TRY(badges::previewBadges(App::get().sd(), source, kFullBadges, token));
-        if (pictures.empty())
-            return fail(Errc::NotFound, "no badges");
-        return fullGrid(pictures);
+    App::get().scenes().push(makeBadgePreview(previewOf(set)));
+}
+
+BadgePreviewSource BadgesPage::previewOf(const Set& set)
+{
+    BadgePreviewSource preview;
+    preview.set = set.source;
+    // the selected set's neighbours in the list
+    preview.hasNeighbour = [this](int step) {
+        const int index = list_.selected() + step;
+        return index >= 0 && index < static_cast<int>(sets_.size());
     };
-    App::get().scenes().push(makePreviewScene(std::move(preview)));
+    preview.neighbour = [this](int step) {
+        list_.select(list_.selected() + step);
+        return previewOf(*selected());
+    };
+    return preview;
 }
 
 void BadgesPage::install()
