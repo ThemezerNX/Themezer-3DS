@@ -8,7 +8,7 @@ wait 40
 repeat 5                # a few themes past the one in use
 press DOWN
 end
-wait 40
+wait 240                # until its blurred preview is behind it
 shot themes
 press Y                 # the theme on the HOME Menu
 wait 90
@@ -17,10 +17,10 @@ press B
 wait 30
 press R
 press SELECT            # splash screens online
-wait 300                # the first page
+wait 600                # the first page, and the first item's blurred preview
 shot splashes
 press R
-wait 300
+wait 600
 shot badges
 press SELECT            # back to the SD card's themes, where it opens next time
 press R
