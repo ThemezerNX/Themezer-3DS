@@ -18,12 +18,12 @@ What you'll notice coming from Anemone3DS 3.0.1, its latest release:
 
 | | Themezer-3DS | Anemone3DS |
 | --- | --- | --- |
-| Speed | ✅ Faster:<br>• opens at once, reading the SD card while you look around<br>• previews load without holding up the app, and the last few stay loaded<br>• online pages show at once, their icons following<br>• downloads go straight to the SD card, over connections kept open<br>• QR codes are picked up quicker, by ZXing-cpp on the camera's own thread | <br>• a loading screen while it reads every theme and splash<br>• each preview read and decoded again, while the app waits<br>• online pages wait for every item's icon<br>• downloads are held in memory until the whole file is in<br>• QR codes are read by quirc between the app's frames |
+| Speed | ✅ Faster SD card loading, much faster downloads and browsing, much better QR scanning | |
 | Online | ✅ Themezer and ThemePlaza: search, sort, or type an item's ID | ThemePlaza: search |
-| A console that never had a theme | ✅ Sets up the HOME Menu's theme storage itself | Asks you to pick a theme in the HOME Menu first |
-| Splash screens | ✅ Turns Luma3DS's splashes on when you install one | Leaves that to Luma3DS's settings |
-| Updates | ✅ Updates itself from GitHub | By hand |
-| Sound | ✅ Background music and UI sounds | Silent, except a theme's music in its preview |
+| Initial setup | ✅ None: it sets up the HOME Menu's theme storage and turns on Luma3DS's splashes for you | Pick a theme in the HOME Menu first, and turn splashes on in Luma3DS's settings |
+| Splash screens | ✅ Install the top or bottom screen on its own | Both screens together |
+| Undoing | ✅ Go back to the default theme, remove the splash, take all badges off or bring your old ones back | Remove the splash |
+| Updates | ✅ Updates itself | By hand |
 
 ## Installing
 
