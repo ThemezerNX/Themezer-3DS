@@ -1,17 +1,33 @@
-![Themezer-3DS](meta/banner.png)
-
 # Themezer-3DS
 
 The theme manager for the Nintendo 3DS by [Themezer](https://themezer.net). Install themes, splash screens and
 badges from your SD card, or find new ones on Themezer or [ThemePlaza](https://themeplaza.art) and install them
 straight away: browse and search them, scan an item's QR code, or type its ID.
 
-![The themes on the SD card](docs/screenshots/themes.png)
-![A theme previewed on the HOME Menu](docs/screenshots/preview.png)
-![Splash screens on Themezer](docs/screenshots/splashes.png)
-![Badges on Themezer](docs/screenshots/badges.png)
+<p>
+  <img src="docs/screenshots/themes.png" width="32%" alt="The themes on the SD card">
+  <img src="docs/screenshots/splashes.png" width="32%" alt="Splash screens on Themezer">
+  <img src="docs/screenshots/badges.png" width="32%" alt="Badges on Themezer">
+</p>
 
 Themezer-3DS is based on [Anemone3DS](https://github.com/astronautlevel2/Anemone3DS), rewritten from scratch.
+
+## Compared with Anemone3DS
+
+What you'll notice coming from Anemone3DS 3.0.1, its latest release:
+
+| | Themezer-3DS | Anemone3DS |
+| --- | --- | --- |
+| Starting | Opens at once, and reads the SD card while you look around | Reads every theme and splash behind a loading screen first |
+| Previews | Load without holding up the app, and the last few stay loaded, so going back is instant | Read from the zip and decoded again for each item, while the app waits |
+| Downloads | Faster: saved straight to the SD card, over connections kept open | Held in memory until the whole file is in |
+| QR codes | Picked up quicker, read with ZXing-cpp on the camera's own thread | Read with quirc between the app's frames |
+| Online | Themezer and ThemePlaza: search, sort, or type an item's ID | ThemePlaza: search |
+| Online pages | Show at once, their icons following | Wait for every item's icon first |
+| A console that never had a theme | Sets up the HOME Menu's theme storage itself | Asks you to pick a theme in the HOME Menu first |
+| Splash screens | Turns Luma3DS's splashes on when you install one | Leaves that to Luma3DS's settings |
+| Updates | Updates itself from GitHub | By hand |
+| Sound | Background music and UI sounds | Silent, except a theme's music in its preview |
 
 ## Installing
 

@@ -10,11 +10,6 @@ press DOWN
 end
 wait 240                # until its blurred preview is behind it
 shot themes
-press Y                 # the theme on the HOME Menu
-wait 90
-shot preview
-press B
-wait 30
 press R
 press SELECT            # splash screens online
 wait 600                # the first page, and the first item's blurred preview
