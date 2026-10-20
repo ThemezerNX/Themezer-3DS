@@ -7,7 +7,6 @@
 | `meta/logo.bin` | the boot animation shown while the app starts | `tools/bootlogo/build.sh` |
 | `romfs/bgm.bcstm` | the background music in the app | `tools/music/build.sh` |
 | `meta/icon.png`, `romfs/badge-set.png` | the HOME Menu icon, also the icon of the badge set the app installs | `tools/icon/build.sh` |
-| `meta/banner.png` | the README's header | `tools/icon/build.sh` |
 
 All are generated, and committed so a build doesn't need the tools. Below: how to rebuild them, then how each one was
 made and why.
