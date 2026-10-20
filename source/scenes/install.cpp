@@ -120,19 +120,18 @@ void installSplash(const library::Source& source, const std::string& name, splas
             if (package.has(splashes::kBottomName))
                 bottom = TZ_TRY(package.read(splashes::kBottomName, splashes::kMaxSize));
             TZ_CHECK(splashes::install(sd, top, bottom, screens));
-            return splashes::lumaShowsSplashes(sd);
+            return splashes::turnOnInLuma(sd);
         },
-        [name, done](Expected<bool> shown) {
-            if (!shown)
+        [name, done](Expected<bool> turnedOn) {
+            if (!turnedOn)
             {
-                showError(installError(shown.error(), name));
+                showError(installError(turnedOn.error(), name));
                 done(false);
                 return;
             }
             ui::toast(trf("{} is installed", name), ui::ToastKind::Success);
-            if (!*shown)
-                ui::toast(tr("Splashes are off in Luma3DS's settings: turn them on to see it"),
-                          ui::ToastKind::Warning);
+            if (*turnedOn)
+                ui::toast(tr("Splashes were off in Luma3DS's settings: they are on now"));
             done(true);
         }));
 }

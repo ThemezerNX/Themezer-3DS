@@ -3,7 +3,10 @@
 
 #include "domain/splashes.hpp"
 
+#include "core/path.hpp"
 #include "core/zip.hpp"
+
+#include <algorithm>
 
 namespace tz::splashes
 {
@@ -32,6 +35,57 @@ Expected<void> removeIfThere(FileSystem& sd, const char* path)
     if (!removed && removed.error().code != Errc::NotFound)
         return removed;
     return {};
+}
+
+// Written beside the old file first: Luma3DS goes back to its defaults for all its settings when its configuration
+// doesn't read.
+Expected<void> replaceConfig(FileSystem& sd, const char* path, ByteSpan data)
+{
+    const std::string part = std::string(path) + ".part";
+    TZ_CHECK(sd.writeFile(part, data));
+    TZ_CHECK(sd.removeFile(path));
+    return sd.rename(part, path);
+}
+
+// v11 and later read an INI file at boot, and any line it doesn't understand resets it, so only the one line changes.
+Expected<bool> turnOnInIni(FileSystem& sd)
+{
+    auto config = sd.readFile(kLumaIniPath, 0x4000);
+    if (!config)
+        return false;
+    std::string text(config->begin(), config->end());
+    for (size_t start = 0; start < text.size();)
+    {
+        const size_t end = std::min(text.find('\n', start), text.size());
+        std::string line = text.substr(start, end - start);
+        std::erase_if(line, [](char c) { return c == ' ' || c == '\t' || c == '\r'; });
+        if (path::equalsIgnoreCase(line, "splash_position=off"))
+        {
+            const size_t cr = text[end - 1] == '\r' ? 1 : 0;
+            text.replace(start, end - cr - start, "splash_position = before payloads");
+            const ByteSpan data(reinterpret_cast<const uint8_t*>(text.data()), text.size());
+            TZ_CHECK(replaceConfig(sd, kLumaIniPath, data));
+            return true;
+        }
+        start = end + 1;
+    }
+    return false;
+}
+
+// v8.1 to v10.3: "CONF", the format version (2.x), then the options as bits. The multi-choice options take two bits
+// each in the word at 0xC; the splash is the third of them (off, before payloads, after payloads). Older versions
+// pack them elsewhere and are left alone.
+Expected<bool> turnOnInBin(FileSystem& sd)
+{
+    auto config = sd.readFile(kLumaBinPath, 0x1000);
+    if (!config || config->size() < 0x10 || !startsWith(*config, "CONF") || readU16(*config, 4) != 2)
+        return false;
+    const uint32_t multiOptions = readU32(*config, 0xC);
+    if (((multiOptions >> 4) & 3) != 0)
+        return false;
+    writeU32(config->data() + 0xC, multiOptions | 1u << 4);
+    TZ_CHECK(replaceConfig(sd, kLumaBinPath, *config));
+    return true;
 }
 
 } // namespace
@@ -84,15 +138,12 @@ Expected<Files> readInstalled(FileSystem& sd)
     return files;
 }
 
-bool lumaShowsSplashes(FileSystem& sd)
+Expected<bool> turnOnInLuma(FileSystem& sd)
 {
-    // Luma3DS's configuration: "CONF", a version, then the options as bits. The multi-choice options take two bits
-    // each in the word at 0xC; the splash is the third of them (off, before payloads, after payloads).
-    auto config = sd.readFile(kLumaConfigPath, 0x1000);
-    if (!config || config->size() < 0x10 || !startsWith(*config, "CONF"))
-        return true;
-    const uint32_t multiOptions = readU32(*config, 0xC);
-    return ((multiOptions >> 4) & 3) != 0;
+    // Both, should Luma3DS have been updated or downgraded since: it doesn't read the other one.
+    const bool ini = TZ_TRY(turnOnInIni(sd));
+    const bool bin = TZ_TRY(turnOnInBin(sd));
+    return ini || bin;
 }
 
 std::optional<Image> toImage(ByteSpan data, bool top)

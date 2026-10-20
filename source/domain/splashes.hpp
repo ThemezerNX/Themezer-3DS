@@ -18,7 +18,9 @@ constexpr const char* kTopPath = "/luma/splash.bin";
 constexpr const char* kBottomPath = "/luma/splashbottom.bin";
 constexpr const char* kTopName = "splash.bin";
 constexpr const char* kBottomName = "splashbottom.bin";
-constexpr const char* kLumaConfigPath = "/luma/config.bin";
+// Luma3DS's configuration: an INI file from v11 on, a binary one in v8.1 to v10.3.
+constexpr const char* kLumaIniPath = "/luma/config.ini";
+constexpr const char* kLumaBinPath = "/luma/config.bin";
 
 // A splash that is raw screen data: 3 bytes a pixel.
 constexpr uint32_t kTopRawSize = 400 * 240 * 3;
@@ -61,8 +63,9 @@ struct Files
 };
 Expected<Files> readInstalled(FileSystem& sd);
 
-// Whether Luma3DS is set to show splashes ("Splash: Off" in its configuration hides them). True when unknown.
-bool lumaShowsSplashes(FileSystem& sd);
+// Turns on Luma3DS's splashes when its configuration has them off ("Splash: Off" in its boot menu), shown before
+// payloads like the menu's first choice. Whether it changed anything: false too when there is no configuration.
+Expected<bool> turnOnInLuma(FileSystem& sd);
 
 // A raw splash as a picture, for previews of splashes that come without one. nullopt for other formats.
 std::optional<Image> toImage(ByteSpan data, bool top);

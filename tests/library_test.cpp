@@ -296,15 +296,39 @@ TEST(splashes_raw_to_image)
 TEST(splashes_luma_config)
 {
     test::MemoryFs sd;
-    CHECK(splashes::lumaShowsSplashes(sd)); // unknown: assume shown
-    Bytes config(0x20, 0);
-    config[0] = 'C';
-    config[1] = 'O';
-    config[2] = 'N';
-    config[3] = 'F';
-    sd.put(splashes::kLumaConfigPath, config);
-    CHECK(!splashes::lumaShowsSplashes(sd));
-    config[0xC] = 1 << 4;
-    sd.put(splashes::kLumaConfigPath, config);
-    CHECK(splashes::lumaShowsSplashes(sd));
+    CHECK(!*splashes::turnOnInLuma(sd)); // no configuration: nothing to turn on
+
+    sd.put(splashes::kLumaIniPath, test::bytesOf("[boot]\r\nbrightness_level = 4\r\nSplash_Position=OFF \r\n"
+                                                    "splash_duration_ms = 3000\r\n"));
+    CHECK(*splashes::turnOnInLuma(sd));
+    CHECK(*sd.readFile(splashes::kLumaIniPath, 0x4000) ==
+          test::bytesOf("[boot]\r\nbrightness_level = 4\r\nsplash_position = before payloads\r\n"
+                        "splash_duration_ms = 3000\r\n"));
+    CHECK(!sd.exists(std::string(splashes::kLumaIniPath) + ".part"));
+    CHECK(!*splashes::turnOnInLuma(sd)); // already on
+
+    sd.put(splashes::kLumaIniPath, test::bytesOf("splash_position = off"));
+    CHECK(*splashes::turnOnInLuma(sd));
+    CHECK(*sd.readFile(splashes::kLumaIniPath, 0x4000) == test::bytesOf("splash_position = before payloads"));
+}
+
+TEST(splashes_luma_config_bin)
+{
+    test::MemoryFs sd;
+    Bytes config = test::bytesOf("CONF");
+    config.resize(0x20, 0);
+    config[4] = 2;       // format 2.x, Luma3DS v8.1 to v10.3
+    config[0xC] = 0x0F;  // other choices, splash off
+    config[0x14] = 0xAB; // the rest stays
+    sd.put(splashes::kLumaBinPath, config);
+    CHECK(*splashes::turnOnInLuma(sd));
+    Bytes on = config;
+    on[0xC] = 0x1F; // before payloads
+    CHECK(*sd.readFile(splashes::kLumaBinPath, 0x1000) == on);
+    CHECK(!*splashes::turnOnInLuma(sd)); // already on
+
+    config[4] = 1; // format 1.x packs the choices elsewhere
+    sd.put(splashes::kLumaBinPath, config);
+    CHECK(!*splashes::turnOnInLuma(sd));
+    CHECK(*sd.readFile(splashes::kLumaBinPath, 0x1000) == config);
 }
