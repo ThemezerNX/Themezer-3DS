@@ -20,8 +20,10 @@ What you'll notice coming from Anemone3DS 3.0.1, its latest release:
 | --- | --- | --- |
 | Speed | ✅ Faster SD card loading, much faster downloads and browsing, much better QR scanning | |
 | Online | ✅ Themezer and ThemePlaza: search, sort, or type an item's ID | ThemePlaza: search |
+| Downloads | ✅ Cancel one with B, and install from a QR code without keeping the file | Can't be cancelled, and always kept |
 | Initial setup | ✅ None: it sets up the HOME Menu's theme storage and turns on Luma3DS's splashes for you | Pick a theme in the HOME Menu first, and turn splashes on in Luma3DS's settings |
 | Splash screens | ✅ Install the top or bottom screen on its own | Both screens together |
+| Badges | ✅ Every downloaded set shows up as its own set | Downloaded sets all go into one set |
 | Undoing | ✅ Go back to the default theme, remove the splash, take all badges off or bring your old ones back | Remove the splash |
 | Updates | ✅ Updates itself | By hand |
 
