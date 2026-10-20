@@ -39,7 +39,8 @@ tools/autopilot.sh tools/autopilot/tour.txt
 ```
 
 `tools/autopilot.sh` puts the script on Azahar's SD card, opens the app, waits for the script to end, and copies the
-screenshots to `out/dev/shots`. `tools/autopilot/tour.txt` walks past the main screens without changing anything.
+screenshots to `out/dev/shots`. `tools/autopilot/tour.txt` walks past the main screens without changing anything, and
+`tools/autopilot/readme.txt` takes the README's screenshots in `docs/screenshots`, on a console.
 
 On a console, the app reads the script from `/3ds/themezer-3ds/autopilot.txt` when it starts (send
 `out/dev/themezer-3ds.3dsx` with `3dslink`), and saves the screenshots in `/3ds/themezer-3ds/autopilot/`. A script that
