@@ -87,3 +87,5 @@ jobs:
             themezer-3ds.3dsx
             themezer-3ds.cia
           generate_release_notes: true
+          # v1.1.0-beta.1 and the like: the app's update check skips pre-releases
+          prerelease: ${{ contains(github.ref_name, '-') }}
