@@ -27,6 +27,8 @@ What you'll notice coming from Anemone3DS 3.0.1, its latest release:
 | Undoing/Uninstalling | ✅ Easily remove the current theme, splash or badge set | Remove the splash |
 | Updates | ✅ Updates itself | Manual updates |
 
+And many more bugfixes for issues Anemone3DS has had for years!
+
 ## Installing
 
 - **CIA:** install `themezer-3ds.cia` from the
