@@ -14,9 +14,9 @@ using namespace tz;
 namespace
 {
 
-// The app's own music: looping stereo DSP-ADPCM at 32728 Hz. Tests run from the root of the repository.
+// The app's own music: looping stereo DSP-ADPCM at 24000 Hz. Tests run from the root of the repository.
 constexpr const char* kMusicPath = "romfs/bgm.bcstm";
-constexpr size_t kMusicSize = 1686752;
+constexpr size_t kMusicSize = 1251232;
 
 // Where things are in it, from its header.
 constexpr size_t kBlockCount = 0x10;      // u16, in the file header
@@ -28,8 +28,8 @@ constexpr size_t kStreamInfo = 0x60;
 constexpr size_t kTrackTable = 0x98;
 constexpr size_t kChannelTable = 0xA4;
 constexpr size_t kChannelInfo0 = 0xCC;
-constexpr size_t kDataBlock = 0x480;
-constexpr size_t kSamples = 0x4A0;
+constexpr size_t kDataBlock = 0x3C0;
+constexpr size_t kSamples = 0x3E0;
 
 Bytes readFile(const char* path)
 {
@@ -227,36 +227,36 @@ TEST(bcstm_bundled_music)
     CHECK(info->looping);
     CHECK_EQ(info->channels, 2);
     CHECK(!info->mono());
-    CHECK_EQ(info->sampleRate, 32728u);
-    CHECK_EQ(info->loopStart, 530432u);
-    CHECK_EQ(info->loopEnd, 1474817u);
-    CHECK_EQ(info->blockCount, 103u);
+    CHECK_EQ(info->sampleRate, 24000u);
+    CHECK_EQ(info->loopStart, 401408u);
+    CHECK_EQ(info->loopEnd, 1093942u);
+    CHECK_EQ(info->blockCount, 77u);
     CHECK_EQ(info->blockSize, 0x2000u);
     CHECK_EQ(info->blockSamples, 14336u);
-    CHECK_EQ(info->lastBlockSize, 7170u);
-    CHECK_EQ(info->lastBlockSamples, 12545u);
-    CHECK_EQ(info->lastBlockPaddedSize, 7200u);
+    CHECK_EQ(info->lastBlockSize, 2518u);
+    CHECK_EQ(info->lastBlockSamples, 4406u);
+    CHECK_EQ(info->lastBlockPaddedSize, 2528u);
     CHECK_EQ(info->dataOffset, uint32_t(kSamples));
     // the loop starts on a block
     CHECK_EQ(info->loopStart % info->blockSamples, 0u);
 
     const bcstm::AdpcmChannel& left = info->adpcm[0];
-    CHECK_EQ(left.coefficients[0], 218);
-    CHECK_EQ(left.coefficients[1], -475);
-    CHECK_EQ(left.coefficients[15], -1895);
-    CHECK_EQ(left.predictorScale, 0x58);
+    CHECK_EQ(left.coefficients[0], -28);
+    CHECK_EQ(left.coefficients[1], 96);
+    CHECK_EQ(left.coefficients[15], -1849);
+    CHECK_EQ(left.predictorScale, 0x08);
     CHECK_EQ(left.history1, 0);
     CHECK_EQ(left.history2, 0);
-    CHECK_EQ(left.loopPredictorScale, 0x68);
-    CHECK_EQ(left.loopHistory1, -5151);
-    CHECK_EQ(left.loopHistory2, -5353);
+    CHECK_EQ(left.loopPredictorScale, 0x37);
+    CHECK_EQ(left.loopHistory1, -6955);
+    CHECK_EQ(left.loopHistory2, -6807);
 
     const bcstm::AdpcmChannel& right = info->adpcm[1];
-    CHECK_EQ(right.coefficients[0], 166);
-    CHECK_EQ(right.predictorScale, 0x68);
-    CHECK_EQ(right.loopPredictorScale, 0x67);
-    CHECK_EQ(right.loopHistory1, -5525);
-    CHECK_EQ(right.loopHistory2, -5196);
+    CHECK_EQ(right.coefficients[0], -60);
+    CHECK_EQ(right.predictorScale, 0x58);
+    CHECK_EQ(right.loopPredictorScale, 0x77);
+    CHECK_EQ(right.loopHistory1, -9880);
+    CHECK_EQ(right.loopHistory2, -10281);
 }
 
 TEST(bcstm_header_lengths)
@@ -344,29 +344,29 @@ TEST(bcstm_invalid)
     // the stream info
     CHECK(invalid(set32(kStreamInfo + 0x04, 0)));          // sample rate
     CHECK(invalid(set32(kStreamInfo + 0x0C, 0)));          // loop end
-    CHECK(invalid(set32(kStreamInfo + 0x0C, 1474818)));    // past the last sample
-    CHECK(invalid(set32(kStreamInfo + 0x08, 1474817)));    // a loop that starts at its end
+    CHECK(invalid(set32(kStreamInfo + 0x0C, 1093943)));    // past the last sample
+    CHECK(invalid(set32(kStreamInfo + 0x08, 1093942)));    // a loop that starts at its end
     CHECK(invalid(set32(kStreamInfo + 0x10, 0)));          // block count
-    CHECK(invalid(set32(kStreamInfo + 0x10, 104)));        // one block more than the DATA block holds
+    CHECK(invalid(set32(kStreamInfo + 0x10, 78)));        // one block more than the DATA block holds
     CHECK(invalid(set32(kStreamInfo + 0x10, 0xFFFFFFFF)));
     CHECK(invalid(set32(kStreamInfo + 0x14, 0)));          // block size
     CHECK(invalid(set32(kStreamInfo + 0x14, 0x1FFF)));     // too small for 14336 samples
     CHECK(invalid(set32(kStreamInfo + 0x14, 0xFFFFFFFF)));
     CHECK(invalid(set32(kStreamInfo + 0x18, 0)));          // samples per block
-    CHECK(invalid(set32(kStreamInfo + 0x1C, 7169)));       // last block too small for its samples
-    CHECK(invalid(set32(kStreamInfo + 0x1C, 7201)));       // bigger than with its padding
+    CHECK(invalid(set32(kStreamInfo + 0x1C, 2517)));       // last block too small for its samples
+    CHECK(invalid(set32(kStreamInfo + 0x1C, 2529)));       // bigger than with its padding
     CHECK(invalid(set32(kStreamInfo + 0x20, 0)));
     CHECK(invalid(set32(kStreamInfo + 0x20, 14337)));
-    CHECK(invalid(set32(kStreamInfo + 0x24, 7169)));
+    CHECK(invalid(set32(kStreamInfo + 0x24, 2517)));
     CHECK(invalid(set16(kStreamInfo + 0x30, 0x1F01))); // sample data reference
     CHECK(invalid(set32(kStreamInfo + 0x34, 0xFFFFFFFF)));
-    CHECK(invalid(set32(kStreamInfo + 0x34, 0x19B860)));
+    CHECK(invalid(set32(kStreamInfo + 0x34, 0x1313E0)));
     CHECK(invalid(set8(kStreamInfo, 0))); // PCM8 doesn't fit 14336 samples in 0x2000 bytes
 
     // the last channel's padding may be left out of the DATA block, but no more
     const uint32_t dataSize = readU32(header.data() + kDataBlock + 4);
-    CHECK(bcstm::parse(changed(header, set32(kDataBlock + 4, dataSize - 30))).has_value());
-    CHECK(invalid(set32(kDataBlock + 4, dataSize - 31)));
+    CHECK(bcstm::parse(changed(header, set32(kDataBlock + 4, dataSize - 10))).has_value());
+    CHECK(invalid(set32(kDataBlock + 4, dataSize - 11)));
 }
 
 TEST(bcstm_optional_parts)
@@ -384,7 +384,7 @@ TEST(bcstm_optional_parts)
     }));
     REQUIRE(once.has_value());
     CHECK(!once->looping);
-    CHECK_EQ(once->loopEnd, 1474817u);
+    CHECK_EQ(once->loopEnd, 1093942u);
 }
 
 TEST(bcstm_synthetic)
