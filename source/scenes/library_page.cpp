@@ -619,10 +619,8 @@ std::vector<ui::Hint> LibraryPage::hints() const
         hints.push_back({KEY_B, tr("Clear")});
         return hints;
     }
+    // Y and X are on the A menu's rows: the bar keeps room for SELECT
     hints.push_back({KEY_A, tr("Install")});
-    hints.push_back({KEY_Y, tr("Preview")});
-    if (kind_ == library::Kind::Theme)
-        hints.push_back({KEY_X, tr("Shuffle")});
     return hints;
 }
 
@@ -825,6 +823,7 @@ void LibraryPage::openActions()
                                if (Entry* e = find(key))
                                    toggleShuffle(*e, false);
                            }});
+        actions.back().key = KEY_X;
         if (shuffle_.size() >= 2)
             actions.push_back({Icon::Shuffle, trf("Install the shuffle of {}", std::to_string(shuffle_.size())), {},
                                true, false, [this] { installShuffle(); }});
@@ -853,6 +852,7 @@ void LibraryPage::openActions()
                            if (Entry* e = find(key))
                                openPreview(*e);
                        }});
+    actions.back().key = KEY_Y;
     actions.push_back({Icon::Trash, tr("Delete from the SD card"), {}, true, true, [this, key] {
                            if (Entry* e = find(key))
                                confirmDelete(*e);

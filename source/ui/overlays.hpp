@@ -31,6 +31,7 @@ struct Action
     bool enabled = true;
     bool danger = false;
     std::function<void()> run;
+    u32 key = 0; // the button that does it without the sheet, shown at the end of its row
 };
 
 // The actions as rows sliding up over the bottom screen; the top screen, dimmed, names the item and says what the
@@ -58,6 +59,9 @@ private:
     std::function<void()> chosen_;
     bool closing_ = false;
 };
+
+// An action's key at the end of its row, right-aligned on right. Returns where the label must end.
+float drawActionKey(u32 key, float right, float middle);
 
 // Along the bottom of the top screen, over what's there dimmed: a title and a line under it, for what's selected in
 // a list of actions on the bottom screen.

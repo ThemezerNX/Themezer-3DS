@@ -97,9 +97,10 @@ public:
                                                : (action.danger ? color::kDanger
                                                                 : (selected ? color::kPrimaryLight : color::kTextDim));
             icon(action.icon, x + 18, std::round(middle - metric::kIcon / 2), metric::kIcon, tint);
+            const float labelRight = ui::drawActionKey(action.key, x + w - 16, middle);
             drawText(action.label, x + 44, textTop(middle, metric::kTextNormal), metric::kTextNormal,
                      action.enabled ? (action.danger ? color::kDanger : color::kText) : color::kTextFaint, Align::Left,
-                     w - 60);
+                     labelRight - x - 44);
         }, {}, [](float x, float y, float w, float h, bool down) {
             ui::drawKey(x, y, w, h, color::kSurfaceHigh, down, metric::kRadius);
         });
