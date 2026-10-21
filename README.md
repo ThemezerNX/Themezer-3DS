@@ -31,11 +31,10 @@ What you'll notice coming from Anemone3DS 3.0.1, its latest release:
 | --- | --- | --- |
 | Speed | ✅ Faster SD card loading, faster downloads and browsing, much better QR scanning | |
 | Online | ✅ Themezer and ThemePlaza: search, sort, or type an item's ID | ThemePlaza: search |
-| Library Mangement | ✅ Several install options, easier management | |
+| Library Mangement | ✅ Several install options, easier management, uninstall the current theme, splash or badge set | |
 | Initial setup | ✅ None: automatically creates the required files and turns on Luma3DS's splashes for you | Requires manually changing settings |
 | Splash screens | ✅ Install the top or bottom screen on its own | Both screens together |
 | Badges | ✅ Every downloaded set shows up as its own set, disable/enable sets | Downloaded sets all go into one set, no mangement possible |
-| Undoing/Uninstalling | ✅ Easily remove the current theme, splash or badge set | Remove the splash |
 | Updates | ✅ Updates itself | Manual updates |
 
 And many more bugfixes for issues Anemone3DS has had for years!
