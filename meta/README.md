@@ -80,20 +80,21 @@ a flat plane that always faces the camera.
 
 ## Banner tune: `meta/audio.wav`
 
-Synthesized from scratch in Python (numpy). No samples were used. It is "bloom-harp": the "bloom" phrase on a
-harp, at its written pitch.
+Synthesized from scratch in Python (numpy). No samples were used. It is "rise-strings": a four-note piano motif from
+a phone recording (E♭ A♭ B♭ C, rising to the third of A♭ major), played faster by strings.
 
-- **Phrase:** D major at 112 bpm.
-  1. A rising Gmaj9 arpeggio (B4, D5, F♯5, A5) over G2 and D3.
-  2. E6, D6, C♯6 over A, a suspension falling to the leading note.
-  3. A rolled D(add9) chord from D2 up, with F♯6 on top.
-  4. A soft A6.
-- **Harp:** each note is a plucked string, with harmonics weighted by where it is plucked (a fifth of the way along).
-  The upper harmonics die out much faster than the fundamental, and high notes ring shorter than low ones. A tiny
-  burst of filtered noise gives the pluck. Harder notes are brighter, and the strings are damped at each chord change.
-- **Echo:** an eighth-note ping-pong delay, right first, with each repeat darker and quieter. On top of that, a small
+- **Phrase:** A♭ major at 132 bpm, the motif in eighth notes (two thirds faster than recorded).
+  1. Violins play E♭5, A♭5, B♭5 over a held B♭4 and the cellos' E♭3, with a swell of airy noise rising under them.
+  2. They land on C6 over A♭2 in the cellos and E♭5, with a timpani hit.
+  3. While the C is held, a flute runs up E♭6, F6, G6 to A♭6.
+  4. A music box twinkles the motif once more, two octaves up.
+- **Strings:** each part is a section of three players, each a few cents off, a few milliseconds late and with a
+  vibrato of its own, which keeps it smooth. Each harmonic of the bowed string is weighted by the body's resonances
+  and rolled off at the top; the cello's fundamental is thinned, as the 3DS speakers can't play it.
+- **Flute:** nearly a sine, with soft harmonics, a chiff at the start, breath noise and a vibrato.
+- **Echo:** a dotted-eighth ping-pong delay, right first, with each repeat darker and quieter. On top of that, a
   room: a decaying-noise impulse response that gets darker as it fades.
-- **Ending:** the phrase is over by about 1.2 s; the rest is the notes and echoes ringing out, followed by a slow
+- **Ending:** the phrase is over by about 1.6 s; the rest is the notes and echoes ringing out, followed by a slow
   fade.
 - **Format:** 2.95 s, 44.1 kHz, stereo, 16-bit. The HOME Menu plays about 3 seconds at most.
 
