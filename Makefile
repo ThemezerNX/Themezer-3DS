@@ -31,8 +31,10 @@ endif
 #---------------------------------------------------------------------------------
 # the app's name in code: its folder on the SD card (/3ds/themezer-3ds), its files, its user agent
 APP_NAME         := themezer-3ds
-# what the HOME Menu shows; also the CIA's process name, which takes 8 characters at most
-APP_TITLE        := Themezer
+# what the HOME Menu and the Homebrew Launcher show; the repository's name, so people find it to report issues
+APP_TITLE        := Themezer-3DS
+# the CIA's process name, which takes 8 characters at most
+APP_PROCESS_NAME := Themezer
 APP_DESCRIPTION  := Make Your 3DS Yours
 APP_AUTHOR       := Themezer
 APP_UNIQUE_ID    := 0xC7E20
@@ -206,7 +208,7 @@ $(BUILD)/icon.icn: $(META)/icon.png Makefile
 $(CIA): $(ELF) $(BUILD)/banner.bnr $(BUILD)/icon.icn $(META)/app.rsf $(META)/logo.bin $(T3XFILES) $(ROMFS_GEN) $(shell find $(ROMFS) -type f 2>/dev/null)
 	@$(MAKEROM) -f cia -o $@ -target t -exefslogo -elf $(ELF) -rsf $(META)/app.rsf \
 		-banner $(BUILD)/banner.bnr -icon $(BUILD)/icon.icn -logo $(META)/logo.bin \
-		-DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(APP_PRODUCT_CODE)" \
+		-DAPP_TITLE="$(APP_PROCESS_NAME)" -DAPP_PRODUCT_CODE="$(APP_PRODUCT_CODE)" \
 		-DAPP_UNIQUE_ID="$(APP_UNIQUE_ID)" -DAPP_ROMFS="$(ROMFS)" \
 		-major $(VERSION_MAJOR) -minor $(VERSION_MINOR) -micro $(VERSION_MICRO)
 	@echo built ... $(notdir $@) $(VERSION)
