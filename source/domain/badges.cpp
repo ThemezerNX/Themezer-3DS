@@ -165,6 +165,12 @@ bool hiddenName(std::string_view name)
     return name.empty() || name.front() == '.' || path::equalsIgnoreCase(name, "__MACOSX");
 }
 
+// A set's pictures that aren't badges: its icon, and the preview.png in Themezer's and ThemePlaza's zips.
+bool notBadge(std::string_view name)
+{
+    return path::equalsIgnoreCase(name, kSetIconName) || path::equalsIgnoreCase(name, "preview.png");
+}
+
 std::string lowered(std::string_view text)
 {
     std::string result(text);
@@ -429,7 +435,7 @@ public:
                     std::string file = path::join(set.folderPath, entry.name);
                     if (path::equalsIgnoreCase(entry.name, kSetIconName))
                         folderIcon = PictureFile{entry.name, std::move(file)};
-                    else if (path::hasExtension(entry.name, "png"))
+                    else if (path::hasExtension(entry.name, "png") && !notBadge(entry.name))
                         files.pictures.push_back({entry.name, std::move(file)});
                     else if (path::hasExtension(entry.name, "zip"))
                         files.addZip(sd, file);
@@ -507,8 +513,7 @@ private:
         {
             const ZipEntry& entry = entries[i];
             const std::string_view name = path::filename(entry.name);
-            if (entry.isDirectory() || hiddenName(name) || !path::hasExtension(name, "png") ||
-                path::equalsIgnoreCase(name, kSetIconName))
+            if (entry.isDirectory() || hiddenName(name) || !path::hasExtension(name, "png") || notBadge(name))
                 continue;
             const std::vector<std::string_view> parts = path::split(entry.name);
             if (std::any_of(parts.begin(), parts.end(), [](std::string_view part) { return hiddenName(part); }))
@@ -802,7 +807,7 @@ Expected<std::vector<SetSource>> findSets(FileSystem& sd, std::string_view root,
             if (download)
                 set.author = download->author;
         }
-        else if (path::hasExtension(entry.name, "png") && !path::equalsIgnoreCase(entry.name, kSetIconName))
+        else if (path::hasExtension(entry.name, "png") && !notBadge(entry.name))
         {
             loose.push_back(path::join(root, entry.name));
         }

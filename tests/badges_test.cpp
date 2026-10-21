@@ -248,6 +248,7 @@ void addScenario(test::MemoryFs& sd)
     sd.put("/Badges/Animals.zip", zip({
                                       {"zebra.png", png(solid(64, 64, kGrey))},
                                       {"_seticon.png", png(solid(48, 48, kPurple))},
+                                      {"preview.png", png(solid(400, 480, kWhite))}, // not a badge: left out
                                   }));
     sd.put("/Badges/Plants.zip", zip({
                                      {"Plants/", {}},
