@@ -6,8 +6,8 @@ straight away: browse and search them, scan an item's QR code, or type its ID.
 
 <p>
   <img src="docs/screenshots/themes.png" width="32%" alt="The themes on the SD card">
-  <img src="docs/screenshots/splashes.png" width="32%" alt="Splash screens on Themezer">
-  <img src="docs/screenshots/badges.png" width="32%" alt="Badges on Themezer">
+  <img src="docs/screenshots/splashes.png" width="32%" alt="The splash screens on the SD card">
+  <img src="docs/screenshots/badges.png" width="32%" alt="The badge sets on the SD card">
 </p>
 
 Themezer-3DS is written from scratch, inspired by [Anemone3DS](https://github.com/astronautlevel2/Anemone3DS).
