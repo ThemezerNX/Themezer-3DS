@@ -11,7 +11,8 @@
 #   make clean
 #
 # VERSION=x.y.z overrides the version, which otherwise comes from the git tag on
-# HEAD (vX.Y.Z), or BASE_VERSION plus the commit for untagged builds.
+# HEAD (vX.Y.Z), or for untagged builds the last release tag before it plus -dev
+# and the commit (1.0.0-dev+abc1234).
 # DEVTOOLS=1 builds in the autopilot (docs/DEVELOPMENT.md), apart from the normal
 # build: in build/dev and out/dev.
 #---------------------------------------------------------------------------------
@@ -42,8 +43,6 @@ APP_PRODUCT_CODE := CTR-P-TZ3D
 # where the update check reads the latest release (GitHub's latest: never a prerelease or a draft)
 UPDATE_URL       ?= https://api.github.com/repos/ThemezerNX/Themezer-3DS/releases/latest
 
-BASE_VERSION     := 4.0.0
-
 TARGET   := $(APP_NAME)
 BUILD    := build
 OUT      := out
@@ -63,12 +62,14 @@ GFX      := gfx
 ifeq ($(strip $(VERSION)),)
   GIT_TAG  := $(shell git describe --tags --exact-match --match 'v[0-9]*' 2>/dev/null)
   GIT_HASH := $(shell git rev-parse --short=7 HEAD 2>/dev/null)
+  LAST_TAG := $(shell git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null)
+  LAST_VERSION := $(or $(LAST_TAG:v%=%),0.0.0)
   ifneq ($(strip $(GIT_TAG)),)
     VERSION := $(GIT_TAG:v%=%)
   else ifneq ($(strip $(GIT_HASH)),)
-    VERSION := $(BASE_VERSION)-dev+$(GIT_HASH)
+    VERSION := $(LAST_VERSION)-dev+$(GIT_HASH)
   else
-    VERSION := $(BASE_VERSION)-dev
+    VERSION := $(LAST_VERSION)-dev
   endif
 endif
 
