@@ -763,6 +763,29 @@ TEST(badges_export)
           Errc::Cancelled);
 }
 
+TEST(badges_export_skips_existing)
+{
+    Badges b;
+    addScenario(b.sd);
+    REQUIRE(b.installAll().has_value());
+
+    // a set of that name is there already (in another case): it's left out, and what's there stays
+    b.sd.put("/Saved/animals/old.png", Bytes{1, 2, 3});
+    auto saved = badges::exportBadges(b.ext, b.sd, "/Saved", {}, true);
+    REQUIRE(saved.has_value());
+    CHECK_EQ(*saved, 5);
+    CHECK(b.sd.hasFile("/Saved/Plants/rose.1.png"));
+    CHECK(b.sd.hasFile("/Saved/Other Badges/star.png"));
+    CHECK(!b.sd.hasFile("/Saved/animals/cat.png"));
+    CHECK(!b.sd.hasFile("/Saved/Animals (2)/cat.png"));
+    CHECK((b.sd.data("/Saved/animals/old.png") == Bytes{1, 2, 3}));
+
+    // and again: everything is there now
+    auto again = badges::exportBadges(b.ext, b.sd, "/Saved", {}, true);
+    REQUIRE(again.has_value());
+    CHECK_EQ(*again, 0);
+}
+
 TEST(badges_export_without_sets)
 {
     // as GYTB leaves them: no sets, every badge in a set 0xEFBE that isn't there
@@ -783,6 +806,14 @@ TEST(badges_export_without_sets)
     CHECK_EQ(*saved, 2);
     CHECK(b.sd.hasFile("/Dump/Lenny-face.1.png"));
     CHECK(b.sd.hasFile("/Dump/Lenny-face.2.png"));
+
+    // loose badges are there already: they're left out
+    test::MemoryFs sd2;
+    sd2.put("/Dump/other.png", Bytes{1});
+    auto skipped = badges::exportBadges(b.ext, sd2, "/Dump", {}, true);
+    REQUIRE(skipped.has_value());
+    CHECK_EQ(*skipped, 0);
+    CHECK(!sd2.hasFile("/Dump/Lenny-face.1.png"));
 
     // nothing installed: nothing saved
     Badges empty;

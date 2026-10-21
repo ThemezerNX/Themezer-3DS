@@ -19,6 +19,8 @@ constexpr const char* kConfigPath = TZ_APP_FOLDER "/config.json";
 constexpr const char* kCacheFolder = TZ_APP_FOLDER "/cache";
 constexpr const char* kBadgeBackupFolder = TZ_APP_FOLDER "/badge-backup";
 constexpr const char* kBadgeExportFolder = TZ_APP_FOLDER "/Badge exports";
+// there once the HOME Menu's badges were saved as sets in /Badges, the first time the badges page opened
+constexpr const char* kBadgesSavedMarker = TZ_APP_FOLDER "/badges-saved";
 // A download installed without being kept: written here, installed, and removed again (also when the app starts, for
 // one an install that didn't finish left). Not in a folder the library reads.
 constexpr const char* kInstallOncePath = TZ_APP_FOLDER "/download.zip";

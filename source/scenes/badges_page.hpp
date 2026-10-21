@@ -61,6 +61,7 @@ private:
     void installSets(std::vector<badges::SetSource> chosen);
     void uninstall();
     void exportBadges();
+    void saveInstalledOnce();
     void restore();
     void confirmDelete(Set& set);
     Set* selected();

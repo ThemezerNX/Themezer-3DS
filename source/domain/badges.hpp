@@ -97,7 +97,9 @@ Expected<void> restoreBackup(FileSystem& sd, std::string_view dir, FileSystem& b
 bool hasBackup(FileSystem& sd, std::string_view dir);
 
 // Saves the HOME Menu's badges as PNGs in dir, a folder per set with its icon, so they can be installed again.
-// Returns how many badges it saved.
-Expected<int> exportBadges(FileSystem& badgeExt, FileSystem& sd, std::string_view dir, const ProgressFn& progress);
+// Returns how many badges it saved. With skipExisting, a set whose name dir already has (as a folder or a zip) is left
+// out, and so are the badges of no set when dir already has loose PNGs: they're most likely the same badges.
+Expected<int> exportBadges(FileSystem& badgeExt, FileSystem& sd, std::string_view dir, const ProgressFn& progress,
+                           bool skipExisting = false);
 
 } // namespace tz::badges

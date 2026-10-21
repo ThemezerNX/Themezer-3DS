@@ -1109,7 +1109,8 @@ bool hasBackup(FileSystem& sd, std::string_view dir)
     return isFile(sd, path::join(dir, kDataName), kDataSize) && isFile(sd, path::join(dir, kManagerName), kManagerSize);
 }
 
-Expected<int> exportBadges(FileSystem& badgeExt, FileSystem& sd, std::string_view dir, const ProgressFn& progress)
+Expected<int> exportBadges(FileSystem& badgeExt, FileSystem& sd, std::string_view dir, const ProgressFn& progress,
+                           bool skipExisting)
 {
     const Bytes manager = TZ_TRY(badgeExt.readFile(kManagerPath, kManagerSize));
     if (manager.size() != kManagerSize)
@@ -1123,7 +1124,19 @@ Expected<int> exportBadges(FileSystem& badgeExt, FileSystem& sd, std::string_vie
         return fail(Errc::InvalidData, "BadgeData.dat has the wrong size");
     TZ_CHECK(sd.createDirectories(dir));
 
-    // a folder per set, with its icon
+    // the sets dir has already, by name, and whether it has loose badges
+    std::set<std::string> existing;
+    bool existingLoose = false;
+    if (skipExisting)
+        for (const SetSource& set : TZ_TRY(findSets(sd, dir, "")))
+        {
+            if (set.loose())
+                existingLoose = true;
+            else
+                existing.insert(lowered(set.name));
+        }
+
+    // a folder per set, with its icon; an empty path for a set that is left out
     struct Folder
     {
         uint32_t setId;
@@ -1141,7 +1154,13 @@ Expected<int> exportBadges(FileSystem& badgeExt, FileSystem& sd, std::string_vie
         if (slot >= static_cast<uint32_t>(kMaxSets))
             continue;
         TZ_CHECK(data->readAt(kSetNamesOffset + uint64_t{slot} * kNamesSize, names));
-        const std::string folder = unique(path::sanitizeFilename(pickName(names.data())), folderNames, false);
+        const std::string name = path::sanitizeFilename(pickName(names.data()));
+        if (existing.contains(lowered(name)))
+        {
+            folders.push_back({readU32(record + 0x10), {}, {}});
+            continue;
+        }
+        const std::string folder = unique(name, folderNames, false);
         Folder entry{readU32(record + 0x10), path::join(dir, folder), {std::string(kIconStem)}};
         TZ_CHECK(sd.createDirectory(entry.path));
         TZ_CHECK(data->readAt(kSetIconsOffset + uint64_t{slot} * kSetIconSize, icon));
@@ -1152,7 +1171,7 @@ Expected<int> exportBadges(FileSystem& badgeExt, FileSystem& sd, std::string_vie
 
     // Badges of a set that isn't there (GYTB doesn't make sets) go in dir itself, to be installed as loose badges.
     const size_t loose = folders.size();
-    folders.push_back({kAllSets, std::string(dir), {std::string(kIconStem)}});
+    folders.push_back({kAllSets, existingLoose ? std::string() : std::string(dir), {std::string(kIconStem)}});
 
     // Their file names first: badges of the same name (the parts of a sheet) are numbered in order, so that they are
     // installed in that order again.
@@ -1176,6 +1195,8 @@ Expected<int> exportBadges(FileSystem& badgeExt, FileSystem& sd, std::string_vie
         size_t folder = 0;
         while (folder < loose && folders[folder].setId != setId)
             ++folder;
+        if (folders[folder].path.empty())
+            continue;
 
         // dots would end the name, so they go; a shortcut is written the way install reads it back
         std::string name = pickName(TZ_TRY(nameReader.get(slot)));

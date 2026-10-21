@@ -130,7 +130,13 @@ ui::Tab BadgesPage::tab() const
 
 void BadgesPage::onShow()
 {
-    if (state_ == State::NotLoaded)
+    if (state_ != State::NotLoaded)
+        return;
+    // the first time, the badges the HOME Menu has become sets on the SD card (only a CIA can read them: for a 3dsx
+    // the HOME Menu holds the file)
+    if (!App::get().homebrew() && !App::get().sd().exists(kBadgesSavedMarker))
+        saveInstalledOnce();
+    else
         load();
 }
 
@@ -600,6 +606,43 @@ void BadgesPage::exportBadges()
             }
             ui::toast(trf("{} badges saved in {}", std::to_string(result->first), result->second),
                       ui::ToastKind::Success);
+        }));
+}
+
+// Saves the HOME Menu's badges as sets in /Badges, but those that are there already, and marks it done. Not cancelled:
+// a set half saved would count as there next time. Without the badge storage it's left for the next time.
+void BadgesPage::saveInstalledOnce()
+{
+    state_ = State::Loading;
+    Archive* archive = App::get().badges();
+    if (!archive)
+    {
+        load();
+        return;
+    }
+    App::get().scenes().push(ui::ProgressOverlay::start<Expected<int>>(
+        {tr("Saving the HOME Menu's badges"), Lane::Io, true, false, accent().solid},
+        [archive](ui::TaskProgress& progress, const CancelToken&) -> Expected<int> {
+            FileSystem& sd = App::get().sd();
+            const int count = TZ_TRY(badges::exportBadges(*archive, sd, library::kBadgesRoot,
+                                                          [&](int done, int total) {
+                                                              progress.set(done, total);
+                                                              return true;
+                                                          },
+                                                          true));
+            TZ_CHECK(sd.writeFile(kBadgesSavedMarker, {}));
+            return count;
+        },
+        [this, token = token_](Expected<int> result) {
+            if (token.cancelled())
+                return;
+            if (!result)
+                showError(describe(result.error()));
+            else if (*result > 0)
+                ui::toast(trf("Your {} HOME Menu badges are saved as sets in {}", std::to_string(*result),
+                              library::kBadgesRoot),
+                          ui::ToastKind::Success);
+            load();
         }));
 }
 
