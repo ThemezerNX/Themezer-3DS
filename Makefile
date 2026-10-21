@@ -99,7 +99,8 @@ DEFINES  := -D__3DS__ \
 
 WARNINGS := -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi
 
-CFLAGS   := -g -O2 -mword-relocations -ffunction-sections -fdata-sections \
+# paths in the build (asserts' file names) start at the repository, not at the folder it's in
+CFLAGS   := -g -O2 -mword-relocations -ffunction-sections -fdata-sections -ffile-prefix-map=$(CURDIR)/= \
             $(ARCH) $(DEFINES) $(INCLUDE) $(WARNINGS)
 CXXFLAGS := $(CFLAGS) -std=gnu++23 -fno-rtti -fno-exceptions
 ASFLAGS  := -g $(ARCH)
