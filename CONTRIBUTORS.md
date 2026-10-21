@@ -1,4 +1,11 @@
-# Main Contributors
+# Themezer-3DS Contributors
+* Migush ([@migushthe2nd](https://github.com/migushthe2nd))
+
+# Anemone3DS Contributors
+Themezer-3DS is written from scratch, inspired by [Anemone3DS](https://github.com/astronautlevel2/Anemone3DS). Thanks
+to everyone who made it:
+
+## Main Contributors
 * Alex Taber ([@astronautlevel2](https://github.com/astronautlevel2))
 * Théo B. ([@LiquidFenrir](https://github.com/LiquidFenrir))
 * Dawid Eckert ([@daedreth](https://github.com/daedreth))
@@ -6,7 +13,7 @@
 * Nils P. ([@ZetaDesigns](https://github.com/ZetaDesigns))
 * Matt Kenny ([@KennLDN](https://github.com/KennLDN))
 
-# Minor Contributors
+## Minor Contributors
 * Nic ([@Wizzrobes](https://github.com/Wizzrobes))
 * [@saibotu](https://github.com/saibotu)
 * Jeremy Postelnek ([@TurtleP](https://github.com/TurtleP))
@@ -18,7 +25,7 @@
 * [@thedax](https://github.com/thedax)
 * [@Wryyyong](https://github.com/Wryyyong)
 
-# Translation Contributors
+## Translation Contributors
 * [@cooolgamer](https://github.com/cooolgamer/) for French
 * Arth ([@iveurne](https://github.com/iveurne)) for Portugese
 * [@Tristanabs](https://github.com/Tristanabs) and Angelpro09_xd for Spanish

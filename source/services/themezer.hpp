@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Themezer-3DS contributors
 
-// Themezer's catalogue, through the API Themezer serves this app (app/v1; its lists answer as Anemone3DS's anemone/v2):
+// Themezer's catalogue, through the API Themezer serves this app (app/v1):
 //   GET <api>/themes|splashes|badges?page=<n>&q=<search>&sort=<order>
 //   { "page": 1, "pages": 3, "items": [ { "id", "name", "author", "description", "iconUrl", "previewUrl",
 //     "downloadUrl", "audioUrl", "filename" } ] }

@@ -10,7 +10,7 @@ straight away: browse and search them, scan an item's QR code, or type its ID.
   <img src="docs/screenshots/badges.png" width="32%" alt="Badges on Themezer">
 </p>
 
-Themezer-3DS is based on [Anemone3DS](https://github.com/astronautlevel2/Anemone3DS), rewritten from scratch.
+Themezer-3DS is written from scratch, inspired by [Anemone3DS](https://github.com/astronautlevel2/Anemone3DS).
 
 ## Compared with Anemone3DS
 
@@ -68,8 +68,11 @@ The app shows these notices on its About screen.
 
 ## Credits
 
-Themezer-3DS exists thanks to Anemone3DS and everyone who made it: Alex Taber
-([@astronautlevel2](https://github.com/astronautlevel2)) and the [Anemone3DS contributors](CONTRIBUTORS.md).
+Themezer-3DS is made by [Themezer](https://themezer.net) and [its contributors](CONTRIBUTORS.md).
+
+It was inspired by Anemone3DS and wouldn't exist without it: thanks to Alex Taber
+([@astronautlevel2](https://github.com/astronautlevel2)) and the
+[Anemone3DS contributors](CONTRIBUTORS.md#anemone3ds-contributors).
 
 The file formats the app works with were documented by others before it:
 
