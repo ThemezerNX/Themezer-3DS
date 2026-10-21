@@ -32,7 +32,7 @@ TEST(version_parse)
     CHECK(parsed("v4.1.2") == (Version{4, 1, 2, ""}));
     CHECK(parsed("V4.1.2") == (Version{4, 1, 2, ""}));
     // missing components are 0
-    CHECK(parsed("4") == (Version{4, 0, 0, ""}));
+    CHECK(parsed("1") == (Version{1, 0, 0, ""}));
     CHECK(parsed("v4.1") == (Version{4, 1, 0, ""}));
     CHECK(parsed("01.002.0003") == (Version{1, 2, 3, ""}));
 }
@@ -40,9 +40,9 @@ TEST(version_parse)
 TEST(version_parse_prerelease_and_build)
 {
     // what the Makefile makes of an untagged commit
-    const auto dev = Version::parse("4.0.0-dev+abc1234");
+    const auto dev = Version::parse("1.0.0-dev+abc1234");
     REQUIRE(dev.has_value());
-    CHECK(*dev == (Version{4, 0, 0, "dev"}));
+    CHECK(*dev == (Version{1, 0, 0, "dev"}));
 
     CHECK_EQ(parsed("1.0.0-beta.2").prerelease, std::string("beta.2"));
     CHECK_EQ(parsed("1.0.0-x-y.7z.--").prerelease, std::string("x-y.7z.--"));
@@ -51,9 +51,9 @@ TEST(version_parse_prerelease_and_build)
     CHECK_EQ(parsed("1.0.0-rc.01").prerelease, std::string("rc.1"));
     CHECK_EQ(parsed("1.0.0-rc.00").prerelease, std::string("rc.0"));
     // build metadata is ignored, even with a '-' in it
-    CHECK(parsed("4.0.0+abc1234") == (Version{4, 0, 0, ""}));
-    CHECK(parsed("4.0.0+build-5") == (Version{4, 0, 0, ""}));
-    CHECK(parsed("4.0.0-rc.1+build.7") == (Version{4, 0, 0, "rc.1"}));
+    CHECK(parsed("1.0.0+abc1234") == (Version{1, 0, 0, ""}));
+    CHECK(parsed("1.0.0+build-5") == (Version{1, 0, 0, ""}));
+    CHECK(parsed("1.0.0-rc.1+build.7") == (Version{1, 0, 0, "rc.1"}));
 }
 
 TEST(version_parse_invalid)
@@ -89,8 +89,8 @@ TEST(version_order)
     }
 
     // a pre-release comes before its release, but after older releases
-    CHECK(parsed("4.0.0-dev") < parsed("4.0.0"));
-    CHECK(parsed("4.0.0-dev+abc1234") > parsed("3.9.9"));
+    CHECK(parsed("1.0.0-dev") < parsed("1.0.0"));
+    CHECK(parsed("1.0.0-dev+abc1234") > parsed("0.9.9"));
     CHECK(parsed("v4.1.0") > parsed("4.0.9"));
     // numeric identifiers sort before words, and by value however long they are
     CHECK(parsed("1.0.0-9") < parsed("1.0.0-a"));
@@ -105,13 +105,13 @@ TEST(version_order)
 TEST(version_equality)
 {
     // build metadata and a 'v' make no difference
-    CHECK((parsed("4.0.0+a") <=> parsed("v4.0.0+b")) == std::strong_ordering::equal);
-    CHECK(parsed("4.0.0+a") == parsed("v4.0.0+b"));
+    CHECK((parsed("1.0.0+a") <=> parsed("v1.0.0+b")) == std::strong_ordering::equal);
+    CHECK(parsed("1.0.0+a") == parsed("v1.0.0+b"));
     CHECK(parsed("1.0.0-rc.01") == parsed("1.0.0-rc.1"));
     CHECK((parsed("1.0.0-rc.01") <=> parsed("1.0.0-rc.1")) == std::strong_ordering::equal);
-    CHECK(parsed("4.0") == parsed("4.0.0"));
-    CHECK(parsed("4.0.0-dev") != parsed("4.0.0"));
-    CHECK(parsed("4.0.0-alpha") != parsed("4.0.0-beta"));
+    CHECK(parsed("1.0") == parsed("1.0.0"));
+    CHECK(parsed("1.0.0-dev") != parsed("1.0.0"));
+    CHECK(parsed("1.0.0-alpha") != parsed("1.0.0-beta"));
     // a version made by hand with leading zeros still compares by value
     CHECK((Version{1, 0, 0, "01"} <=> Version{1, 0, 0, "2"}) == std::strong_ordering::less);
 }
@@ -120,11 +120,11 @@ TEST(version_to_string)
 {
     CHECK_EQ(parsed("4.1.2").toString(), std::string("4.1.2"));
     CHECK_EQ(parsed("v4.1").toString(), std::string("4.1.0"));
-    CHECK_EQ(parsed("4.0.0-dev+abc1234").toString(), std::string("4.0.0-dev"));
+    CHECK_EQ(parsed("1.0.0-dev+abc1234").toString(), std::string("1.0.0-dev"));
     CHECK_EQ(parsed("1.2.3-beta.02").toString(), std::string("1.2.3-beta.2"));
 
     // what toString() gives reads back as the same version
-    for (const char* text : {"0.0.1", "4.0.0-dev", "v10.20.30-rc.1.x-y", "1.0.0-alpha.beta+exp.sha.5114f85"})
+    for (const char* text : {"0.0.1", "1.0.0-dev", "v10.20.30-rc.1.x-y", "1.0.0-alpha.beta+exp.sha.5114f85"})
     {
         const Version version = parsed(text);
         if (!(parsed(version.toString()) == version))

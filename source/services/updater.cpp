@@ -316,15 +316,15 @@ InstallKind installKind(const char* appPath)
 
 Expected<std::optional<Release>> check(net::Client& client, InstallKind kind, const CancelToken& cancel)
 {
-    // a development build would be "updated" to the release it was made after
-    if (std::string_view(APP_VERSION).find("-dev") != std::string_view::npos)
-        return std::nullopt;
-    const std::optional<Version> current = Version::parse(APP_VERSION);
+    std::optional<Version> current = Version::parse(APP_VERSION);
     if (!current)
     {
         LOG_WARN("the update check can't compare version %s", APP_VERSION);
         return std::nullopt;
     }
+    // a development build (1.0.0-dev+abc1234) is made after the release it's named after: only a later one updates it
+    if (current->prerelease == "dev")
+        current->prerelease.clear();
     // a build can leave the update check out with UPDATE_URL=""
     if (std::string_view(UPDATE_URL).empty())
         return std::nullopt;
