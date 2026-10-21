@@ -293,13 +293,8 @@ std::vector<ui::Hint> BadgesPage::hints() const
 {
     if (state_ != State::Ready || sets_.empty())
         return {};
-    auto* self = const_cast<BadgesPage*>(this);
-    const Set* set = self->selected();
-    return {
-        {KEY_A, tr("More")},
-        {KEY_Y, tr("Preview")},
-        {KEY_X, set && set->included ? tr("Skip") : tr("Include")},
-    };
+    // Y and X are on the A menu's rows: the bar keeps room for SELECT
+    return {{KEY_A, tr("Install")}};
 }
 
 std::shared_ptr<Picture> BadgesPage::backdrop() const
@@ -421,11 +416,13 @@ void BadgesPage::openActions()
                                if (s.key == key)
                                    s.included = !s.included;
                        }});
+    actions.back().key = KEY_X;
     actions.push_back({Icon::Eye, tr("Preview"), {}, true, false, [this, key] {
                            for (const Set& s : sets_)
                                if (s.key == key)
                                    openPreview(s);
                        }});
+    actions.back().key = KEY_Y;
     if (!set->source.loose())
         actions.push_back({Icon::Trash, tr("Delete from the SD card"), {}, true, true, [this, key] {
                                for (Set& s : sets_)

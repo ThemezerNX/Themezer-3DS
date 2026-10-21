@@ -63,7 +63,7 @@ public:
     {
         hints_ = page().hints();
         hints_.push_back({KEY_START, tr("Menu")});
-        hints_.push_back({KEY_SELECT, online_ ? tr("SD card") : tr("Online")});
+        hints_.push_back({KEY_SELECT, online_ ? tr("SD") : tr("Online")});
         hintBar_.update(input, hints_);
 
         // the mode button first: the tab bar takes a tap left of its tabs for the tab before
@@ -85,10 +85,9 @@ public:
 
         if (input.pressed(KEY_START))
         {
-            // SELECT's hint doesn't always fit on the bar, so the menu says what it does
             std::vector<ui::Action> actions{{online_ ? gfx::Icon::SdCard : gfx::Icon::Globe,
-                                             online_ ? tr("Show the SD card") : tr("Browse online"),
-                                             tr("Or press SELECT"), true, false, [this] { switchMode(); }}};
+                                             online_ ? tr("Show the SD card") : tr("Browse online"), {}, true, false,
+                                             [this] { switchMode(); }, KEY_SELECT}};
             for (ui::Action& action : page().menuActions())
                 actions.push_back(std::move(action));
             openMenu(std::move(actions));

@@ -657,8 +657,7 @@ std::vector<ui::Hint> BrowsePage::hints() const
         hints.push_back({KEY_A, tr("Try again")});
     else if (state_ == State::Ready && !entries_.empty())
     {
-        hints.push_back({KEY_A, tr("Get")});
-        hints.push_back({KEY_Y, tr("Preview")});
+        hints.push_back({KEY_A, tr("Get")}); // Y is on the A menu's Preview row
     }
     hints.push_back({KEY_X, tr("Search")});
     if (!query_.empty())
@@ -934,6 +933,9 @@ void BrowsePage::openActions()
                            if (Entry* e = find(key))
                                openPreview(*e);
                        }});
+    actions.back().key = KEY_Y;
+    actions.push_back({Icon::Search, trf("Search {}", catalog::sourceName(source_)), {}, true, false,
+                       [this] { search(); }, KEY_X});
     App::get().scenes().emplace<ui::ActionSheet>(nameOf(entry->item), std::move(actions), accent().light);
 }
 
@@ -1042,7 +1044,8 @@ std::vector<ui::Action> BrowsePage::menuActions()
     const Source other = otherSource(source_);
     return {
         {Icon::Search, trf("Search {}", catalog::sourceName(source_)),
-         query_.empty() ? std::string() : trf("Now: \"{}\"", query_), true, false, [this] { search(); }},
+         query_.empty() ? std::string() : trf("Now: \"{}\"", query_), true, false, [this] { search(); },
+         scanningTab() ? 0u : u32{KEY_X}},
         {Icon::Sort, tr("Sort"),
          source_ == Source::Themezer ? trf("Now: {}", tr(orderLabel(App::get().config().browseOrder)))
                                      : std::string(tr("Only on Themezer")),
@@ -1050,7 +1053,7 @@ std::vector<ui::Action> BrowsePage::menuActions()
         {Icon::Globe, trf("Browse {} instead", catalog::sourceName(other)), {}, true, false,
          [this, other] { switchSource(other); }},
         {Icon::Qr, tr("Type an item's ID"), tr("From its page on Themezer or ThemePlaza"), true, false,
-         [this] { enterId(); }},
+         [this] { enterId(); }, scanningTab() ? u32{KEY_X} : 0u},
         {Icon::Refresh, tr("Load again"), {}, true, false, [this] { reload(); }},
     };
 }

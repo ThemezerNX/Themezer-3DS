@@ -60,6 +60,15 @@ std::string downloaded(const net::Progress& download)
 
 } // namespace
 
+float drawActionKey(u32 key, float right, float middle)
+{
+    if (!key)
+        return right;
+    const float left = right - buttonWidth(key, metric::kButtonGlyph);
+    drawButton(key, left, textTop(middle, metric::kButtonGlyph), metric::kButtonGlyph, color::kTextDim);
+    return left - 6;
+}
+
 void drawCaption(std::string_view title, std::string_view detail, float alpha)
 {
     fill(withAlpha(color::kScrim, 0.55f * alpha));
@@ -220,8 +229,9 @@ void ActionSheet::drawBottom()
                                            : (action.danger ? color::kDanger : (selected ? accent_ : color::kTextDim));
         icon(action.icon, 22, std::round(middle - metric::kIcon / 2), metric::kIcon, tint);
         const Color textColor = action.enabled ? (action.danger ? color::kDanger : color::kText) : color::kTextFaint;
+        const float labelRight = drawActionKey(action.key, metric::kBottomWidth - 20, middle);
         drawText(action.label, 48, textTop(middle, metric::kTextNormal), metric::kTextNormal, textColor, Align::Left,
-                 metric::kBottomWidth - 68);
+                 labelRight - 48);
         y += kSheetRow;
     }
 }
