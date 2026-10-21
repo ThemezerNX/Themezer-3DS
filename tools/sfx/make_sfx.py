@@ -3,7 +3,7 @@
 # The app's UI sounds, synthesized from scratch to sit with its music ("Aether", tools/music): soft electric piano
 # notes on the music's G minor pentatonic, mostly between G4 and G5, as warm as the music is (it has little above
 # 1 kHz), with no noise and nothing glassy.
-# usage: make_sfx.py <out dir>  -> <name>.pcm (raw 16-bit mono at the DSP's own 32728 Hz, as the app plays them) and a
+# usage: make_sfx.py <out dir>  -> <name>.pcm (raw 16-bit mono at 32728 Hz; build.sh resamples them) and a
 # <name>.wav of each to listen to.
 import os, sys, wave
 import numpy as np

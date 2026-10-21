@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Themezer-3DS contributors
-"""Resamples a loop file (make_loop.py's output) to 32,728 Hz, the DSP's own rate, for encode_bcstm.ts.
+"""Resamples a loop file (make_loop.py's output) to 24,000 Hz for encode_bcstm.ts: the music has little above 10 kHz,
+so a higher rate would only make the file bigger.
 
 The music after the loop start is appended past the loop end first, so the resampler sees what really follows the end;
-the result is cut back at the loop end. Writes pcm32728-ch<N>.s16le per channel and pcm32728.json (rate, channels,
+the result is cut back at the loop end. Writes pcm-ch<N>.s16le per channel and pcm.json (rate, channels,
 samples, loop start) into the out dir. Needs ffmpeg.
 
     python3 tools/music/resample.py <loop.wav> <out dir>
@@ -22,7 +23,7 @@ import numpy as np
 
 if len(sys.argv) != 3:
     sys.exit(__doc__.strip().splitlines()[-1].strip())
-src, out, RATE = sys.argv[1], sys.argv[2], 32728
+src, out, RATE = sys.argv[1], sys.argv[2], 24000
 raw = open(src, 'rb').read()
 i = raw.index(b'smpl')
 loop_a, loop_b = struct.unpack_from('<II', raw, i + 8 + 36 + 8)
@@ -45,6 +46,6 @@ A, B = int(round(loop_a * RATE / SR)), int(round(loop_b * RATE / SR))
 y = np.ascontiguousarray(y[:B])
 os.makedirs(out, exist_ok=True)
 for c in range(CH):
-    open(os.path.join(out, f'pcm{RATE}-ch{c}.s16le'), 'wb').write(y[:, c].astype('<i2').tobytes())
-json.dump({'rate': RATE, 'channels': CH, 'samples': B, 'loopStart': A}, open(os.path.join(out, f'pcm{RATE}.json'), 'w'))
+    open(os.path.join(out, f'pcm-ch{c}.s16le'), 'wb').write(y[:, c].astype('<i2').tobytes())
+json.dump({'rate': RATE, 'channels': CH, 'samples': B, 'loopStart': A}, open(os.path.join(out, 'pcm.json'), 'w'))
 print(f'{B} samples at {RATE} Hz ({B / RATE:.3f} s), loop start {A} ({A / RATE:.3f} s), loop {(B - A) / RATE:.3f} s')

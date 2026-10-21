@@ -15,4 +15,7 @@ out=$WORK/tune
 rm -rf "$out"
 mkdir -p "$out"
 "$PYTHON" "$TOOLS/tune/make_tunes.py" "$out" --only rise-strings
-install_asset "$out/tune-rise-strings.wav" meta/audio.wav
+# 24 kHz is plenty for the 3DS speakers and makes the banner smaller
+ffmpeg -v error -y -i "$out/tune-rise-strings.wav" -af aresample=resampler=swr:filter_size=64:cutoff=0.95:filter_type=kaiser:kaiser_beta=9:dither_method=triangular \
+    -ar 24000 -c:a pcm_s16le -map_metadata -1 -bitexact "$out/audio.wav"
+install_asset "$out/audio.wav" meta/audio.wav

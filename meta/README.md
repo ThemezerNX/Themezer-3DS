@@ -96,7 +96,7 @@ a phone recording (E♭ A♭ B♭ C, rising to the third of A♭ major), played 
   room: a decaying-noise impulse response that gets darker as it fades.
 - **Ending:** the phrase is over by about 1.6 s; the rest is the notes and echoes ringing out, followed by a slow
   fade.
-- **Format:** 2.95 s, 44.1 kHz, stereo, 16-bit. The HOME Menu plays about 3 seconds at most.
+- **Format:** 2.95 s, 24 kHz (made at 44.1 kHz, then resampled), stereo, 16-bit. The HOME Menu plays about 3 seconds at most.
 
 ## Boot animation: `meta/logo.bin`
 
@@ -176,16 +176,16 @@ reaching the louder part after 46.85 s.
 2. **The join.** The loop end was shifted by up to ±5 ms to where the waveforms line up best. A larger shift would
    change the loop's length enough to put the beat off. The last beat before the end is then crossfaded (equal power,
    one beat long) into the beat before the start, and that crossfade is baked into the audio.
-3. **Resampling.** The audio was converted to 32,728 Hz, the DSP's own rate, with ffmpeg's Kaiser-windowed resampler.
+3. **Resampling.** The audio was converted to 24,000 Hz (the music has little above 10 kHz) with ffmpeg's Kaiser-windowed resampler.
    Before resampling, the music after the loop start is appended past the loop end, so the resampler sees what really
    follows the end.
 4. **Encoding.** The Themezer webapp's own encoder (`encodePcmToBcstm` in themezer-monorepo
-   `packages/3dstheme-builder`) writes a looping DSP-ADPCM BCSTM at about 37 dB SNR.
+   `packages/3dstheme-builder`) writes a looping DSP-ADPCM BCSTM at about 36 dB SNR.
    - **Block-aligned loop start:** the encoder moves the loop start forward to the next block boundary (14,336
-     samples; here by 238 samples) and appends that much of the loop after the end, so the loop's music is unchanged.
+     samples; here by 12,608 samples) and appends that much of the loop after the end, so the loop's music is unchanged.
      This matters because the app's BCSTM player jumps back by whole blocks.
-   - **Result:** 1.69 MB, 45.06 s, a loop of 28.856 s.
-   - **Checks:** the loop start is on block 37, and each channel's loop context equals the decoded history at that
+   - **Result:** 1.25 MB, 45.06 s, a loop of 28.856 s.
+   - **Checks:** the loop start is on block 28, and each channel's loop context equals the decoded history at that
      point.
 5. **Playback.** The app plays it quietly in the background, on sound channels of its own, and pauses it while a
    theme's music preview plays. It can be turned off in the app's settings.

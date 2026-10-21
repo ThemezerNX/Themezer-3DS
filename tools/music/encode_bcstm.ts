@@ -13,10 +13,10 @@ const monorepo = process.argv[4] ?? process.env.THEMEZER_MONOREPO ?? join(homedi
 const { encodePcmToBcstm, decodeBcstmToPcm, parseBcstm } =
     await import(join(monorepo, "packages/3dstheme-builder/src/theme/bcstm/bcstm"))
 
-const meta = JSON.parse(readFileSync(join(dir, "pcm32728.json"), "utf8"))
+const meta = JSON.parse(readFileSync(join(dir, "pcm.json"), "utf8"))
 const channels: Int16Array[] = []
 for (let c = 0; c < meta.channels; c++) {
-    const bytes = readFileSync(join(dir, `pcm32728-ch${c}.s16le`))
+    const bytes = readFileSync(join(dir, `pcm-ch${c}.s16le`))
     channels.push(new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2).slice())
 }
 const bcstm = encodePcmToBcstm({ channels, sampleRate: meta.rate, encoding: "dspAdpcm", loopPoint: { startFrame: meta.loopStart } })
