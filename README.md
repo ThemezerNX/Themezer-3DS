@@ -1,7 +1,7 @@
 # Themezer-3DS
 
 The theme manager for the Nintendo 3DS by [Themezer](https://themezer.net). Install themes, splash screens and
-badges from your SD card, or find new ones on Themezer or [ThemePlaza](https://themeplaza.art) and install them
+badges from your SD card, or find new ones on [Themezer](https://themezer.net/3ds) or [ThemePlaza](https://themeplaza.art) and install them
 straight away: browse and search them, scan an item's QR code, or type its ID.
 
 <p>
