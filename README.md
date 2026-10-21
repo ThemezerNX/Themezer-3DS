@@ -14,11 +14,11 @@ Themezer-3DS is written from scratch, inspired by [Anemone3DS](https://github.co
 
 ## Installing
 
-- **CIA:** To install the [latest release](https://github.com/ThemezerNX/themezer-3ds/releases/latest), scan this QR with FBI:  
+- **CIA:** To install the [latest release](https://github.com/ThemezerNX/Themezer-3DS/releases/latest), scan this QR with FBI:  
 ![image](https://github.com/user-attachments/assets/eecf1ec0-cf46-4c56-bb55-9fe1d215d976)
 - **CIA:** install `themezer-3ds.cia` from the
-  [latest release](https://github.com/ThemezerNX/themezer-3ds/releases/latest), for example with FBI.
-- **3DSX:** copy `themezer-3ds.3dsx` from the [latest release](https://github.com/ThemezerNX/themezer-3ds/releases/latest) to `/3ds/` on your SD card and start it from the Homebrew Launcher.
+  [latest release](https://github.com/ThemezerNX/Themezer-3DS/releases/latest), for example with FBI.
+- **3DSX:** copy `themezer-3ds.3dsx` from the [latest release](https://github.com/ThemezerNX/Themezer-3DS/releases/latest) to `/3ds/` on your SD card and start it from the Homebrew Launcher.
 
 Themes, splash screens and badges are read from `/Themes`, `/Splashes` and `/Badges` on the SD card, the same folders
 Anemone3DS uses. The app keeps its settings and caches in `/3ds/themezer-3ds`.

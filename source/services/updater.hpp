@@ -30,7 +30,7 @@ struct Release
 };
 
 // Where people update by hand, when the app can't update itself (a 3dsx started without its path, say).
-constexpr const char* kReleasesPage = "github.com/ThemezerNX/themezer-3ds/releases";
+constexpr const char* kReleasesPage = "github.com/ThemezerNX/Themezer-3DS/releases";
 
 // How the running app was started, which decides what an update replaces.
 enum class InstallKind : uint8_t

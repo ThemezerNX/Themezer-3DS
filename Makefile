@@ -40,7 +40,7 @@ APP_AUTHOR       := Themezer
 APP_UNIQUE_ID    := 0xC7E20
 APP_PRODUCT_CODE := CTR-P-TZ3D
 # where the update check reads the latest release (GitHub's latest: never a prerelease or a draft)
-UPDATE_URL       ?= https://api.github.com/repos/ThemezerNX/themezer-3ds/releases/latest
+UPDATE_URL       ?= https://api.github.com/repos/ThemezerNX/Themezer-3DS/releases/latest
 
 BASE_VERSION     := 4.0.0
 

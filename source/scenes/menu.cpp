@@ -403,7 +403,7 @@ public:
                  metric::kTextSmall, color::kTextDim, Align::Center);
         drawWrapped(tr("Inspired by Anemone3DS. Free software under the GNU General Public License, "
                        "version 3 or later, with ABSOLUTELY NO WARRANTY. You may share and change it under that "
-                       "license. Source code: github.com/ThemezerNX/themezer-3ds"),
+                       "license. Source code: github.com/ThemezerNX/Themezer-3DS"),
                     32, 142, metric::kTopWidth - 64, metric::kTextSmall, color::kTextDim, 6, Align::Center);
     }
 
