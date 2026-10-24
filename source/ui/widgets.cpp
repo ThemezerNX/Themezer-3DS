@@ -137,10 +137,19 @@ float drawKey(float x, float y, float w, float h, Color face, bool down, float r
 {
     if (radius < 0)
         radius = h / 2;
+    const Color lip = mix(face, color::kBackground, 0.55f);
     if (down)
         y += kKeyLip;
-    else if (opacity() >= 1) // it would show through a face that's fading
-        roundedRect(x, y + kKeyLip, w, h, radius, mix(face, color::kBackground, 0.55f));
+    else if (opacity() >= 1)
+        roundedRect(x, y + kKeyLip, w, h, radius, lip);
+    else
+    {
+        // fading: only the lip's part below the face, as the rest would show through it; its ends where the lip's
+        // rounded corner crosses the face's bottom edge
+        const float r = std::min(radius, h / 2);
+        const float inset = r - std::sqrt(std::max(0.0f, r * r - (r - kKeyLip) * (r - kKeyLip)));
+        roundedRect(x + inset, y + h, w - 2 * inset, kKeyLip, kKeyLip / 2, lip);
+    }
     roundedRect(x, y, w, h, radius, face);
     return y;
 }
