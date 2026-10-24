@@ -120,6 +120,7 @@ std::optional<Item> parseItem(json_t* value)
     item.description = std::string(trim(text(value, "description")));
     item.iconUrl = text(value, "iconUrl");
     item.previewUrl = text(value, "previewUrl");
+    item.thumbHash = text(value, "thumbHash");
     item.audioUrl = text(value, "audioUrl");
     item.badgeCount = count(value, "badgeCount", 0);
 

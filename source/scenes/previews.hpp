@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/result.hpp"
+#include "domain/library.hpp"
 #include "domain/preview.hpp"
 #include "gfx/texture.hpp"
 #include "sys/jobs.hpp"
@@ -33,7 +34,8 @@ public:
     // Reads and decodes the preview, on a worker thread. NotFound when there is none.
     using Loader = std::function<Expected<preview::Screens>(const CancelToken&)>;
 
-    void want(uint64_t key, Loader loader, Lane lane = Lane::Io);
+    // Without a preview, the backdrop is a blur of icon, where there is one.
+    void want(uint64_t key, Loader loader, Lane lane = Lane::Io, std::shared_ptr<const library::Icon> icon = nullptr);
     // nullptr until it has loaded.
     const PreviewPictures* get(uint64_t key);
     bool loading(uint64_t key) const { return loadingKey_ == key && job_.active(); }

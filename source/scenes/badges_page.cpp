@@ -297,14 +297,16 @@ std::vector<ui::Hint> BadgesPage::hints() const
     return {{KEY_A, tr("Install")}};
 }
 
-std::shared_ptr<Picture> BadgesPage::backdrop() const
+std::optional<std::shared_ptr<Picture>> BadgesPage::backdrop() const
 {
     auto* self = const_cast<BadgesPage*>(this);
     const Set* set = self->selected();
     if (!set)
         return nullptr;
     const PreviewPictures* pictures = self->previews_.get(set->key);
-    return pictures ? pictures->blur : nullptr;
+    if (!pictures)
+        return std::nullopt;
+    return pictures->blur;
 }
 
 std::string BadgesPage::detailOf(const Set& set) const

@@ -9,6 +9,7 @@
 #include "ui/widgets.hpp"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace tz::scenes
@@ -42,8 +43,9 @@ public:
     virtual void drawBottom(float top, float bottom) = 0;
     virtual std::vector<ui::Hint> hints() const = 0;
 
-    // The blurred picture behind the screens, for what's selected.
-    virtual std::shared_ptr<gfx::Picture> backdrop() const { return nullptr; }
+    // The blurred picture behind the screens, for what's selected: nullptr when it has none, nullopt while it's still
+    // loading (the last one stays meanwhile, so that moving through a list doesn't flash the plain backdrop).
+    virtual std::optional<std::shared_ptr<gfx::Picture>> backdrop() const { return nullptr; }
 
     // What the menu (START) offers for this page.
     virtual std::vector<ui::Action> menuActions() { return {}; }

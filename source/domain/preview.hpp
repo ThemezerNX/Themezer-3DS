@@ -8,6 +8,7 @@
 #include "core/image.hpp"
 
 #include <optional>
+#include <string_view>
 
 namespace tz::preview
 {
@@ -23,8 +24,14 @@ struct Screens
 // border). Others (a badge set's sheet, a banner) are fitted into the top screen whole.
 Screens split(const Image& picture);
 
-// A tiny picture of the top screen, which drawn stretched is a soft blur of it: the backdrop behind the app's pages,
-// as the Themezer website blurs the picture of what's open behind its pages.
-Image blurSource(const Image& top);
+// The ThumbHash of a picture (both screens, or an icon where there's no preview), drawn: a tiny picture, which drawn
+// stretched is a soft blur of it. The backdrop behind the app's pages, as the Themezer website draws the ThumbHash of
+// what's open behind its pages.
+Image blurSource(const Image& picture);
+// The two screens as one picture, the top one over the bottom one centred under it (see-through beside it), as a
+// theme's collage has them and the backdrop spans them; the top one alone when there's no bottom one.
+Image bothScreens(const Screens& screens);
+// A ThumbHash as Themezer's API gives them (base64), drawn the same way. Empty when it isn't one.
+Image thumbHashPicture(std::string_view base64);
 
 } // namespace tz::preview

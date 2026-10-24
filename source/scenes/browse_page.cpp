@@ -625,6 +625,10 @@ void BrowsePage::update(ui::Input& input, float dt)
     Entry* entry = selected();
     if (!entry)
         return;
+    // the site's ThumbHash is behind it at once, even while the list scrolls (it takes a few milliseconds), while the
+    // preview downloads
+    if (!entry->thumbHash && !entry->item.thumbHash.empty())
+        entry->thumbHash = Picture::upload(tile(preview::thumbHashPicture(entry->item.thumbHash), false));
     if (list_.settled() && !entry->item.previewUrl.empty())
     {
         const std::string url = entry->item.previewUrl;
@@ -671,7 +675,7 @@ float BrowsePage::listTop(float top) const
     return top + (query_.empty() ? 0 : kSearchLineHeight);
 }
 
-std::shared_ptr<Picture> BrowsePage::backdrop() const
+std::optional<std::shared_ptr<Picture>> BrowsePage::backdrop() const
 {
     // the scanner has no item, so nothing of the list's behind it
     if (scanningTab())
@@ -680,8 +684,14 @@ std::shared_ptr<Picture> BrowsePage::backdrop() const
     const Entry* entry = self->selected();
     if (!entry)
         return nullptr;
+    if (entry->thumbHash)
+        return entry->thumbHash;
+    if (entry->item.previewUrl.empty())
+        return nullptr;
     const PreviewPictures* pictures = self->previews_.get(entry->key);
-    return pictures ? pictures->blur : nullptr;
+    if (!pictures)
+        return std::nullopt;
+    return pictures->blur;
 }
 
 float BrowsePage::topCover() const

@@ -44,6 +44,7 @@ struct Item
     // it's read, the item has none of them.
     std::string detailsUrl;
     std::string previewUrl;  // a PNG, usually both screens (400x480)
+    std::string thumbHash;   // the preview's ThumbHash, base64, where the site has one (Themezer)
     std::string downloadUrl; // a zip
     std::string audioUrl;    // the theme's bgm.bcstm; empty for themes without music (or unknown), splashes and badges
     // A theme's music is only in its download, as bgm.bcstm (ThemePlaza, whose own music previews are Ogg Vorbis): a

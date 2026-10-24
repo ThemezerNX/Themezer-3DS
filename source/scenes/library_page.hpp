@@ -36,7 +36,7 @@ public:
     void drawTop() override;
     void drawBottom(float top, float bottom) override;
     std::vector<ui::Hint> hints() const override;
-    std::shared_ptr<gfx::Picture> backdrop() const override;
+    std::optional<std::shared_ptr<gfx::Picture>> backdrop() const override;
     std::vector<ui::Action> menuActions() override;
 
 private:

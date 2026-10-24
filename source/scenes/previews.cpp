@@ -19,14 +19,14 @@ struct Tiled
 };
 } // namespace
 
-void Previews::want(uint64_t key, Loader loader, Lane lane)
+void Previews::want(uint64_t key, Loader loader, Lane lane, std::shared_ptr<const library::Icon> icon)
 {
     if (get(key) || (loadingKey_ == key && job_.active()))
         return;
     loadingKey_ = key;
     job_ = jobs::async(
         lane,
-        [loader = std::move(loader)](const CancelToken& token) {
+        [loader = std::move(loader), icon = std::move(icon)](const CancelToken& token) {
             auto result = std::make_shared<Tiled>();
             auto screens = loader(token);
             if (!screens)
@@ -34,13 +34,15 @@ void Previews::want(uint64_t key, Loader loader, Lane lane)
                 if (screens.error().code != Errc::NotFound && screens.error().code != Errc::Cancelled)
                     log::writeError("preview", screens.error());
                 result->missing = true;
+                if (icon)
+                    result->blur = gfx::tile(preview::blurSource(iconToImage(icon->data(), 48)), false);
                 return result;
             }
             // the work of laying the pictures out for the GPU happens here, off the main thread
             result->top = gfx::tile(screens->top, true);
             if (screens->bottom)
                 result->bottom = gfx::tile(*screens->bottom, true);
-            result->blur = gfx::tile(preview::blurSource(screens->top), true);
+            result->blur = gfx::tile(preview::blurSource(preview::bothScreens(*screens)), false);
             return result;
         },
         [this, key](std::shared_ptr<Tiled> tiled) {
@@ -52,9 +54,9 @@ void Previews::want(uint64_t key, Loader loader, Lane lane)
                 pictures.top = gfx::Picture::upload(tiled->top);
                 if (tiled->bottom)
                     pictures.bottom = gfx::Picture::upload(*tiled->bottom);
-                pictures.blur = gfx::Picture::upload(tiled->blur);
                 pictures.missing = !pictures.top;
             }
+            pictures.blur = gfx::Picture::upload(tiled->blur);
             cache_.emplace_front(key, std::move(pictures));
             while (cache_.size() > kKept)
                 cache_.pop_back();

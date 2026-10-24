@@ -39,7 +39,7 @@ public:
     float topCover() const override;
     void drawBottom(float top, float bottom) override;
     std::vector<ui::Hint> hints() const override;
-    std::shared_ptr<gfx::Picture> backdrop() const override;
+    std::optional<std::shared_ptr<gfx::Picture>> backdrop() const override;
     std::vector<ui::Action> menuActions() override;
 
     // Its tabs, which the home scene shows when it's online: the kinds, then the QR code scanner.
@@ -55,6 +55,7 @@ private:
         bool iconShown = false;      // it went into the atlas, which may have made room for others since
         uint8_t detailsFailures = 0; // tried again when it comes into view, a few times
         bool onSd = false;           // already downloaded
+        std::shared_ptr<gfx::Picture> thumbHash; // the site's ThumbHash of the preview, drawn, for the backdrop
     };
 
     enum class State : uint8_t

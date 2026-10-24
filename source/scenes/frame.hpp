@@ -15,15 +15,17 @@
 namespace tz::scenes
 {
 
-// A soft blur of the selected item's picture behind both screens, fading from one item to the next, as the Themezer
+// A soft blur of the selected item's picture (its preview, else its icon) behind both screens, fading from one item to the next, as the Themezer
 // website shows behind its pages. Without a picture, a dark wash of the page's accent.
 class Backdrop
 {
 public:
+    Backdrop();
     void set(std::shared_ptr<gfx::Picture> blur, gfx::Color accent);
+    const std::shared_ptr<gfx::Picture>& picture() const { return current_.picture; }
     void tick(float dt);
-    // How dark the picture is made: more on the bottom screen, where there is more to read.
-    void draw(float dim) const;
+    // Over the boot animation's chevrons, as the website draws it over its tile; see-through parts show them.
+    void draw() const;
 
 private:
     struct Layer
@@ -33,6 +35,7 @@ private:
     };
     void drawLayer(const Layer& layer, float alpha) const;
 
+    std::unique_ptr<gfx::Picture> pattern_; // the boot animation's chevrons, still (romfs/backdrop.png, tools/backdrop)
     Layer current_;
     Layer previous_;
     float fade_ = 1; // 0 shows the previous layer, 1 the current one

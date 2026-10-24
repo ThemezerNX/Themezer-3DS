@@ -4,7 +4,7 @@
 // Themezer's catalogue, through the API Themezer serves this app (app/v1):
 //   GET <api>/themes|splashes|badges?page=<n>&q=<search>&sort=<order>
 //   { "page": 1, "pages": 3, "items": [ { "id", "name", "author", "description", "iconUrl", "previewUrl",
-//     "downloadUrl", "audioUrl", "filename" } ] }
+//     "thumbHash", "downloadUrl", "audioUrl", "filename" } ] }
 //   GET <api>/quickid/<quick ID>
 //   { "kind": "themes" | "splashes" | "badges", "item": { ...as in a page } }, or 404
 

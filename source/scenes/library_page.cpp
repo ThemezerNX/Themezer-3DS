@@ -561,9 +561,9 @@ void LibraryPage::update(ui::Input& input, float dt)
         const library::Source source = entry->item.source;
         const library::Kind kind = kind_;
         if (list_.settled())
-            previews_.want(entry->key, [source, kind](const CancelToken& token) {
-                return readPreview(source, kind, token);
-            });
+            previews_.want(
+                entry->key, [source, kind](const CancelToken& token) { return readPreview(source, kind, token); },
+                Lane::Io, entry->item.info ? entry->item.info->icon : nullptr);
         // icons scrolled back into view after leaving the atlas
         const auto [first, last] = list_.visibleRange();
         for (int i = first; i <= last; ++i)
@@ -624,14 +624,16 @@ std::vector<ui::Hint> LibraryPage::hints() const
     return hints;
 }
 
-std::shared_ptr<Picture> LibraryPage::backdrop() const
+std::optional<std::shared_ptr<Picture>> LibraryPage::backdrop() const
 {
     auto* self = const_cast<LibraryPage*>(this);
     const Entry* entry = self->selectedEntry();
     if (!entry)
         return nullptr;
     const PreviewPictures* pictures = self->previews_.get(entry->key);
-    return pictures ? pictures->blur : nullptr;
+    if (!pictures)
+        return std::nullopt;
+    return pictures->blur;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

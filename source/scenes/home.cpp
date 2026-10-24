@@ -55,7 +55,7 @@ public:
         for (auto& page : local_)
             page->tick(dt);
         browse_.tick(dt);
-        backdrop_.set(page().backdrop(), page().accent().solid);
+        backdrop_.set(page().backdrop().value_or(backdrop_.picture()), page().accent().solid);
         backdrop_.tick(dt);
     }
 
@@ -100,8 +100,7 @@ public:
 
     void drawTop() override
     {
-        // dark enough under the item's details to read them on a light preview
-        backdrop_.draw(0.55f);
+        backdrop_.draw();
         {
             const gfx::Layer layer = entrance_.layer(kSlide);
             page().drawTop();
@@ -113,7 +112,7 @@ public:
     void drawBottom() override
     {
         using namespace gfx;
-        backdrop_.draw(0.72f);
+        backdrop_.draw();
         drawModeButton();
         tabs_.draw(kModeButton, 0, metric::kBottomWidth - kModeButton, metric::kTabBarHeight, metric::kTextNormal);
         {

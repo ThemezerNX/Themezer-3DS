@@ -18,6 +18,25 @@ namespace tz::scenes
 
 using namespace gfx;
 
+namespace
+{
+// as the website draws its page background: its tile, then the picture; stronger than the website's half, as the
+// 3DS's screens show dark colours much duller than a computer's
+constexpr float kPictureOpacity = 0.75f;
+} // namespace
+
+Backdrop::Backdrop()
+{
+    if (FILE* file = std::fopen("romfs:/backdrop.png", "rb"))
+    {
+        Bytes png(64 * 1024);
+        png.resize(std::fread(png.data(), 1, png.size(), file));
+        std::fclose(file);
+        if (auto image = decodePng(png))
+            pattern_ = Picture::upload(tile(*image, true));
+    }
+}
+
 void Backdrop::set(std::shared_ptr<Picture> blur, Color accent)
 {
     if (blur == current_.picture && accent == current_.accent)
@@ -39,24 +58,32 @@ void Backdrop::drawLayer(const Layer& layer, float alpha) const
     const float width = screenWidth();
     if (layer.picture)
     {
-        // the blur is of the top screen: the bottom screen shows its middle
-        const float offset = (metric::kTopWidth - width) / 2;
-        layer.picture->draw(-offset, 0, metric::kTopWidth, metric::kHeight, alpha);
+        // covering both screens in its own shape, centred, as the website covers its page: the top screen over the
+        // bottom one, centred under it, as a theme's collage has them
+        const Picture& picture = *layer.picture;
+        const float scale = std::max(metric::kTopWidth / static_cast<float>(picture.width()),
+                                     2 * metric::kHeight / static_cast<float>(picture.height()));
+        const float w = picture.width() * scale;
+        const float h = picture.height() * scale;
+        const float top = metric::kHeight - h / 2 - (width < metric::kTopWidth ? metric::kHeight : 0);
+        picture.draw((width - w) / 2, top, w, h, alpha * kPictureOpacity);
     }
     else
     {
-        gradientV(0, 0, width, metric::kHeight, withAlpha(mix(color::kBackground, layer.accent, 0.22f), alpha),
-                  withAlpha(color::kBackground, alpha));
+        gradientV(0, 0, width, metric::kHeight, withAlpha(layer.accent, 0.22f * alpha), withAlpha(layer.accent, 0));
     }
 }
 
-void Backdrop::draw(float dim) const
+void Backdrop::draw() const
 {
     fill(color::kBackground);
+    // its rows repeat every screen's height, so it carries on from the top screen into the bottom one
+    if (pattern_)
+        pattern_->draw(-(metric::kTopWidth - screenWidth()) / 2, 0, metric::kTopWidth, metric::kHeight);
+    // one fading out as the other fades in, so that the picture's opacity holds
     if (fade_ < 1)
-        drawLayer(previous_, 1.0f);
+        drawLayer(previous_, 1 - fade_);
     drawLayer(current_, fade_);
-    fill(withAlpha(color::kBackground, dim));
 }
 
 void drawStatusBar(float alpha)

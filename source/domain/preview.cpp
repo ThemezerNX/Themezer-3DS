@@ -3,7 +3,11 @@
 
 #include "domain/preview.hpp"
 
+#include "thumbhash/thumbhash.h"
+
 #include <algorithm>
+#include <cstdlib>
+#include <cstring>
 
 namespace tz::preview
 {
@@ -40,6 +44,20 @@ Image fit(const Image& picture, int width, int height)
     }
     return canvas;
 }
+
+// Drawn 32 on its longer side, as the website draws ThumbHashes. Empty when it isn't one.
+Image drawThumbHash(const uint8_t* hash, size_t length)
+{
+    uint8_t* rgba = nullptr;
+    int width = 0;
+    int height = 0;
+    if (!ThumbHashToRGBA(hash, length, 32, &rgba, &width, &height))
+        return {};
+    Image picture(width, height);
+    std::memcpy(picture.pixels.data(), rgba, picture.pixels.size());
+    std::free(rgba);
+    return picture;
+}
 } // namespace
 
 Screens split(const Image& picture)
@@ -63,36 +81,69 @@ Screens split(const Image& picture)
     return screens;
 }
 
-Image blurSource(const Image& top)
+Image blurSource(const Image& picture)
 {
-    // a small picture with its neighbours averaged: stretched by the GPU, it becomes a smooth blur
-    Image small = resize(top, 80, 48);
-    Image blurred(small.width, small.height);
-    for (int y = 0; y < small.height; ++y)
+    // ThumbHash needs no more than 100x100
+    const float scale = std::min(1.0f, 100.0f / std::max(picture.width, picture.height));
+    const Image small = resize(picture, std::max(1, static_cast<int>(picture.width * scale)),
+                               std::max(1, static_cast<int>(picture.height * scale)));
+    uint8_t hash[THUMBHASH_MAX_LENGTH];
+    size_t length = 0;
+    if (!RGBAToThumbHash(small.width, small.height, small.pixels.data(), hash, &length))
+        return {};
+    return drawThumbHash(hash, length);
+}
+
+Image bothScreens(const Screens& screens)
+{
+    if (!screens.bottom)
+        return screens.top;
+    Image both(screens.top.width, screens.top.height + screens.bottom->height);
+    const auto place = [&both](const Image& screen, int x0, int y0) {
+        for (int y = 0; y < screen.height; ++y)
+            for (int x = 0; x < screen.width && x0 + x < both.width; ++x)
+                std::memcpy(both.at(x0 + x, y0 + y), screen.at(x, y), 4);
+    };
+    place(screens.top, 0, 0);
+    place(*screens.bottom, std::max(0, (both.width - screens.bottom->width) / 2), screens.top.height);
+    return both;
+}
+
+Image thumbHashPicture(std::string_view base64)
+{
+    // zero after its end: the decoder reads as far as the hash's header says, however short it is
+    uint8_t hash[THUMBHASH_MAX_LENGTH] = {};
+    size_t length = 0;
+    uint32_t bits = 0;
+    int pending = 0;
+    for (const char c : base64)
     {
-        for (int x = 0; x < small.width; ++x)
+        int value;
+        if (c >= 'A' && c <= 'Z')
+            value = c - 'A';
+        else if (c >= 'a' && c <= 'z')
+            value = c - 'a' + 26;
+        else if (c >= '0' && c <= '9')
+            value = c - '0' + 52;
+        else if (c == '+')
+            value = 62;
+        else if (c == '/')
+            value = 63;
+        else if (c == '=')
+            break;
+        else
+            return {};
+        bits = (bits << 6) | static_cast<uint32_t>(value);
+        pending += 6;
+        if (pending >= 8)
         {
-            int sum[3] = {0, 0, 0};
-            int count = 0;
-            for (int dy = -2; dy <= 2; ++dy)
-            {
-                for (int dx = -2; dx <= 2; ++dx)
-                {
-                    const int sx = std::clamp(x + dx, 0, small.width - 1);
-                    const int sy = std::clamp(y + dy, 0, small.height - 1);
-                    const uint8_t* p = small.at(sx, sy);
-                    for (int c = 0; c < 3; ++c)
-                        sum[c] += p[c];
-                    ++count;
-                }
-            }
-            uint8_t* out = blurred.at(x, y);
-            for (int c = 0; c < 3; ++c)
-                out[c] = static_cast<uint8_t>(sum[c] / count);
-            out[3] = 255;
+            if (length == sizeof(hash))
+                return {};
+            pending -= 8;
+            hash[length++] = static_cast<uint8_t>(bits >> pending);
         }
     }
-    return blurred;
+    return drawThumbHash(hash, length);
 }
 
 } // namespace tz::preview

@@ -50,7 +50,7 @@ ifeq ($(DEVTOOLS),1)
   BUILD  := build/dev
   OUT    := out/dev
 endif
-SOURCES  := source third_party/zxing-cpp
+SOURCES  := source third_party/zxing-cpp third_party/thumbhash
 INCLUDES := source third_party
 ROMFS    := romfs
 META     := meta
@@ -219,6 +219,7 @@ $(CIA): $(ELF) $(BUILD)/banner.bnr $(BUILD)/icon.icn $(META)/app.rsf $(META)/log
 # Unit tests, built for this computer
 #---------------------------------------------------------------------------------
 HOST_CXX      ?= c++
+HOST_CC       ?= cc
 # libpng and zlib for the computer: from pkg-config, or Homebrew's prefix
 HOST_PKG      := $(shell pkg-config --cflags --libs libpng zlib 2>/dev/null)
 ifeq ($(strip $(HOST_PKG)),)
@@ -231,7 +232,8 @@ HOST_SOURCES  := $(shell find tests source/core source/domain -name "*.cpp" 2>/d
 
 test:
 	@mkdir -p $(BUILD)/host
-	@$(HOST_CXX) $(HOST_CXXFLAGS) $(HOST_SOURCES) $(HOST_PKG) -o $(BUILD)/host/tests
+	@$(HOST_CC) -std=gnu17 -g -O1 -fsanitize=address,undefined -c third_party/thumbhash/thumbhash.c -o $(BUILD)/host/thumbhash.o
+	@$(HOST_CXX) $(HOST_CXXFLAGS) -Ithird_party $(HOST_SOURCES) $(BUILD)/host/thumbhash.o $(HOST_PKG) -o $(BUILD)/host/tests
 	@$(BUILD)/host/tests
 
 #---------------------------------------------------------------------------------
