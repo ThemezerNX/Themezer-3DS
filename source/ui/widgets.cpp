@@ -183,7 +183,7 @@ void HintBar::update(Input& input, const std::vector<Hint>& hints)
     held_ = input.held;
     for (const Hint& hint : hints)
     {
-        if (input.down & hint.key)
+        if (hint.enabled && (input.down & hint.key))
         {
             pressedKey_ = hint.key;
             pressedAt_ = time();
@@ -235,15 +235,21 @@ void HintBar::draw(const std::vector<Hint>& hints, float alpha, Color accent)
         const Hint& hint = *order[i];
         const bool primary = hint.key == KEY_A;
         const float width = keyWidth(hint) + (primary && wideA ? spare : 0);
-        const bool down = (justPressed && hint.key == pressedKey_) || (held_ & hint.key) || hint.key == touchedKey_;
-        const Color face = primary ? accent : color::kSurfaceHigh;
-        const Color ink = primary ? color::kOnAccent : color::kText;
+        const bool down = hint.enabled &&
+                          ((justPressed && hint.key == pressedKey_) || (held_ & hint.key) || hint.key == touchedKey_);
+        Color face = primary ? accent : color::kSurfaceHigh;
+        Color ink = primary ? color::kOnAccent : color::kText;
+        if (!hint.enabled)
+        {
+            face = mix(face, color::kBackground, 0.6f);
+            ink = color::kTextFaint;
+        }
         const float keyTop = drawKey(x, top, width, kKeyHeight, face, down);
         const float content = hintWidth(hint.key, hint.label, labelSize);
         drawHint(hint.key, hint.label, x + std::round((width - content) / 2), keyTop + kKeyHeight / 2, ink, ink,
                  labelSize);
         // the whole height of the bar, and half the gaps
-        spots_.push_back({x - kHintGap / 2, width + kHintGap, hint.key});
+        spots_.push_back({x - kHintGap / 2, width + kHintGap, hint.enabled ? hint.key : 0u});
         x += width + kHintGap;
     }
     // as update saw them this frame: without an update (an overlay is over the scene) the keys come up

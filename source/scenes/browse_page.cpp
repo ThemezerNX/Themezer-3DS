@@ -653,16 +653,14 @@ std::vector<ui::Hint> BrowsePage::hints() const
     if (scanningTab())
     {
         // X is on the Quick ID field
-        if (!qr_.scanning())
-            hints.push_back({KEY_A, tr("Scan")});
+        hints.push_back({KEY_A, tr("Scan"), !qr_.scanning()});
         return hints;
     }
+    // the same keys while the list loads, A disabled until there's something to get
     if (state_ == State::Failed)
         hints.push_back({KEY_A, tr("Try again")});
-    else if (state_ == State::Ready && !entries_.empty())
-    {
-        hints.push_back({KEY_A, tr("Get")}); // Y is on the A menu's Preview row
-    }
+    else
+        hints.push_back({KEY_A, tr("Get"), state_ == State::Ready && !entries_.empty()}); // Y: the A menu's Preview
     hints.push_back({KEY_X, tr("Filter")});
     if (!query_.empty())
         hints.push_back({KEY_B, tr("Clear")});

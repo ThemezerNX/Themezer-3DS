@@ -50,6 +50,9 @@ struct Hint
 {
     u32 key = 0;
     std::string label;
+    // Faded and doing nothing while what it's for isn't there yet (loading, nothing listed): a page keeps its hints the
+    // same, so the bar doesn't jump as its content loads.
+    bool enabled = true;
 };
 
 class HintBar

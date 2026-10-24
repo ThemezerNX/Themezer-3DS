@@ -316,13 +316,13 @@ void BadgesPage::update(ui::Input& input, float dt)
 
 std::vector<ui::Hint> BadgesPage::hints() const
 {
-    if (state_ != State::Ready || sets_.empty())
-        return {};
-    // Y and skipping are on the A menu's rows: the bar keeps room for SELECT
-    std::vector<ui::Hint> hints{{KEY_X, tr("Filter")}};
+    // Y and skipping are on the A menu's rows: the bar keeps room for SELECT. The same keys while the sets load,
+    // disabled until there are some.
+    const bool listed = state_ == State::Ready && !sets_.empty();
+    std::vector<ui::Hint> hints{{KEY_X, tr("Filter"), listed}};
     if (!query_.empty())
         hints.push_back({KEY_B, tr("Clear")});
-    hints.push_back({KEY_A, tr("Install")});
+    hints.push_back({KEY_A, tr("Install"), listed});
     return hints;
 }
 

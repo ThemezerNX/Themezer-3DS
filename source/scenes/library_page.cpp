@@ -601,7 +601,7 @@ void LibraryPage::update(ui::Input& input, float dt)
             if (entry)
                 toggleShuffle(*entry, true);
         }
-        else
+        else if (!entries_.empty())
             openFilter();
     }
     else if (input.pressed(KEY_B))
@@ -626,8 +626,6 @@ void LibraryPage::update(ui::Input& input, float dt)
 std::vector<ui::Hint> LibraryPage::hints() const
 {
     std::vector<ui::Hint> hints;
-    if (state_ != State::Ready || entries_.empty())
-        return hints;
     if (kind_ == library::Kind::Theme && !shuffle_.empty())
     {
         // picking themes for a shuffle: only what that takes
@@ -642,12 +640,13 @@ std::vector<ui::Hint> LibraryPage::hints() const
         hints.push_back({KEY_B, tr("Clear")});
         return hints;
     }
-    // Y is on the A menu's rows: the bar keeps room for SELECT
-    hints.push_back({KEY_X, tr("Filter")});
+    // Y is on the A menu's rows: the bar keeps room for SELECT. The same keys while the list loads, disabled until
+    // there's something to filter or install.
+    const bool listed = state_ == State::Ready && !entries_.empty();
+    hints.push_back({KEY_X, tr("Filter"), listed});
     if (!query_.empty())
         hints.push_back({KEY_B, tr("Clear")});
-    if (shown_ > 0)
-        hints.push_back({KEY_A, tr("Install")});
+    hints.push_back({KEY_A, tr("Install"), listed && shown_ > 0});
     return hints;
 }
 
