@@ -21,6 +21,8 @@
 #include "scenes/preview_scene.hpp"
 #include "sys/log.hpp"
 #include "sys/sfx.hpp"
+#include "ui/keyboard.hpp"
+#include "ui/overlays.hpp"
 
 #include <algorithm>
 #include <ctime>
@@ -41,6 +43,7 @@ constexpr uint64_t kMaxPreviewSize = 4 * 1024 * 1024;
 constexpr int kMaxShuffle = home::kShuffleSlots;
 // how long the info reader holds the SD card worker before what else waits for it goes first
 constexpr u64 kInfoTurnMs = 100;
+constexpr float kSearchLineHeight = 22; // the search, above what it finds
 
 // the order of ThemeMode
 enum InstallMode
@@ -232,7 +235,6 @@ void LibraryPage::onScanned(std::vector<library::Source> sources,
     for (Entry& entry : entries_)
         applyInstalled(entry);
     state_ = State::Ready;
-    list_.setCount(static_cast<int>(entries_.size()));
     list_.select(0, false);
 
     if (!missing.empty())
@@ -359,9 +361,14 @@ void LibraryPage::resort(bool keepSelection)
     // sort the items, keeping each entry's state with it
     std::stable_sort(entries_.begin(), entries_.end(),
                      [order](const Entry& a, const Entry& b) { return library::comesBefore(a.item, b.item, order); });
+    const auto found = std::stable_partition(entries_.begin(), entries_.end(), [this](const Entry& entry) {
+        return library::matchesSearch(entry.item.displayName(), entry.item.author(), query_);
+    });
+    shown_ = static_cast<int>(found - entries_.begin());
+    list_.setCount(shown_);
     rebuildIndex();
     if (selectedKey)
-        if (auto it = index_.find(selectedKey); it != index_.end())
+        if (auto it = index_.find(selectedKey); it != index_.end() && static_cast<int>(it->second) < shown_)
             list_.select(static_cast<int>(it->second), false);
 }
 
@@ -374,7 +381,7 @@ LibraryPage::Entry* LibraryPage::find(uint64_t key)
 LibraryPage::Entry* LibraryPage::selectedEntry()
 {
     const int index = list_.selected();
-    return index >= 0 && index < static_cast<int>(entries_.size()) ? &entries_[index] : nullptr;
+    return index >= 0 && index < shown_ ? &entries_[index] : nullptr;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -486,7 +493,7 @@ void LibraryPage::focusInstalled()
     // the list opens on what the console uses now, until something else is chosen
     if (interacted_ || focusedInstalled_)
         return;
-    for (size_t i = 0; i < entries_.size(); ++i)
+    for (size_t i = 0; i < static_cast<size_t>(shown_); ++i)
     {
         if (statusOf(entries_[i]))
         {
@@ -543,8 +550,8 @@ void LibraryPage::update(ui::Input& input, float dt)
     if (state_ != State::Ready)
         return;
 
-    list_.setBounds(0, metric::kTabBarHeight, metric::kBottomWidth,
-                    metric::kHeight - metric::kTabBarHeight - metric::kHintBarHeight);
+    const float top = listTop();
+    list_.setBounds(0, top, metric::kBottomWidth, metric::kHeight - top - metric::kHintBarHeight);
     const ui::ListView::Event event = list_.update(input, dt);
     if (event != ui::ListView::Event::None)
         interacted_ = true;
@@ -585,19 +592,35 @@ void LibraryPage::update(ui::Input& input, float dt)
         openActions();
         return;
     }
-    if (!entry)
-        return;
 
-    if (input.pressed(KEY_Y))
-        openPreview(*entry);
-    else if (kind_ == library::Kind::Theme && input.pressed(KEY_X))
-        toggleShuffle(*entry, true);
-    else if (!shuffle_.empty() && input.pressed(KEY_B))
+    // X picks themes while a shuffle is being picked (it starts from the A menu), and is Filter otherwise
+    if (input.pressed(KEY_X))
     {
-        shuffle_.clear();
-        sfx::play(sfx::Sound::Back);
-        ui::toast(tr("Shuffle cleared"));
+        if (!shuffle_.empty())
+        {
+            if (entry)
+                toggleShuffle(*entry, true);
+        }
+        else
+            openFilter();
     }
+    else if (input.pressed(KEY_B))
+    {
+        if (!shuffle_.empty())
+        {
+            shuffle_.clear();
+            sfx::play(sfx::Sound::Back);
+            ui::toast(tr("Shuffle cleared"));
+        }
+        else if (!query_.empty())
+        {
+            sfx::play(sfx::Sound::Back);
+            query_.clear();
+            resort(true);
+        }
+    }
+    else if (entry && input.pressed(KEY_Y))
+        openPreview(*entry);
 }
 
 std::vector<ui::Hint> LibraryPage::hints() const
@@ -619,8 +642,12 @@ std::vector<ui::Hint> LibraryPage::hints() const
         hints.push_back({KEY_B, tr("Clear")});
         return hints;
     }
-    // Y and X are on the A menu's rows: the bar keeps room for SELECT
-    hints.push_back({KEY_A, tr("Install")});
+    // Y is on the A menu's rows: the bar keeps room for SELECT
+    hints.push_back({KEY_X, tr("Filter")});
+    if (!query_.empty())
+        hints.push_back({KEY_B, tr("Clear")});
+    if (shown_ > 0)
+        hints.push_back({KEY_A, tr("Install")});
     return hints;
 }
 
@@ -714,6 +741,20 @@ void LibraryPage::drawBottom(float top, float bottom)
     if (state_ == State::Failed || entries_.empty())
     {
         drawEmpty(top, bottom);
+        return;
+    }
+    // what's searched for, above what it finds
+    if (!query_.empty())
+    {
+        const float middle = top + kSearchLineHeight / 2;
+        icon(Icon::Search, 14, std::round(middle - metric::kIcon / 2), metric::kIcon, color::kTextDim);
+        drawText(query_, 14 + metric::kIcon + 6, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText,
+                 Align::Left, metric::kBottomWidth - 48);
+    }
+    if (shown_ == 0)
+    {
+        drawEmptyState(Icon::SearchEmpty, accent().light, trf("Nothing found for \"{}\"", query_),
+                       tr("Try other words, or B to see everything."), listTop(), bottom);
         return;
     }
     list_.draw([this](int index, float x, float y, float w, float h, bool) { drawRow(index, x, y, w, h); }, {},
@@ -825,7 +866,8 @@ void LibraryPage::openActions()
                                if (Entry* e = find(key))
                                    toggleShuffle(*e, false);
                            }});
-        actions.back().key = KEY_X;
+        if (!shuffle_.empty())
+            actions.back().key = KEY_X;
         if (shuffle_.size() >= 2)
             actions.push_back({Icon::Shuffle, trf("Install the shuffle of {}", std::to_string(shuffle_.size())), {},
                                true, false, [this] { installShuffle(); }});
@@ -1016,8 +1058,7 @@ void LibraryPage::confirmDelete(Entry& entry)
                          {
                              entries_.erase(entries_.begin() + static_cast<ptrdiff_t>(it->second));
                              std::erase_if(shuffle_, [&](const auto& p) { return p.key == key; });
-                             rebuildIndex();
-                             list_.setCount(static_cast<int>(entries_.size()));
+                             resort(true);
                              saveCacheLater();
                          }
                          ui::toast(trf("{} is deleted", name), ui::ToastKind::Success);
@@ -1056,7 +1097,7 @@ PreviewSource LibraryPage::previewOf(Entry& entry)
     // the selected entry's neighbours in the list
     preview.hasNeighbour = [this](int step) {
         const int index = list_.selected() + step;
-        return index >= 0 && index < static_cast<int>(entries_.size());
+        return index >= 0 && index < shown_;
     };
     preview.neighbour = [this](int step) {
         list_.select(list_.selected() + step);
@@ -1067,29 +1108,6 @@ PreviewSource LibraryPage::previewOf(Entry& entry)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The menu's actions for this page
-
-namespace
-{
-
-const char* sortLabel(library::Sort sort)
-{
-    switch (sort)
-    {
-    case library::Sort::Author:
-        return "Author";
-    case library::Sort::FileName:
-        return "File name";
-    case library::Sort::Newest:
-        return "Newest first";
-    case library::Sort::Oldest:
-        return "Newest last";
-    case library::Sort::Name:
-        break;
-    }
-    return "Name";
-}
-
-} // namespace
 
 library::Sort& LibraryPage::sortSetting()
 {
@@ -1126,8 +1144,8 @@ void LibraryPage::chooseSort()
     for (library::Sort sort : {library::Sort::Name, library::Sort::Author, library::Sort::FileName,
                                library::Sort::Newest, library::Sort::Oldest})
     {
-        options.push_back({sort == sortSetting() ? Icon::SquareCheck : Icon::Square, tr(sortLabel(sort)), {}, true,
-                           false, [this, sort] {
+        options.push_back({sort == sortSetting() ? Icon::SquareCheck : Icon::Square, tr(library::sortLabel(sort)), {},
+                           true, false, [this, sort] {
                                sortSetting() = sort;
                                App::get().saveConfig();
                                if (library::byTime(sort) && !timesRead_)
@@ -1139,11 +1157,36 @@ void LibraryPage::chooseSort()
     openChoice(tr("Sort"), std::move(options));
 }
 
+float LibraryPage::listTop() const
+{
+    return metric::kTabBarHeight + (query_.empty() ? 0 : kSearchLineHeight);
+}
+
+void LibraryPage::openFilter()
+{
+    std::vector<ui::Action> actions;
+    actions.push_back({Icon::Search, tr("Search the SD card"),
+                       query_.empty() ? tr("By name or author") : trf("Now: \"{}\"", query_), true, false,
+                       [this] { search(); }});
+    actions.push_back({Icon::Sort, tr("Sort"), trf("Now: {}", tr(library::sortLabel(sortSetting()))), true, false,
+                       [this] { chooseSort(); }});
+    App::get().scenes().emplace<ui::ActionSheet>(tr("Filter"), std::move(actions), accent().light);
+}
+
+void LibraryPage::search()
+{
+    const auto text = ui::keyboard(tr("Search the SD card"), query_, 64, tr("Cancel"), tr("Search"));
+    if (!text || *text == query_)
+        return;
+    query_ = *text;
+    interacted_ = true; // the list stays as searched
+    resort(false);
+    list_.select(0, false);
+}
+
 std::vector<ui::Action> LibraryPage::menuActions()
 {
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Sort, tr("Sort"), trf("Now: {}", tr(sortLabel(sortSetting()))), state_ == State::Ready,
-                       false, [this] { chooseSort(); }});
     if (kind_ == library::Kind::Theme)
     {
         actions.push_back({Icon::Save, tr("Save the current theme to the SD card"), tr("Into /Themes"), true, false,

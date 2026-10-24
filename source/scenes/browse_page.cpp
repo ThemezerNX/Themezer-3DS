@@ -594,7 +594,7 @@ void BrowsePage::update(ui::Input& input, float dt)
     }
     if (input.pressed(KEY_X))
     {
-        search();
+        openFilter();
         return;
     }
     if (!query_.empty() && input.pressed(KEY_B))
@@ -652,9 +652,9 @@ std::vector<ui::Hint> BrowsePage::hints() const
     std::vector<ui::Hint> hints;
     if (scanningTab())
     {
+        // X is on the Quick ID field
         if (!qr_.scanning())
             hints.push_back({KEY_A, tr("Scan")});
-        hints.push_back({KEY_X, tr("Quick ID")});
         return hints;
     }
     if (state_ == State::Failed)
@@ -663,7 +663,7 @@ std::vector<ui::Hint> BrowsePage::hints() const
     {
         hints.push_back({KEY_A, tr("Get")}); // Y is on the A menu's Preview row
     }
-    hints.push_back({KEY_X, tr("Search")});
+    hints.push_back({KEY_X, tr("Filter")});
     if (!query_.empty())
         hints.push_back({KEY_B, tr("Clear")});
     return hints;
@@ -944,8 +944,6 @@ void BrowsePage::openActions()
                                openPreview(*e);
                        }});
     actions.back().key = KEY_Y;
-    actions.push_back({Icon::Search, trf("Search {}", catalog::sourceName(source_)), {}, true, false,
-                       [this] { search(); }, KEY_X});
     App::get().scenes().emplace<ui::ActionSheet>(nameOf(entry->item), std::move(actions), accent().light);
 }
 
@@ -1031,6 +1029,18 @@ PreviewSource BrowsePage::previewOf(Entry& entry)
     return preview;
 }
 
+void BrowsePage::openFilter()
+{
+    std::vector<ui::Action> actions;
+    actions.push_back({Icon::Search, trf("Search {}", catalog::sourceName(source_)),
+                       query_.empty() ? std::string() : trf("Now: \"{}\"", query_), true, false, [this] { search(); }});
+    actions.push_back({Icon::Sort, tr("Sort"),
+                       source_ == Source::Themezer ? trf("Now: {}", tr(orderLabel(App::get().config().browseOrder)))
+                                                   : std::string(tr("Only on Themezer")),
+                       source_ == Source::Themezer, false, [this] { chooseOrder(); }});
+    App::get().scenes().emplace<ui::ActionSheet>(tr("Filter"), std::move(actions), accent().light);
+}
+
 void BrowsePage::chooseOrder()
 {
     std::vector<ui::Action> options;
@@ -1053,17 +1063,8 @@ std::vector<ui::Action> BrowsePage::menuActions()
 {
     const Source other = otherSource(source_);
     return {
-        {Icon::Search, trf("Search {}", catalog::sourceName(source_)),
-         query_.empty() ? std::string() : trf("Now: \"{}\"", query_), true, false, [this] { search(); },
-         scanningTab() ? 0u : u32{KEY_X}},
-        {Icon::Sort, tr("Sort"),
-         source_ == Source::Themezer ? trf("Now: {}", tr(orderLabel(App::get().config().browseOrder)))
-                                     : std::string(tr("Only on Themezer")),
-         source_ == Source::Themezer, false, [this] { chooseOrder(); }},
         {Icon::Globe, trf("Browse {} instead", catalog::sourceName(other)), {}, true, false,
          [this, other] { switchSource(other); }},
-        {Icon::Qr, tr("Type an item's ID"), tr("From its page on Themezer or ThemePlaza"), true, false,
-         [this] { enterId(); }, scanningTab() ? u32{KEY_X} : 0u},
         {Icon::Refresh, tr("Load again"), {}, true, false, [this] { reload(); }},
     };
 }

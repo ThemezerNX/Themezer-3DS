@@ -173,10 +173,16 @@ void ActionSheet::update(Input& input, float dt)
     press_.update(input.touching && !input.dragging && rowAt(input.startY) == selected_ && rowAt(input.y) == selected_,
                   false);
 
+    // a row's own button does it here too
+    const auto keyed = std::find_if(actions_.begin(), actions_.end(), [&](const Action& action) {
+        return action.enabled && action.key && input.pressed(action.key);
+    });
     if (input.pressed(KEY_A))
         choose(selected_);
     else if (input.pressed(KEY_B))
         cancel();
+    else if (keyed != actions_.end())
+        choose(static_cast<int>(keyed - actions_.begin()));
     else if (input.tap)
     {
         const float top = panelTop() + kSheetPadding;

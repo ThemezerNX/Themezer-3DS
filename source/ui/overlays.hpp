@@ -31,7 +31,7 @@ struct Action
     bool enabled = true;
     bool danger = false;
     std::function<void()> run;
-    u32 key = 0; // the button that does it without the sheet, shown at the end of its row
+    u32 key = 0; // the button that does it, with the sheet open or not, shown at the end of its row
 };
 
 // The actions as rows sliding up over the bottom screen; the top screen, dimmed, names the item and says what the

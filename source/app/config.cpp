@@ -27,6 +27,8 @@ const char* sortName(library::Sort sort)
         return "newest";
     case library::Sort::Oldest:
         return "oldest";
+    case library::Sort::Badges:
+        return "badges";
     case library::Sort::Name:
         break;
     }
@@ -48,6 +50,8 @@ library::Sort parseSort(const char* name, library::Sort fallback)
         return library::Sort::Newest;
     if (value == "oldest")
         return library::Sort::Oldest;
+    if (value == "badges")
+        return library::Sort::Badges;
     return fallback;
 }
 
@@ -110,6 +114,7 @@ Config Config::load(FileSystem& sd)
     readBool(root, "Check For Updates", config.checkForUpdates);
     config.themeSort = parseSort(json_string_value(json_object_get(root, "themeSort")), config.themeSort);
     config.splashSort = parseSort(json_string_value(json_object_get(root, "splashSort")), config.splashSort);
+    config.badgeSort = parseSort(json_string_value(json_object_get(root, "badgeSort")), config.badgeSort);
     if (json_t* tab = json_object_get(root, "lastTab"); json_is_integer(tab))
         config.lastTab = static_cast<int>(json_integer_value(tab));
     json_decref(root);
@@ -127,6 +132,7 @@ Expected<void> Config::save(FileSystem& sd) const
     json_object_set_new(root, "browseSort", json_string(catalog::orderKey(browseOrder)));
     json_object_set_new(root, "themeSort", json_string(sortName(themeSort)));
     json_object_set_new(root, "splashSort", json_string(sortName(splashSort)));
+    json_object_set_new(root, "badgeSort", json_string(sortName(badgeSort)));
     json_object_set_new(root, "lastTab", json_integer(lastTab));
     char* text = json_dumps(root, JSON_INDENT(2) | JSON_SORT_KEYS);
     json_decref(root);

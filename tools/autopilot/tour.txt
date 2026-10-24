@@ -13,8 +13,19 @@ wait 30
 shot actions
 press B
 wait 30
-press X                 # two themes picked for a shuffle
-press DOWN
+press X                 # Filter: searching the SD card and the order
+wait 30
+shot filter
+press B
+wait 30
+press A                 # two themes picked for a shuffle: the first from the A menu (Add to shuffle, three rows up)
+wait 30
+repeat 3
+press UP
+end
+press A
+wait 30
+press DOWN              # then X picks
 press X
 wait 20
 shot shuffle-picks

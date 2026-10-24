@@ -85,12 +85,8 @@ public:
 
         if (input.pressed(KEY_START))
         {
-            std::vector<ui::Action> actions{{online_ ? gfx::Icon::SdCard : gfx::Icon::Globe,
-                                             online_ ? tr("Show the SD card") : tr("Browse online"), {}, true, false,
-                                             [this] { switchMode(); }, KEY_SELECT}};
-            for (ui::Action& action : page().menuActions())
-                actions.push_back(std::move(action));
-            openMenu(std::move(actions));
+            // SELECT and the mode button switch between the SD card and online, so the menu needn't
+            openMenu(page().menuActions());
             return;
         }
         page().update(input, dt);

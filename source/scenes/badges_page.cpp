@@ -11,9 +11,12 @@
 #include "gfx/text.hpp"
 #include "scenes/errors.hpp"
 #include "scenes/frame.hpp"
+#include "scenes/menu.hpp"
 #include "sys/act.hpp"
 #include "sys/log.hpp"
 #include "sys/sfx.hpp"
+#include "ui/keyboard.hpp"
+#include "ui/overlays.hpp"
 
 #include <algorithm>
 #include <array>
@@ -33,6 +36,7 @@ constexpr int kPreviewColumns = 7;
 constexpr int kPreviewRows = 3;
 constexpr int kPreviewBadge = 48;
 constexpr int kPreviewGap = 6;
+constexpr float kSearchLineHeight = 22; // the search, above what it finds
 
 uint64_t keyOf(const badges::SetSource& set)
 {
@@ -149,12 +153,24 @@ void BadgesPage::load()
     const std::string looseName = tr("Other badges");
     jobs::async(
         Lane::Io,
-        [looseName](const CancelToken&) {
+        [looseName](const CancelToken&) -> Expected<std::vector<Set>> {
             FileSystem& sd = App::get().sd();
             (void)sd.createDirectories(library::kBadgesRoot); // findSets says why when it's missing
-            return badges::findSets(sd, library::kBadgesRoot, looseName);
+            auto found = TZ_TRY(badges::findSets(sd, library::kBadgesRoot, looseName));
+            std::vector<Set> sets;
+            for (badges::SetSource& source : found)
+            {
+                Set set;
+                set.key = keyOf(source);
+                // a few sets: their times are read at once, for the orders by time
+                if (!source.loose())
+                    set.modified = sd.modifiedTime(source.zipPath.empty() ? source.folderPath : source.zipPath);
+                set.source = std::move(source);
+                sets.push_back(std::move(set));
+            }
+            return sets;
         },
-        [this, token = token_](Expected<std::vector<badges::SetSource>> found) {
+        [this, token = token_](Expected<std::vector<Set>> found) {
             if (token.cancelled())
                 return;
             if (!found)
@@ -163,15 +179,8 @@ void BadgesPage::load()
                 error_ = describe(found.error()).message;
                 return;
             }
-            sets_.clear();
-            for (badges::SetSource& source : *found)
-            {
-                Set set;
-                set.key = keyOf(source);
-                set.source = std::move(source);
-                sets_.push_back(std::move(set));
-            }
-            list_.setCount(static_cast<int>(sets_.size()));
+            sets_ = std::move(*found);
+            resort(false);
             list_.select(0, false);
             state_ = State::Ready;
 
@@ -214,6 +223,9 @@ void BadgesPage::load()
                             if (result->icon)
                                 atlas_.put(key, result->icon->data());
                         }
+                        // in the order by size, a set takes its place once it's counted
+                        if (result->summary && App::get().config().badgeSort == library::Sort::Badges)
+                            resort(true);
                     });
             }
         },
@@ -224,12 +236,10 @@ void BadgesPage::load()
 void BadgesPage::readInstalledCount()
 {
     // the badge storage opens here, on the main thread, where the app keeps it; the worker only reads it
-    Error error;
-    Archive* archive = App::get().badges(&error);
+    Archive* archive = App::get().badges();
     if (!archive)
     {
         installedCount_ = -1;
-        storageBusy_ = error.code == Errc::Busy;
         return;
     }
     jobs::async(
@@ -243,7 +253,7 @@ void BadgesPage::readInstalledCount()
 BadgesPage::Set* BadgesPage::selected()
 {
     const int index = list_.selected();
-    return index >= 0 && index < static_cast<int>(sets_.size()) ? &sets_[index] : nullptr;
+    return index >= 0 && index < shown_ ? &sets_[index] : nullptr;
 }
 
 int BadgesPage::includedCount() const
@@ -261,9 +271,24 @@ void BadgesPage::update(ui::Input& input, float dt)
 {
     if (state_ != State::Ready)
         return;
-    list_.setBounds(0, metric::kTabBarHeight, metric::kBottomWidth,
-                    metric::kHeight - metric::kTabBarHeight - metric::kHintBarHeight);
+    const float top = listTop();
+    list_.setBounds(0, top, metric::kBottomWidth, metric::kHeight - top - metric::kHintBarHeight);
+    // a tap on a row's checkbox, at its right end, skips the set or keeps it
+    const bool onMark =
+        input.tap && input.y >= top && input.x >= metric::kBottomWidth - row::kRight - metric::kIcon - 12;
     const auto event = list_.update(input, dt);
+    if (!sets_.empty() && input.pressed(KEY_X))
+    {
+        openFilter();
+        return;
+    }
+    if (!query_.empty() && input.pressed(KEY_B))
+    {
+        sfx::play(sfx::Sound::Back);
+        query_.clear();
+        resort(true);
+        return;
+    }
     Set* set = selected();
     if (!set)
         return;
@@ -278,13 +303,13 @@ void BadgesPage::update(ui::Input& input, float dt)
             return grid(pictures);
         });
     }
-    if (event == ui::ListView::Event::Activated)
-        openActions();
-    else if (input.pressed(KEY_X))
+    if (onMark && (event == ui::ListView::Event::Activated || event == ui::ListView::Event::Moved))
     {
         set->included = !set->included;
         sfx::play(set->included ? sfx::Sound::Confirm : sfx::Sound::Back);
     }
+    else if (event == ui::ListView::Event::Activated)
+        openActions();
     else if (input.pressed(KEY_Y))
         openPreview(*set);
 }
@@ -293,8 +318,12 @@ std::vector<ui::Hint> BadgesPage::hints() const
 {
     if (state_ != State::Ready || sets_.empty())
         return {};
-    // Y and X are on the A menu's rows: the bar keeps room for SELECT
-    return {{KEY_A, tr("Install")}};
+    // Y and skipping are on the A menu's rows: the bar keeps room for SELECT
+    std::vector<ui::Hint> hints{{KEY_X, tr("Filter")}};
+    if (!query_.empty())
+        hints.push_back({KEY_B, tr("Clear")});
+    hints.push_back({KEY_A, tr("Install")});
+    return hints;
 }
 
 std::optional<std::shared_ptr<Picture>> BadgesPage::backdrop() const
@@ -367,10 +396,8 @@ void BadgesPage::drawTop()
                    color::kTextDim);
     if (installedCount_ >= 0)
         facts.left(Icon::Info, trf("The HOME Menu has {} now", std::to_string(installedCount_)), color::kTextDim);
-    else if (storageBusy_)
-        facts.left(Icon::Info, tr("The HOME Menu is using its badges"), color::kTextFaint);
     if (!set->included)
-        facts.right(Icon::Square, tr("Left out"), color::kTextFaint);
+        facts.right(Icon::Square, tr("Skipped"), color::kTextFaint);
 }
 
 void BadgesPage::drawBottom(float top, float bottom)
@@ -391,6 +418,20 @@ void BadgesPage::drawBottom(float top, float bottom)
                        tr("Find some on the Themezer tab, or put folders or zips of PNGs in /Badges."), top, bottom);
         return;
     }
+    // what's searched for, above what it finds
+    if (!query_.empty())
+    {
+        const float middle = top + kSearchLineHeight / 2;
+        icon(Icon::Search, 14, std::round(middle - metric::kIcon / 2), metric::kIcon, color::kTextDim);
+        drawText(query_, 14 + metric::kIcon + 6, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText,
+                 Align::Left, metric::kBottomWidth - 48);
+    }
+    if (shown_ == 0)
+    {
+        drawEmptyState(Icon::SearchEmpty, accent().light, trf("Nothing found for \"{}\"", query_),
+                       tr("Try other words, or B to see everything."), listTop(), bottom);
+        return;
+    }
     list_.draw([this](int index, float x, float y, float w, float h, bool) {
         const Set& set = sets_[index];
         if (!atlas_.draw(set.key, x + row::kIconX, row::iconTop(y, h), row::kIconSize, set.included ? 1.0f : 0.35f))
@@ -400,6 +441,94 @@ void BadgesPage::drawBottom(float top, float bottom)
                                       set.included ? accent().light : color::kTextFaint, x + w - row::kRight, y, h);
         row::lines(set.source.name, detailOf(set), x, y, h, right, !set.included);
     }, {}, [this](float x, float y, float w, float h, bool down) { row::highlight(x, y, w, h, down, accent().solid); });
+}
+
+void BadgesPage::resort(bool keepSelection)
+{
+    const Set* chosen = keepSelection ? selected() : nullptr;
+    const uint64_t selectedKey = chosen ? chosen->key : 0;
+    const library::Sort order = App::get().config().badgeSort;
+    std::stable_sort(sets_.begin(), sets_.end(), [order](const Set& a, const Set& b) {
+        // the loose pictures last, whatever the order
+        if (a.source.loose() != b.source.loose())
+            return b.source.loose();
+        const auto byName = [&] { return library::compareNatural(a.source.name, b.source.name) < 0; };
+        switch (order)
+        {
+        case library::Sort::Author:
+            // sets without an author go last
+            if (a.source.author.empty() != b.source.author.empty())
+                return !a.source.author.empty();
+            if (const int c = library::compareNatural(a.source.author, b.source.author); c != 0)
+                return c < 0;
+            return byName();
+        case library::Sort::Newest:
+        case library::Sort::Oldest:
+            // unknown times last either way
+            if ((a.modified == 0) != (b.modified == 0))
+                return a.modified != 0;
+            if (a.modified != b.modified)
+                return order == library::Sort::Newest ? a.modified > b.modified : a.modified < b.modified;
+            return byName();
+        case library::Sort::Badges:
+            if (a.summary.badges != b.summary.badges)
+                return a.summary.badges > b.summary.badges;
+            return byName();
+        default:
+            return byName();
+        }
+    });
+    const auto found = std::stable_partition(sets_.begin(), sets_.end(), [this](const Set& set) {
+        return library::matchesSearch(set.source.name, set.source.author, query_);
+    });
+    shown_ = static_cast<int>(found - sets_.begin());
+    list_.setCount(shown_);
+    for (int i = 0; i < shown_ && selectedKey; ++i)
+        if (sets_[i].key == selectedKey)
+            list_.select(i, false);
+}
+
+float BadgesPage::listTop() const
+{
+    return metric::kTabBarHeight + (query_.empty() ? 0 : kSearchLineHeight);
+}
+
+void BadgesPage::openFilter()
+{
+    const library::Sort order = App::get().config().badgeSort;
+    std::vector<ui::Action> actions;
+    actions.push_back({Icon::Search, tr("Search the SD card"),
+                       query_.empty() ? tr("By name or author") : trf("Now: \"{}\"", query_), true, false,
+                       [this] { search(); }});
+    actions.push_back({Icon::Sort, tr("Sort"), trf("Now: {}", tr(library::sortLabel(order))), true, false,
+                       [this] { chooseSort(); }});
+    App::get().scenes().emplace<ui::ActionSheet>(tr("Filter"), std::move(actions), accent().light);
+}
+
+void BadgesPage::search()
+{
+    const auto text = ui::keyboard(tr("Search the SD card"), query_, 64, tr("Cancel"), tr("Search"));
+    if (!text || *text == query_)
+        return;
+    query_ = *text;
+    resort(false);
+    list_.select(0, false);
+}
+
+void BadgesPage::chooseSort()
+{
+    std::vector<ui::Action> options;
+    for (library::Sort sort : {library::Sort::Name, library::Sort::Author, library::Sort::Newest,
+                               library::Sort::Oldest, library::Sort::Badges})
+    {
+        options.push_back({sort == App::get().config().badgeSort ? Icon::SquareCheck : Icon::Square,
+                           tr(library::sortLabel(sort)), {}, true, false, [this, sort] {
+                               App::get().config().badgeSort = sort;
+                               App::get().saveConfig();
+                               resort(true);
+                           }});
+    }
+    openChoice(tr("Sort"), std::move(options));
 }
 
 void BadgesPage::openActions()
@@ -412,13 +541,12 @@ void BadgesPage::openActions()
     actions.push_back({Icon::Install, trf("Install {} badge sets", std::to_string(includedCount())), {},
                        includedCount() > 0, false, [this] { install(); }});
     actions.push_back({set->included ? Icon::Square : Icon::SquareCheck,
-                       set->included ? tr("Leave this set out") : tr("Include this set"), {}, true, false,
+                       set->included ? tr("Skip this set") : tr("Keep this set"), {}, true, false,
                        [this, key] {
                            for (Set& s : sets_)
                                if (s.key == key)
                                    s.included = !s.included;
                        }});
-    actions.back().key = KEY_X;
     actions.push_back({Icon::Eye, tr("Preview"), {}, true, false, [this, key] {
                            for (const Set& s : sets_)
                                if (s.key == key)
@@ -446,7 +574,7 @@ BadgePreviewSource BadgesPage::previewOf(const Set& set)
     // the selected set's neighbours in the list
     preview.hasNeighbour = [this](int step) {
         const int index = list_.selected() + step;
-        return index >= 0 && index < static_cast<int>(sets_.size());
+        return index >= 0 && index < shown_;
     };
     preview.neighbour = [this](int step) {
         list_.select(list_.selected() + step);
@@ -463,7 +591,7 @@ void BadgesPage::install()
             chosen.push_back(set.source);
     if (chosen.empty())
     {
-        ui::toast(tr("Include at least one set (X)"), ui::ToastKind::Warning);
+        ui::toast(tr("Keep at least one set"), ui::ToastKind::Warning);
         return;
     }
     // more than the HOME Menu holds: said before rather than after

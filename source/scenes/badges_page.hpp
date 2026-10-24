@@ -16,7 +16,8 @@
 namespace tz::scenes
 {
 
-// The badge sets in /Badges. They are installed together, replacing the HOME Menu's badges; X leaves a set out.
+// The badge sets in /Badges. They are installed together, replacing the HOME Menu's badges; a set can be skipped (from
+// the A menu, or its checkbox). X opens Filter: searching them and their order.
 class BadgesPage final : public Page
 {
 public:
@@ -42,6 +43,7 @@ private:
         bool included = true;
         bool summarized = false;
         badges::SetSummary summary;
+        uint64_t modified = 0; // when its folder or zip last changed, for the orders by time; 0 when unknown
     };
 
     enum class State : uint8_t
@@ -64,6 +66,12 @@ private:
     void saveInstalledOnce();
     void restore();
     void confirmDelete(Set& set);
+    // Puts the sets in the chosen order, what the search finds first; the list shows only those.
+    void resort(bool keepSelection);
+    void openFilter();
+    void search();
+    void chooseSort();
+    float listTop() const;
     Set* selected();
     int includedCount() const;
     // How many pictures, and who made it.
@@ -71,13 +79,14 @@ private:
 
     State state_ = State::NotLoaded;
     std::string error_;
-    std::vector<Set> sets_;
+    std::vector<Set> sets_; // what the search finds first, shown_ of them; all of them without one
+    int shown_ = 0;
+    std::string query_;
     ui::ListView list_;
     gfx::IconAtlas atlas_;
     Previews previews_;
     CancelToken token_;
     int installedCount_ = -1; // on the HOME Menu; -1 until known
-    bool storageBusy_ = false; // the HOME Menu has the badges open (the app runs as an applet)
     uint32_t generation_ = 0;
 };
 

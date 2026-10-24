@@ -10,6 +10,7 @@
 #include "domain/splashes.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 
 namespace tz::library
@@ -437,6 +438,36 @@ int compareNatural(std::string_view a, std::string_view b)
     return 0;
 }
 
+bool matchesSearch(std::string_view name, std::string_view author, std::string_view text)
+{
+    const auto has = [text](std::string_view in) {
+        return std::search(in.begin(), in.end(), text.begin(), text.end(), [](char a, char b) {
+                   return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
+               }) != in.end();
+    };
+    return text.empty() || has(name) || has(author);
+}
+
+const char* sortLabel(Sort sort)
+{
+    switch (sort)
+    {
+    case Sort::Author:
+        return "Author";
+    case Sort::FileName:
+        return "File name";
+    case Sort::Newest:
+        return "Newest first";
+    case Sort::Oldest:
+        return "Newest last";
+    case Sort::Badges:
+        return "Most badges";
+    case Sort::Name:
+        break;
+    }
+    return "Name";
+}
+
 bool comesBefore(const Item& x, const Item& y, Sort order)
 {
     auto byName = [](const Item& a, const Item& b) {
@@ -446,6 +477,7 @@ bool comesBefore(const Item& x, const Item& y, Sort order)
     switch (order)
     {
     case Sort::Name:
+    case Sort::Badges:
         return byName(x, y);
     case Sort::Author:
     {

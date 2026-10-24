@@ -332,3 +332,13 @@ TEST(splashes_luma_config_bin)
     CHECK(!*splashes::turnOnInLuma(sd));
     CHECK(*sd.readFile(splashes::kLumaBinPath, 0x1000) == config);
 }
+
+TEST(library_search_matches_name_or_author_ignoring_case)
+{
+    CHECK(library::matchesSearch("Pixel Forest", "Mira", ""));
+    CHECK(library::matchesSearch("Pixel Forest", "Mira", "forest"));
+    CHECK(library::matchesSearch("Pixel Forest", "Mira", "MIRA"));
+    CHECK(library::matchesSearch("Pixel Forest", "Mira", "el Fo"));
+    CHECK(!library::matchesSearch("Pixel Forest", "Mira", "zelda"));
+    CHECK(!library::matchesSearch("Pixel Forest", "", "mira"));
+}

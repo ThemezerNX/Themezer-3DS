@@ -42,6 +42,7 @@ struct Config
     catalog::Order browseOrder = catalog::Order::Newest;
     library::Sort themeSort = library::Sort::Name;
     library::Sort splashSort = library::Sort::Name;
+    library::Sort badgeSort = library::Sort::Name;
     int lastTab = 0;
 
     // Missing or broken settings keep their defaults.

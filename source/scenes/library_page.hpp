@@ -81,6 +81,11 @@ private:
     // The order the page's kind is in, in the settings.
     library::Sort& sortSetting();
     void chooseSort();
+    // X: searching and the order
+    void openFilter();
+    void search();
+    // Under the tabs, and under the search when there is one.
+    float listTop() const;
     // Reads the listed items' modified times, then puts them in order again.
     void readTimes();
 
@@ -108,7 +113,10 @@ private:
     library::Kind kind_;
     State state_ = State::NotLoaded;
     std::string error_;
+    // the ones the search finds first, the list showing only those (shown_ of them); all of them without one
     std::vector<Entry> entries_;
+    int shown_ = 0;
+    std::string query_;
     std::unordered_map<uint64_t, size_t> index_;
     ui::ListView list_;
     gfx::IconAtlas atlas_;

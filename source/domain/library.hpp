@@ -112,7 +112,11 @@ enum class Sort : uint8_t
     FileName,
     Newest, // by when the file last changed: when it was downloaded, for a download
     Oldest,
+    Badges, // badge sets: the most badges first (others go by name)
 };
+
+// The order's name, in English for tr().
+const char* sortLabel(Sort sort);
 
 // Whether the order needs the items' modified times.
 bool byTime(Sort sort);
@@ -122,6 +126,10 @@ uint64_t modifiedTime(FileSystem& sd, const Source& source);
 void sort(std::vector<Item>& items, Sort sort);
 // Whether x comes before y in that order: sort()'s comparison, for sorting things that hold items.
 bool comesBefore(const Item& x, const Item& y, Sort sort);
+
+// Whether a name or author has text in it, ignoring case: the SD card's search. Everything matches no text.
+// shortcut: only ASCII letters are matched case-blind; widen it if people search in other scripts.
+bool matchesSearch(std::string_view name, std::string_view author, std::string_view text);
 
 // Natural order: "Theme 2" before "Theme 10", ignoring case.
 int compareNatural(std::string_view a, std::string_view b);
