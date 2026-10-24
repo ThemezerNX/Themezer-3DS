@@ -31,16 +31,23 @@ TiledPixels tile(const Image& image, bool opaque)
     pixels.textureHeight = powerOfTwo(pixels.height);
     pixels.opaque = opaque;
     const size_t texels = static_cast<size_t>(pixels.textureWidth) * pixels.textureHeight;
-    if (opaque)
-    {
-        pixels.data.assign(texels * 2, 0);
-        tileRgb565(image, reinterpret_cast<uint16_t*>(pixels.data.data()), pixels.textureWidth, pixels.textureHeight);
-    }
-    else
-    {
-        pixels.data.assign(texels * 4, 0);
-        tileRgba8(image, reinterpret_cast<uint32_t*>(pixels.data.data()), pixels.textureWidth, pixels.textureHeight);
-    }
+    pixels.data.assign(texels * (opaque ? 2 : 4), 0);
+    const auto put = [&](const Image& part, int x, int y) {
+        if (opaque)
+            tileRgb565(part, reinterpret_cast<uint16_t*>(pixels.data.data()), pixels.textureWidth,
+                       pixels.textureHeight, x, y);
+        else
+            tileRgba8(part, reinterpret_cast<uint32_t*>(pixels.data.data()), pixels.textureWidth,
+                      pixels.textureHeight, x, y);
+    };
+    put(image, 0, 0);
+    // the row under the picture and the column after it repeat its edges: linear filtering at the picture's edge blends
+    // in the texel beyond it, which would otherwise be the texture's empty rest (a dark fringe on a stretched blur)
+    const int w = image.width;
+    const int h = image.height;
+    put(crop(image, 0, h - 1, w, 1), 0, h);
+    put(crop(image, w - 1, 0, 1, h), w, 0);
+    put(crop(image, w - 1, h - 1, 1, 1), w, h);
     return pixels;
 }
 
