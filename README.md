@@ -60,6 +60,15 @@ make preview  # opens the 3dsx in the Azahar emulator
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) has more: trying the app in an emulator, and the autopilot that walks
 through its screens and takes screenshots.
 
+## LLM use
+
+Themezer-3DS was programmed with the help of an LLM (Claude): most of the code and docs were written with it, then
+reviewed and tested on real consoles.
+
+The background music, "Aether", was generated with [Suno](https://suno.com). No other images or sounds are generated
+by AI: the banner, boot animation, icon and backdrop are drawn by the scripts in `tools/` from Themezer's own design
+files, the banner tune and UI sounds are synthesised by those scripts, and the UI icons are [Lucide](https://lucide.dev).
+
 ## License
 
 Themezer-3DS is free software: you can redistribute it and/or modify it under the terms of the
@@ -86,5 +95,5 @@ The file formats the app works with were documented by others before it:
   for the badge files.
 - [Luma3DS](https://github.com/LumaTeam/Luma3DS), for its splash screens.
 
-The banner, boot animation, tune and background music are Themezer's own; [meta/README.md](meta/README.md) describes
-how they were made and how to rebuild them.
+The banner, boot animation and tune are Themezer's own, and the background music was generated with Suno;
+[meta/README.md](meta/README.md) describes how they were made and how to rebuild them.
