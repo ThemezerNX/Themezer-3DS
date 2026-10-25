@@ -210,9 +210,8 @@ Image captureScreens()
     constexpr int kTop = 400;
     constexpr int kBottom = 320;
     constexpr int kHeight = 240;
+    // see-through beside the bottom screen, where the console has nothing
     Image image(kTop, kHeight * 2);
-    for (size_t i = 0; i < image.pixels.size(); i += 4)
-        image.pixels[i + 3] = 0xFF;
     for (int which = 0; which < 2; ++which)
     {
         const gfxScreen_t screen = which == 0 ? GFX_TOP : GFX_BOTTOM;
@@ -235,6 +234,7 @@ Image captureScreens()
                 out[0] = pixel[2];
                 out[1] = pixel[1];
                 out[2] = pixel[0];
+                out[3] = 0xFF;
             }
         }
     }
