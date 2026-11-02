@@ -61,7 +61,8 @@ through its screens and takes screenshots.
 ## LLM use
 
 Themezer-3DS was programmed with the help of an LLM (Claude): most of the code and docs were written with it, then
-reviewed and tested on real consoles.
+reviewed and tested on real consoles. The translations in `romfs/lang` were made with it too; corrections from people
+who speak the language are welcome.
 
 The background music, "Aether", was generated with [Suno](https://suno.com). No other images or sounds are generated
 by AI: the banner, boot animation, icon and backdrop are drawn by the scripts in `tools/` from Themezer's own design

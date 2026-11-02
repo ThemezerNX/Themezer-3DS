@@ -344,7 +344,7 @@ std::string BadgesPage::detailOf(const Set& set) const
         return tr("The pictures directly in /Badges");
     std::string detail;
     if (set.summarized)
-        detail = trf(set.summary.badges == 1 ? "{} badge" : "{} badges", std::to_string(set.summary.badges));
+        detail = trn("{} badge", "{} badges", set.summary.badges);
     if (!set.source.author.empty())
         detail += (detail.empty() ? "" : " \u00B7 ") + set.source.author;
     return detail;
@@ -358,9 +358,9 @@ void BadgesPage::drawTop()
     {
         // what the HOME Menu has, even without sets on the SD card
         if (installedCount_ >= 0 && state_ == State::Ready)
-            drawText(trf("{} badges on the HOME Menu", std::to_string(installedCount_)), metric::kTopWidth / 2,
-                     textTop(metric::kHeight - 22, metric::kTextSmall), metric::kTextSmall, color::kTextDim,
-                     Align::Center);
+            drawText(trn("{} badge on the HOME Menu", "{} badges on the HOME Menu", installedCount_),
+                     metric::kTopWidth / 2, textTop(metric::kHeight - 22, metric::kTextSmall), metric::kTextSmall,
+                     color::kTextDim, Align::Center);
         return;
     }
     // the set's icon, name and author, its badges blurred behind them (see backdrop()), as the other tabs show an item
@@ -391,9 +391,7 @@ void BadgesPage::drawTop()
     // what it is, along the bottom, and what's going on with it at the right
     FactsLine facts;
     if (set->summarized)
-        facts.left(Icon::Badge,
-                   trf(set->summary.badges == 1 ? "{} badge" : "{} badges", std::to_string(set->summary.badges)),
-                   color::kTextDim);
+        facts.left(Icon::Badge, trn("{} badge", "{} badges", set->summary.badges), color::kTextDim);
     if (installedCount_ >= 0)
         facts.left(Icon::Info, trf("The HOME Menu has {} now", std::to_string(installedCount_)), color::kTextDim);
     if (!set->included)
@@ -500,7 +498,7 @@ void BadgesPage::openFilter()
     actions.push_back({Icon::Search, tr("Search the SD card"),
                        query_.empty() ? tr("By name or author") : trf("Now: \"{}\"", query_), true, false,
                        [this] { search(); }});
-    actions.push_back({Icon::Sort, tr("Sort"), trf("Now: {}", tr(library::sortLabel(order))), true, false,
+    actions.push_back({Icon::Sort, tr("Sort"), trf("Now: {}", sortLabel(order)), true, false,
                        [this] { chooseSort(); }});
     App::get().scenes().emplace<ui::ActionSheet>(tr("Filter"), std::move(actions), accent().light);
 }
@@ -522,7 +520,7 @@ void BadgesPage::chooseSort()
                                library::Sort::Oldest, library::Sort::Badges})
     {
         options.push_back({sort == App::get().config().badgeSort ? Icon::SquareCheck : Icon::Square,
-                           tr(library::sortLabel(sort)), {}, true, false, [this, sort] {
+                           sortLabel(sort), {}, true, false, [this, sort] {
                                App::get().config().badgeSort = sort;
                                App::get().saveConfig();
                                resort(true);
@@ -538,7 +536,7 @@ void BadgesPage::openActions()
         return;
     const uint64_t key = set->key;
     std::vector<ui::Action> actions;
-    actions.push_back({Icon::Install, trf("Install {} badge sets", std::to_string(includedCount())), {},
+    actions.push_back({Icon::Install, trn("Install {} badge set", "Install {} badge sets", includedCount()), {},
                        includedCount() > 0, false, [this] { install(); }});
     actions.push_back({set->included ? Icon::Square : Icon::SquareCheck,
                        set->included ? tr("Skip this set") : tr("Keep this set"), {}, true, false,
@@ -649,14 +647,14 @@ void BadgesPage::installSets(std::vector<badges::SetSource> chosen)
                 return;
             }
             installedCount_ = result->badges;
-            ui::toast(trf("{} badges in {} sets are installed", std::to_string(result->badges),
-                          std::to_string(result->sets)),
+            ui::toast(trn("{} badge in {} is installed", "{} badges in {} are installed", result->badges,
+                          trn("{} set", "{} sets", result->sets)),
                       ui::ToastKind::Success);
             if (result->full)
                 ui::toast(tr("The HOME Menu has room for 1000 badges in 100 sets: the rest was left out"),
                           ui::ToastKind::Warning);
             if (result->skipped > 0)
-                ui::toast(trf("{} pictures couldn't be used", std::to_string(result->skipped)),
+                ui::toast(trn("{} picture couldn't be used", "{} pictures couldn't be used", result->skipped),
                           ui::ToastKind::Warning);
             ui::toast(tr("Press HOME to see them"));
             App::get().badgesChanged();
@@ -731,7 +729,7 @@ void BadgesPage::exportBadges()
                 showError(describe(result.error()));
                 return;
             }
-            ui::toast(trf("{} badges saved in {}", std::to_string(result->first), result->second),
+            ui::toast(trn("{} badge saved in {}", "{} badges saved in {}", result->first, result->second),
                       ui::ToastKind::Success);
         }));
 }
@@ -766,8 +764,8 @@ void BadgesPage::saveInstalledOnce()
             if (!result)
                 showError(describe(result.error()));
             else if (*result > 0)
-                ui::toast(trf("Your {} HOME Menu badges are saved as sets in {}", std::to_string(*result),
-                              library::kBadgesRoot),
+                ui::toast(trn("Your {} HOME Menu badge is saved as a set in {}",
+                              "Your {} HOME Menu badges are saved as sets in {}", *result, library::kBadgesRoot),
                           ui::ToastKind::Success);
             load();
         }));

@@ -115,9 +115,6 @@ enum class Sort : uint8_t
     Badges, // badge sets: the most badges first (others go by name)
 };
 
-// The order's name, in English for tr().
-const char* sortLabel(Sort sort);
-
 // Whether the order needs the items' modified times.
 bool byTime(Sort sort);
 // When an item's file last changed: the zip's, or the folder's (else its info.smdh's); 0 when the SD card can't say.

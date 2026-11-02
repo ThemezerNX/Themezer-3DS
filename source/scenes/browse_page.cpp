@@ -126,7 +126,7 @@ std::string nameOf(const catalog::Item& item)
 // "12 badges", for a badge set whose site says how many, as the SD card's badge sets show it.
 std::string badgeCountOf(const catalog::Item& item)
 {
-    return trf(item.badgeCount == 1 ? "{} badge" : "{} badges", std::to_string(item.badgeCount));
+    return trn("{} badge", "{} badges", item.badgeCount);
 }
 
 // A row's second line: who made it, after how many badges a badge set holds, as on the SD card.
@@ -190,19 +190,19 @@ const char* orderLabel(catalog::Order order)
     switch (order)
     {
     case catalog::Order::Oldest:
-        return "Newest last";
+        return tr("Newest last");
     case catalog::Order::MostDownloaded:
-        return "Most downloaded";
+        return tr("Most downloaded");
     case catalog::Order::LeastDownloaded:
-        return "Least downloaded";
+        return tr("Least downloaded");
     case catalog::Order::MostTrending:
-        return "Most trending";
+        return tr("Most trending");
     case catalog::Order::LeastTrending:
-        return "Least trending";
+        return tr("Least trending");
     case catalog::Order::Newest:
         break;
     }
-    return "Newest first";
+    return tr("Newest first");
 }
 
 } // namespace
@@ -1033,7 +1033,7 @@ void BrowsePage::openFilter()
     actions.push_back({Icon::Search, trf("Search {}", catalog::sourceName(source_)),
                        query_.empty() ? std::string() : trf("Now: \"{}\"", query_), true, false, [this] { search(); }});
     actions.push_back({Icon::Sort, tr("Sort"),
-                       source_ == Source::Themezer ? trf("Now: {}", tr(orderLabel(App::get().config().browseOrder)))
+                       source_ == Source::Themezer ? trf("Now: {}", orderLabel(App::get().config().browseOrder))
                                                    : std::string(tr("Only on Themezer")),
                        source_ == Source::Themezer, false, [this] { chooseOrder(); }});
     App::get().scenes().emplace<ui::ActionSheet>(tr("Filter"), std::move(actions), accent().light);
@@ -1047,7 +1047,7 @@ void BrowsePage::chooseOrder()
                                  catalog::Order::LeastDownloaded, catalog::Order::MostTrending,
                                  catalog::Order::LeastTrending})
     {
-        options.push_back({order == current ? Icon::SquareCheck : Icon::Square, tr(orderLabel(order)), {}, true, false,
+        options.push_back({order == current ? Icon::SquareCheck : Icon::Square, orderLabel(order), {}, true, false,
                            [this, order] {
                                App::get().config().browseOrder = order;
                                App::get().saveConfig();

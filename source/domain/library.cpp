@@ -448,26 +448,6 @@ bool matchesSearch(std::string_view name, std::string_view author, std::string_v
     return text.empty() || has(name) || has(author);
 }
 
-const char* sortLabel(Sort sort)
-{
-    switch (sort)
-    {
-    case Sort::Author:
-        return "Author";
-    case Sort::FileName:
-        return "File name";
-    case Sort::Newest:
-        return "Newest first";
-    case Sort::Oldest:
-        return "Newest last";
-    case Sort::Badges:
-        return "Most badges";
-    case Sort::Name:
-        break;
-    }
-    return "Name";
-}
-
 bool comesBefore(const Item& x, const Item& y, Sort order)
 {
     auto byName = [](const Item& a, const Item& b) {

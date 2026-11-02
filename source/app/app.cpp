@@ -379,8 +379,8 @@ int App::run(int argc, char** argv)
     {
         // nothing can be shown without the screens or the SD card; say so on the console's own error screen
         errorConf error;
-        errorInit(&error, ERROR_TEXT, CFG_LANGUAGE_EN);
-        errorText(&error, "Themezer couldn't start: the SD card can't be read.");
+        errorInit(&error, ERROR_TEXT, static_cast<CFG_Language>(language_));
+        errorText(&error, tr("Themezer couldn't start: the SD card can't be read."));
         errorDisp(&error);
         shutdown();
         return 1;

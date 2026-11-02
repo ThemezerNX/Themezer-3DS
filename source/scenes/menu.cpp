@@ -185,7 +185,7 @@ public:
     SettingsScene()
     {
         list_.setRowHeight(48);
-        list_.setCount(static_cast<int>(kRows.size()));
+        list_.setCount(static_cast<int>(rows_.size()));
     }
 
     void update(ui::Input& input, float dt) override
@@ -201,7 +201,7 @@ public:
             return;
         }
         if (event == ui::ListView::Event::Activated)
-            change(kRows[list_.selected()].setting);
+            change(rows_[list_.selected()].setting);
     }
 
     void drawTop() override
@@ -222,7 +222,7 @@ public:
         drawText(tr("Settings"), 16, textTop(kHeader / 2, metric::kTextNormal), metric::kTextNormal, color::kText);
         const Config& config = App::get().config();
         list_.draw([&](int index, float x, float y, float w, float h, bool) {
-            const Row& row = kRows[index];
+            const Row& row = rows_[index];
             const float middle = y + h / 2;
             float right = x + w - 18;
             if (row.setting == Setting::BrowseSource)
@@ -240,9 +240,9 @@ public:
                 icon(on ? Icon::SquareCheck : Icon::Square, x + 18, std::round(middle - metric::kIcon / 2),
                      metric::kIcon, on ? color::kPrimaryLight : color::kTextDim);
             }
-            drawText(tr(row.label), x + 44, textTop(middle - 7.5f, metric::kTextNormal), metric::kTextNormal,
+            drawText(row.label, x + 44, textTop(middle - 7.5f, metric::kTextNormal), metric::kTextNormal,
                      color::kText, Align::Left, right - x - 44);
-            drawText(tr(row.detail), x + 44, textTop(middle + 8, metric::kTextSmall), metric::kTextSmall,
+            drawText(row.detail, x + 44, textTop(middle + 8, metric::kTextSmall), metric::kTextSmall,
                      color::kTextDim, Align::Left, right - x - 44);
         }, {}, [](float x, float y, float w, float h, bool down) {
             ui::drawKey(x, y, w, h, color::kSurfaceHigh, down, metric::kRadius);
@@ -269,12 +269,12 @@ private:
         const char* detail;
     };
 
-    static constexpr std::array<Row, 5> kRows{{
-        {Setting::BackgroundMusic, "Background music", "Themezer's own tune while you browse"},
-        {Setting::PreviewMusic, "Music in previews", "A theme's music plays with its preview"},
-        {Setting::Sounds, "Sounds", "A sound as you move, open and choose"},
-        {Setting::BrowseSource, "Browse", "Or SELECT on the globe tab"},
-        {Setting::CheckForUpdates, "Check for updates", "When the app starts, it looks for a new version"},
+    const std::array<Row, 5> rows_{{
+        {Setting::BackgroundMusic, tr("Background music"), tr("Themezer's own tune while you browse")},
+        {Setting::PreviewMusic, tr("Music in previews"), tr("A theme's music plays with its preview")},
+        {Setting::Sounds, tr("Sounds"), tr("A sound as you move, open and choose")},
+        {Setting::BrowseSource, tr("Browse"), tr("Or SELECT on the globe tab")},
+        {Setting::CheckForUpdates, tr("Check for updates"), tr("When the app starts, it looks for a new version")},
     }};
 
     static bool isOn(const Config& config, Setting setting)

@@ -48,10 +48,10 @@ void installTheme(const library::Source& source, const std::string& name, ThemeM
     };
     Archive* theme = storage.theme.get();
     Archive* home = storage.home.get();
-    const char* title = mode == ThemeMode::MusicOnly ? "Installing the music of {}" : "Installing {}";
 
     App::get().scenes().push(ui::ProgressOverlay::start<Expected<Outcome>>(
-        {trf(title, name), Lane::Io, false, true, gfx::accent::kThemes.solid},
+        {trf(mode == ThemeMode::MusicOnly ? "Installing the music of {}" : "Installing {}", name), Lane::Io, false,
+         true, gfx::accent::kThemes.solid},
         [source, mode, theme, home](ui::TaskProgress& progress, const CancelToken&) -> Expected<Outcome> {
             progress.setStatus(tr("Reading the theme"));
             progress.set(0, 3);

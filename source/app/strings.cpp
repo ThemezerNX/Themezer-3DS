@@ -3,17 +3,23 @@
 
 #include "app/strings.hpp"
 
+#include "core/plural.hpp"
+
 #include <3ds.h>
+#include <algorithm>
 #include <jansson.h>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace tz
 {
 
 namespace
 {
-std::unordered_map<std::string, std::string> translations;
+// a text's forms: one, or a plural's (trn())
+std::unordered_map<std::string, std::vector<std::string>> translations;
+const char* language = "en";
 
 const char* languageCode(int language)
 {
@@ -50,7 +56,8 @@ const char* languageCode(int language)
 void loadTranslations(int systemLanguage)
 {
     translations.clear();
-    const std::string path = std::string("romfs:/lang/") + languageCode(systemLanguage) + ".json";
+    language = languageCode(systemLanguage);
+    const std::string path = std::string("romfs:/lang/") + language + ".json";
     json_error_t error;
     json_t* root = json_load_file(path.c_str(), 0, &error);
     if (!root)
@@ -59,8 +66,23 @@ void loadTranslations(int systemLanguage)
     json_t* value;
     json_object_foreach(root, key, value)
     {
+        // an empty text isn't translated yet
+        std::vector<std::string> forms;
         if (json_is_string(value) && json_string_length(value) > 0)
-            translations.emplace(key, json_string_value(value));
+            forms.emplace_back(json_string_value(value));
+        size_t i;
+        json_t* form;
+        json_array_foreach(value, i, form)
+        {
+            if (!json_is_string(form) || json_string_length(form) == 0)
+            {
+                forms.clear();
+                break;
+            }
+            forms.emplace_back(json_string_value(form));
+        }
+        if (!forms.empty())
+            translations.emplace(key, std::move(forms));
     }
     json_decref(root);
 }
@@ -70,7 +92,16 @@ const char* tr(const char* english)
     if (translations.empty())
         return english;
     auto it = translations.find(english);
-    return it == translations.end() ? english : it->second.c_str();
+    return it == translations.end() ? english : it->second.front().c_str();
+}
+
+const char* trPlural(const char* one, const char* other, unsigned long count)
+{
+    auto it = translations.find(other);
+    if (it == translations.end())
+        return count == 1 ? one : other;
+    const std::vector<std::string>& forms = it->second;
+    return forms[std::min(pluralForm(language, count), forms.size() - 1)].c_str();
 }
 
 std::string format(std::string_view pattern, std::initializer_list<std::string_view> args)

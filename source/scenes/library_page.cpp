@@ -677,13 +677,13 @@ void LibraryPage::drawTop()
 const char* LibraryPage::statusOf(const Entry& entry) const
 {
     if (kind_ == library::Kind::Theme)
-        return entry.installed ? (installedShuffle_ ? "In shuffle" : "In use") : nullptr;
+        return entry.installed ? (installedShuffle_ ? tr("In shuffle") : tr("In use")) : nullptr;
     if (entry.installed)
-        return "In use";
+        return tr("In use");
     if (entry.topInstalled)
-        return "Top in use";
+        return tr("Top in use");
     if (entry.bottomInstalled)
-        return "Bottom in use";
+        return tr("Bottom in use");
     return nullptr;
 }
 
@@ -721,7 +721,7 @@ void LibraryPage::drawDetails(const Entry& entry)
     if (item.info && item.info->hasMusic)
         facts.left(Icon::Music, tr("Has music"), color::kTextDim);
     if (const char* status = statusOf(entry))
-        facts.right(Icon::Check, tr(status), accent().light);
+        facts.right(Icon::Check, status, accent().light);
     for (size_t i = 0; i < shuffle_.size(); ++i)
         if (shuffle_[i].key == entry.key)
             facts.right(Icon::Shuffle,
@@ -793,7 +793,7 @@ void LibraryPage::drawRow(int index, float x, float y, float w, float h)
 
     float right = x + w - row::kRight;
     if (const char* status = statusOf(entry))
-        right = row::status(Icon::Check, tr(status), accent().light, right, y, h);
+        right = row::status(Icon::Check, status, accent().light, right, y, h);
     if (kind_ == library::Kind::Theme && item.info && item.info->hasMusic)
         right = row::mark(Icon::Music, color::kTextFaint, right, y, h);
 
@@ -984,8 +984,8 @@ void LibraryPage::installShuffle()
     Archive* home = storage.home.get();
 
     App::get().scenes().push(ui::ProgressOverlay::start<Expected<std::vector<library::FileId>>>(
-        {trf("Installing a shuffle of {} themes", std::to_string(picks->size())), Lane::Io, false, true,
-         accent().solid},
+        {trn("Installing a shuffle of {} theme", "Installing a shuffle of {} themes", picks->size()), Lane::Io, false,
+         true, accent().solid},
         [picks, theme, home](ui::TaskProgress& progress,
                              const CancelToken&) -> Expected<std::vector<library::FileId>> {
             std::vector<library::FileId> bodies;
@@ -1143,7 +1143,7 @@ void LibraryPage::chooseSort()
     for (library::Sort sort : {library::Sort::Name, library::Sort::Author, library::Sort::FileName,
                                library::Sort::Newest, library::Sort::Oldest})
     {
-        options.push_back({sort == sortSetting() ? Icon::SquareCheck : Icon::Square, tr(library::sortLabel(sort)), {},
+        options.push_back({sort == sortSetting() ? Icon::SquareCheck : Icon::Square, sortLabel(sort), {},
                            true, false, [this, sort] {
                                sortSetting() = sort;
                                App::get().saveConfig();
@@ -1167,7 +1167,7 @@ void LibraryPage::openFilter()
     actions.push_back({Icon::Search, tr("Search the SD card"),
                        query_.empty() ? tr("By name or author") : trf("Now: \"{}\"", query_), true, false,
                        [this] { search(); }});
-    actions.push_back({Icon::Sort, tr("Sort"), trf("Now: {}", tr(library::sortLabel(sortSetting()))), true, false,
+    actions.push_back({Icon::Sort, tr("Sort"), trf("Now: {}", sortLabel(sortSetting())), true, false,
                        [this] { chooseSort(); }});
     App::get().scenes().emplace<ui::ActionSheet>(tr("Filter"), std::move(actions), accent().light);
 }

@@ -4,7 +4,7 @@
 #   make            the 3dsx and the cia, in out/
 #   make 3dsx       only the 3dsx
 #   make cia        only the cia
-#   make test       build and run the unit tests on this computer
+#   make test       build and run the unit tests on this computer, and check the translations (tools/i18n.py)
 #   make send       send the 3dsx to a console waiting in the Homebrew Launcher
 #   make preview    open the 3dsx in the Azahar emulator
 #   make update-certs  replace romfs/cacert.pem with curl's latest copy of Mozilla's CA list
@@ -37,6 +37,13 @@ APP_TITLE        := Themezer-3DS
 # the CIA's process name, which takes 8 characters at most
 APP_PROCESS_NAME := Themezer
 APP_DESCRIPTION  := Make Your 3DS Yours
+# the description in the console's other languages, for the CIA (the 3dsx's smdhtool takes one): the Themezer website's
+# slogan, from the monorepo's packages/i18n (meta.default.title)
+APP_DESCRIPTIONS := -jl "あなたのコンソールを自分らしく" -fl "Faites de votre console la vôtre" \
+                    -gl "Mach deine Konsole zu deiner" -il "Rendi la tua console tua" \
+                    -sl "Haz que tu consola sea tuya" -scl "让你的主机成为你的风格" -kl "콘솔을 당신답게" \
+                    -dl "Maak je console van jou" -pl "Torne a sua consola sua" -rl "Сделайте свою консоль своей" \
+                    -tcl "讓你的主機成為你的風格"
 APP_AUTHOR       := Themezer
 APP_UNIQUE_ID    := 0xC7E20
 APP_PRODUCT_CODE := CTR-P-TZ3D
@@ -204,7 +211,7 @@ $(BUILD)/banner.bnr: $(META)/banner.cgfx $(META)/audio.wav
 
 $(BUILD)/icon.icn: $(META)/icon.png Makefile
 	@mkdir -p $(BUILD)
-	@$(BANNERTOOL) makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" -p "$(APP_AUTHOR)" \
+	@$(BANNERTOOL) makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" $(APP_DESCRIPTIONS) -p "$(APP_AUTHOR)" \
 		-i $< -f "nosavebackups,visible" -o $@ > /dev/null
 
 $(CIA): $(ELF) $(BUILD)/banner.bnr $(BUILD)/icon.icn $(META)/app.rsf $(META)/logo.bin $(T3XFILES) $(ROMFS_GEN) $(shell find $(ROMFS) -type f 2>/dev/null)
@@ -235,6 +242,7 @@ test:
 	@$(HOST_CC) -std=gnu17 -g -O1 -fsanitize=address,undefined -c third_party/thumbhash/thumbhash.c -o $(BUILD)/host/thumbhash.o
 	@$(HOST_CXX) $(HOST_CXXFLAGS) -Ithird_party $(HOST_SOURCES) $(BUILD)/host/thumbhash.o $(HOST_PKG) -o $(BUILD)/host/tests
 	@$(BUILD)/host/tests
+	@python3 tools/i18n.py check
 
 #---------------------------------------------------------------------------------
 # The CA certificates HTTPS is checked against. The app stops checking once its copy is three years old (the app has

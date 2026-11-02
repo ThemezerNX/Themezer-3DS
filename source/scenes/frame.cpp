@@ -4,6 +4,7 @@
 #include "scenes/frame.hpp"
 
 #include "app/app.hpp"
+#include "app/strings.hpp"
 #include "gfx/draw.hpp"
 #include "gfx/renderer.hpp"
 #include "gfx/text.hpp"
@@ -242,6 +243,26 @@ void drawEmptyState(Icon which, Color iconColor, std::string_view title, std::st
     drawText(title, width / 2, y, metric::kTextNormal, color::kText, Align::Center, width - 32);
     y += lineHeight(metric::kTextNormal) + 6;
     drawWrapped(message, 24, y, width - 48, metric::kTextSmall, color::kTextDim, 4, Align::Center);
+}
+
+const char* sortLabel(library::Sort sort)
+{
+    switch (sort)
+    {
+    case library::Sort::Author:
+        return tr("Author");
+    case library::Sort::FileName:
+        return tr("File name");
+    case library::Sort::Newest:
+        return tr("Newest first");
+    case library::Sort::Oldest:
+        return tr("Newest last");
+    case library::Sort::Badges:
+        return tr("Most badges");
+    case library::Sort::Name:
+        break;
+    }
+    return tr("Name");
 }
 
 } // namespace tz::scenes

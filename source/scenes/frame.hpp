@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "domain/library.hpp"
 #include "gfx/draw.hpp"
 #include "gfx/palette.hpp"
 #include "gfx/texture.hpp"
@@ -99,5 +100,8 @@ void drawNothingToShow(std::string_view name, std::string_view why);
 // A page with nothing to show: a large icon, what's the matter, and what to do, centred between top and bottom.
 void drawEmptyState(gfx::Icon icon, gfx::Color iconColor, std::string_view title, std::string_view message, float top,
                     float bottom);
+
+// The order's name, as the sort menus show it.
+const char* sortLabel(library::Sort sort);
 
 } // namespace tz::scenes

@@ -250,7 +250,7 @@ Dialog::Dialog(Icon icon, Color iconColor, std::string title, std::string messag
       buttons_(std::move(buttons))
 {
     if (buttons_.empty())
-        buttons_.push_back({"OK", nullptr});
+        buttons_.push_back({tr("OK"), nullptr});
     sfx::play(sfx::Sound::Open);
 }
 
@@ -338,6 +338,16 @@ void Dialog::drawBottom()
                               : Box{std::round(20 + slotWidth * static_cast<float>(i) + 3), buttonsTop,
                                     std::round(slotWidth - 6), kButtonHeight});
     }
+    // a message's one button shows A, which B also presses
+    auto shownKey = [&](size_t i) {
+        return keyOf(i) == static_cast<u32>(KEY_A | KEY_B) ? static_cast<u32>(KEY_A) : keyOf(i);
+    };
+    // the labels all smaller when one doesn't fit, before it's cut short
+    auto room = [&](size_t i) { return boxes_[i].w - 12 - hintWidth(shownKey(i), ""); };
+    float labelSize = metric::kTextNormal;
+    for (size_t i = 0; i < buttons_.size(); ++i)
+        if (textWidth(buttons_[i].label, labelSize) > room(i))
+            labelSize = metric::kTextSmall;
     for (size_t i = 0; i < buttons_.size(); ++i)
     {
         const DialogButton& button = buttons_[i];
@@ -345,11 +355,11 @@ void Dialog::drawBottom()
         const bool primary = i + 1 == buttons_.size() && buttons_.size() > 1;
         const Color fillColor = primary ? (button.danger ? color::kDanger : color::kPrimary) : color::kSurfaceHigh;
         roundedRect(box.x, box.y, box.w, box.h, box.h / 2, fillColor);
-        // a message's one button shows A, which B also presses
-        const u32 key = keyOf(i) == static_cast<u32>(KEY_A | KEY_B) ? static_cast<u32>(KEY_A) : keyOf(i);
+        const u32 key = shownKey(i);
         const Color textColor = primary ? color::kOnAccent : color::kText;
-        const std::string label = ellipsize(button.label, box.w - 12 - hintWidth(key, ""), metric::kTextNormal);
-        drawHint(key, label, box.x + (box.w - hintWidth(key, label)) / 2, box.y + box.h / 2, textColor, textColor);
+        const std::string label = ellipsize(button.label, room(i), labelSize);
+        drawHint(key, label, box.x + (box.w - hintWidth(key, label, labelSize)) / 2, box.y + box.h / 2, textColor,
+                 textColor, labelSize);
     }
 }
 
@@ -448,7 +458,7 @@ void ProgressOverlay::drawBottom()
 
     if (options_.cancellable)
     {
-        const char* label = cancelRequested_ ? "Cancelling..." : "Cancel";
+        const char* label = cancelRequested_ ? tr("Cancelling...") : tr("Cancel");
         drawHint(KEY_B, label, x + width - 16 - hintWidth(KEY_B, label), y + height - 18, color::kText,
                  color::kTextDim);
     }

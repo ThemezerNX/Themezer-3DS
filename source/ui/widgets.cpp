@@ -23,6 +23,8 @@ constexpr float kHintGap = 4;
 constexpr float kHintMargin = 4;
 constexpr float kKeyHeight = 19;
 constexpr float kKeyPadding = 6;  // either side of the button and label
+constexpr float kTightPadding = 2; // and gap, when the labels don't fit
+constexpr float kMinLabel = 40;   // the least of a label that's cut short, with its "…", before a hint goes
 constexpr float kPressTime = 0.11f; // how long a pressed key stays down at least, as long as it's held
 
 // Where a button's hint goes, left to right as on a Switch: the others first, then SELECT (-), START (+), Y, X, B, A.
@@ -201,7 +203,8 @@ void HintBar::draw(const std::vector<Hint>& hints, float alpha, Color accent)
     const Layer layer(0, 0, alpha);
     rect(0, y_, metric::kBottomWidth, height_, withAlpha(color::kSurfaceSolid, 0.94f));
 
-    // in that order, A last; smaller labels when they don't fit, and then the first ones go
+    // in that order, A last. When they don't fit (translations run long): smaller labels, less room around them, then
+    // the longest cut short to the same width, and only when that leaves too little of them, the first ones go
     std::vector<const Hint*> order;
     order.reserve(hints.size());
     for (const Hint& hint : hints)
@@ -209,20 +212,58 @@ void HintBar::draw(const std::vector<Hint>& hints, float alpha, Color accent)
     std::stable_sort(order.begin(), order.end(),
                      [](const Hint* a, const Hint* b) { return hintRank(a->key) < hintRank(b->key); });
     float labelSize = metric::kTextNormal;
-    auto keyWidth = [&](const Hint& hint) {
-        return std::round(hintWidth(hint.key, hint.label, labelSize) + 2 * kKeyPadding);
+    float padding = kKeyPadding;
+    float gap = kHintGap;
+    auto keyWidth = [&](const Hint& hint, std::string_view label) {
+        return std::round(hintWidth(hint.key, label, labelSize) + 2 * padding);
     };
-    auto total = [&](size_t first) {
-        float sum = 2 * kHintMargin - kHintGap;
+    auto fits = [&] {
+        float sum = 2 * kHintMargin - gap;
+        for (const Hint* hint : order)
+            sum += keyWidth(*hint, hint->label) + gap;
+        return sum <= metric::kBottomWidth;
+    };
+    if (!fits())
+        labelSize = metric::kTextSmall;
+    if (!fits())
+        padding = gap = kTightPadding;
+    // the widest the labels of the hints from first on may be for them to fit: the longest are cut to it, the others
+    // keep theirs
+    auto labelCap = [&](size_t first) {
+        float room = metric::kBottomWidth - 2 * kHintMargin + gap;
+        std::vector<float> widths;
         for (size_t i = first; i < order.size(); ++i)
-            sum += keyWidth(*order[i]) + kHintGap;
+        {
+            room -= hintWidth(order[i]->key, "", labelSize) + 2 * padding + gap + 0.5f; // keyWidth rounds
+            widths.push_back(textWidth(order[i]->label, labelSize));
+        }
+        std::sort(widths.begin(), widths.end());
+        for (size_t i = 0; i < widths.size(); ++i)
+        {
+            const float share = room / static_cast<float>(widths.size() - i);
+            if (widths[i] > share)
+                return std::floor(share);
+            room -= widths[i];
+        }
+        return metric::kBottomWidth; // wider than any label
+    };
+    size_t first = 0;
+    float cap = metric::kBottomWidth;
+    if (!fits())
+    {
+        while (first + 1 < order.size() && labelCap(first) < kMinLabel)
+            ++first;
+        cap = labelCap(first);
+    }
+    std::vector<std::string> labels(order.size());
+    for (size_t i = first; i < order.size(); ++i)
+        labels[i] = ellipsize(order[i]->label, cap, labelSize);
+    auto total = [&](size_t first) {
+        float sum = 2 * kHintMargin - gap;
+        for (size_t i = first; i < order.size(); ++i)
+            sum += keyWidth(*order[i], labels[i]) + gap;
         return sum;
     };
-    if (total(0) > metric::kBottomWidth)
-        labelSize = metric::kTextSmall;
-    size_t first = 0;
-    while (first + 1 < order.size() && total(first) > metric::kBottomWidth)
-        ++first;
 
     // right-aligned; A, when it's there, takes what's left of the bar
     const float spare = std::max(0.0f, metric::kBottomWidth - total(first));
@@ -234,7 +275,7 @@ void HintBar::draw(const std::vector<Hint>& hints, float alpha, Color accent)
     {
         const Hint& hint = *order[i];
         const bool primary = hint.key == KEY_A;
-        const float width = keyWidth(hint) + (primary && wideA ? spare : 0);
+        const float width = keyWidth(hint, labels[i]) + (primary && wideA ? spare : 0);
         const bool down = hint.enabled &&
                           ((justPressed && hint.key == pressedKey_) || (held_ & hint.key) || hint.key == touchedKey_);
         Color face = primary ? accent : color::kSurfaceHigh;
@@ -245,12 +286,12 @@ void HintBar::draw(const std::vector<Hint>& hints, float alpha, Color accent)
             ink = color::kTextFaint;
         }
         const float keyTop = drawKey(x, top, width, kKeyHeight, face, down);
-        const float content = hintWidth(hint.key, hint.label, labelSize);
-        drawHint(hint.key, hint.label, x + std::round((width - content) / 2), keyTop + kKeyHeight / 2, ink, ink,
+        const float content = hintWidth(hint.key, labels[i], labelSize);
+        drawHint(hint.key, labels[i], x + std::round((width - content) / 2), keyTop + kKeyHeight / 2, ink, ink,
                  labelSize);
         // the whole height of the bar, and half the gaps
-        spots_.push_back({x - kHintGap / 2, width + kHintGap, hint.enabled ? hint.key : 0u});
-        x += width + kHintGap;
+        spots_.push_back({x - gap / 2, width + gap, hint.enabled ? hint.key : 0u});
+        x += width + gap;
     }
     // as update saw them this frame: without an update (an overlay is over the scene) the keys come up
     held_ = 0;

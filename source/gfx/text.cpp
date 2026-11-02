@@ -5,6 +5,7 @@
 
 #include "core/utf.hpp"
 #include "gfx/renderer.hpp"
+#include "sys/log.hpp"
 
 #include <3ds.h>
 #include <citro2d.h>
@@ -22,7 +23,12 @@ constexpr size_t kCacheLimit = 384;
 constexpr const char* kEllipsis = "…";
 
 C2D_TextBuf frameBuffer = nullptr;
-CFNT_s* font = nullptr;
+// the console's own font (nullptr), or for Chinese and Korean their region's, which consoles from elsewhere have too but
+// don't use: theirs hasn't got those letters
+C2D_Font font = nullptr;
+bool haveFont = false;
+// citro2d draws a font scaled to 30 pixels a line (its cells' height): the console's own is, the others aren't
+float fontScale = 1.0f;
 // the font's measures at size 1: its line, and the middle of its capitals below the line's top (the console's font
 // has its baseline 25 pixels down and capitals 19 pixels high)
 float baseLineFeed = 30.0f;
@@ -45,11 +51,10 @@ std::string cacheKey(std::string_view text, float width, float size, int lines)
 
 float advance(char32_t codePoint, float size)
 {
-    if (!font)
+    if (!haveFont)
         return 8.0f * size;
-    int glyph = fontGlyphIndexFromCodePoint(font, codePoint);
-    const charWidthInfo_s* info = fontGetCharWidthInfo(font, glyph);
-    return info ? info->charWidth * size : 0.0f;
+    const charWidthInfo_s* info = C2D_FontGetCharWidthInfo(font, C2D_FontGlyphIndexFromCodePoint(font, codePoint));
+    return info ? info->charWidth * fontScale * size : 0.0f;
 }
 
 bool breaksAnywhere(char32_t c)
@@ -68,7 +73,7 @@ void drawLine(std::string_view line, float x, float y, float size, Color color, 
         return;
     C2D_Text text;
     const std::string copy(line); // C2D wants a terminated string
-    C2D_TextParse(&text, frameBuffer, copy.c_str());
+    C2D_TextFontParse(&text, font, frameBuffer, copy.c_str());
     if (align == Align::Center)
         x -= textWidth(line, size) / 2;
     else if (align == Align::Right)
@@ -97,11 +102,29 @@ void initText()
 {
     frameBuffer = C2D_TextBufNew(kFrameGlyphs);
     fontEnsureMapped();
-    font = fontGetSystemFont();
-    if (font)
+    u8 language = CFG_LANGUAGE_EN;
+    CFGU_GetSystemLanguage(&language);
+    const CFG_Region region = language == CFG_LANGUAGE_ZH   ? CFG_REGION_CHN
+                              : language == CFG_LANGUAGE_TW ? CFG_REGION_TWN
+                              : language == CFG_LANGUAGE_KO ? CFG_REGION_KOR
+                                                            : CFG_REGION_USA;
+    if (region != CFG_REGION_USA)
     {
-        baseLineFeed = fontGetInfo(font)->lineFeed;
-        const float baseline = fontGetGlyphInfo(font)->baselinePos;
+        font = C2D_FontLoadSystem(region);
+        if (!font)
+            LOG_WARN("font: region %d's didn't load, %lu bytes of linear memory free", region,
+                     static_cast<unsigned long>(linearSpaceFree()));
+    }
+    haveFont = font || fontGetSystemFont();
+    if (haveFont)
+    {
+        const FINF_s* info = C2D_FontGetInfo(font);
+        fontScale = 30.0f / info->tglp->cellHeight;
+        baseLineFeed = info->lineFeed * fontScale;
+        const float baseline = info->tglp->baselinePos * fontScale;
+        // the console's own also when its system archives haven't got the other (emulators)
+        LOG_INFO("font: %s, cells %u high, baseline %u, lines %d", font ? "the language's region's" : "the console's",
+                 info->tglp->cellHeight, info->tglp->baselinePos, info->lineFeed);
         capitalsMiddle = baseline - baseline * 0.76f / 2;
     }
 }
@@ -111,6 +134,9 @@ void exitText()
     if (frameBuffer)
         C2D_TextBufDelete(frameBuffer);
     frameBuffer = nullptr;
+    if (font)
+        C2D_FontFree(font);
+    font = nullptr;
 }
 
 void beginTextFrame()

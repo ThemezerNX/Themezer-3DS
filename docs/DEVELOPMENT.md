@@ -9,10 +9,10 @@ The README lists what to install. Then:
 
 ```sh
 make            # out/themezer-3ds.3dsx and out/themezer-3ds.cia
-make test       # the unit tests of source/core and source/domain, on your computer
+make test       # the unit tests of source/core and source/domain, and the translations check, on your computer
 ```
 
-The tests need a C++23 compiler and libpng; they don't need devkitARM.
+The tests need a C++23 compiler, libpng and Python 3; they don't need devkitARM.
 
 ## Trying it in Azahar
 

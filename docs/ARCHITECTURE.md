@@ -51,7 +51,32 @@ Messages to the user say what happened and what to do, in plain words. The `Erro
 - `.clang-format` has the formatting.
 - Each file starts with its SPDX license line and copyright. New code is GPL-3.0-or-later.
 - Comments explain why, and the formats: offsets and their meaning, where they come from.
-- User-visible text goes through `app/strings` so it can be translated.
+- User-visible text goes through `app/strings` so it can be translated (below).
+
+## Translations
+
+The app speaks the console's language: `romfs/lang/<code>.json` maps each English text to its translation, and a text
+without one shows in English. The English in the code is the key:
+
+- `tr("Back")` for a text, `trf("Delete {}?", name)` to fill in its `{}`s in order.
+- `trn("{} badge", "{} badges", count)` for a text with a count, which fills its first `{}`. Its value in a translation
+  is an array of the language's plural forms (`core/plural.hpp`): one for Japanese, Chinese and Korean, three for
+  Russian, two for the rest.
+- Give them string literals, both arms of a `?:` at most: `tools/i18n.py` finds the keys in the code, and fails on a
+  `tr()` of a variable. Translate where a text is made, not where it's drawn.
+
+After changing a text, `python3 tools/i18n.py sync` adds it to every language's file, empty, and drops what the code
+doesn't have any more. `make test` runs `tools/i18n.py check`, which fails on a stale key, a `{}` too many or too few,
+or plural forms of the wrong length, and lists what isn't translated yet. To add a language the console has, give its
+code in `app/strings.cpp`, `tools/i18n.py`, and its plural rule in `core/plural.cpp`.
+
+Translations are about as long as the English. The hint bar has the least room: when a page's hints don't fit, their
+labels get smaller, then the keys closer together, then the longest labels are cut short with "…", and only when that
+would leave less than a few letters does the first hint go (as SELECT does in English while picking a shuffle). Dialog
+buttons get smaller, then cut short. So keep hint labels to a word, and check them in Azahar, whose font is a little
+wider than the console's. Translations use only characters the console's font has. Folder and file names the app makes
+on the SD card, the log, and names (Themezer, ThemePlaza, START, HOME...) stay English. The HOME Menu's description of
+the CIA in each language is `APP_DESCRIPTIONS` in the Makefile: the Themezer website's slogan.
 
 ## The screens
 
