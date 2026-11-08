@@ -13,6 +13,8 @@ namespace test
 using tz::Errc;
 using tz::fail;
 
+constexpr uint64_t kBlock = 0x1000;
+
 class MemoryFile final : public tz::File
 {
 public:
@@ -27,6 +29,10 @@ public:
     {
         if (offset > data_->size() || out.size() > data_->size() - offset)
             return fail(Errc::Io, "read past the end");
+        if (auto it = fs_.written_.find(data_.get()); it != fs_.written_.end() && !out.empty())
+            for (uint64_t block = offset / kBlock; block <= (offset + out.size() - 1) / kBlock; ++block)
+                if (!it->second[block])
+                    return fail(Errc::InvalidData, "never written");
         std::copy_n(data_->begin() + static_cast<ptrdiff_t>(offset), out.size(), out.begin());
         return {};
     }
@@ -44,6 +50,9 @@ public:
             data_->resize(static_cast<size_t>(offset + in.size()));
         }
         std::copy(in.begin(), in.end(), data_->begin() + static_cast<ptrdiff_t>(offset));
+        if (auto it = fs_.written_.find(data_.get()); it != fs_.written_.end() && !in.empty())
+            for (uint64_t block = offset / kBlock; block <= (offset + in.size() - 1) / kBlock; ++block)
+                it->second[block] = true;
         return {};
     }
 
@@ -77,14 +86,20 @@ tz::Expected<void> MemoryFs::createFile(std::string_view path, uint64_t size)
         return fail(Errc::InvalidData, "already exists");
     if (!directories_.contains(std::string(tz::path::parent(path))))
         return fail(Errc::NotFound, "no directory for " + std::string(path));
-    files_.emplace(std::string(path), std::make_shared<tz::Bytes>(static_cast<size_t>(size), 0));
+    auto data = std::make_shared<tz::Bytes>(static_cast<size_t>(size), 0);
+    if (fixedSize_)
+        written_[data.get()].assign(static_cast<size_t>((size + kBlock - 1) / kBlock), false);
+    files_.emplace(std::string(path), std::move(data));
     return {};
 }
 
 tz::Expected<void> MemoryFs::removeFile(std::string_view path)
 {
-    if (!files_.erase(std::string(path)))
+    auto it = files_.find(std::string(path));
+    if (it == files_.end())
         return fail(Errc::NotFound, std::string(path));
+    written_.erase(it->second.get());
+    files_.erase(it);
     return {};
 }
 

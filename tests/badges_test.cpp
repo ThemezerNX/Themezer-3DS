@@ -711,6 +711,30 @@ TEST(badges_backup)
     CHECK(badges::backupOnce(empty, sd2, "/backup").error().code == Errc::NotFound);
 }
 
+// A console that never used badges: its BadgeData.dat is the right size, but most of it was never written, and extdata
+// doesn't read back what never was.
+TEST(badges_unwritten_data)
+{
+    Badges b;
+    REQUIRE(b.ext.removeFile("/BadgeData.dat").has_value());
+    REQUIRE(b.ext.createFile("/BadgeData.dat", badges::kDataSize).has_value());
+    REQUIRE(badges::ensureFiles(b.ext).has_value());
+    addScenario(b.sd);
+
+    test::MemoryFs sd;
+    auto backup = badges::backupOnce(b.ext, sd, "/backup");
+    REQUIRE(backup.has_value());
+    CHECK(sd.data("/backup/BadgeData.dat") == Bytes(badges::kDataSize, 0));
+    auto installed = b.installAll();
+    REQUIRE(installed.has_value());
+    CHECK_EQ(installed->badges, 10);
+    auto saved = badges::exportBadges(b.ext, b.sd, "/Export", {});
+    REQUIRE(saved.has_value());
+    CHECK_EQ(*saved, 10);
+    REQUIRE(badges::restoreBackup(sd, "/backup", b.ext).has_value());
+    CHECK_EQ(badges::installedCount(b.ext), 0);
+}
+
 TEST(badges_export)
 {
     Badges b;

@@ -108,6 +108,8 @@ constexpr uint64_t kMaxPictureSize = 8u << 20;
 constexpr int kBatch = 32;
 constexpr size_t kCopyChunk = 0x10000;
 constexpr size_t kZeroChunk = 0x20000;
+// what extdata keeps a hash of, and so the least that reads back or doesn't
+constexpr uint64_t kExtdataBlock = 0x1000;
 
 // ---- names
 
@@ -595,6 +597,29 @@ private:
     Bytes small_;
 };
 
+// Reads a part of a badge file, with what was never written as zeros. Extdata doesn't read back a block that never was
+// (FS fails with D900458B), and on a console that never used badges, most of BadgeData.dat never was.
+Expected<void> readWritten(File& file, uint64_t offset, MutableByteSpan out)
+{
+    auto read = file.readAt(offset, out);
+    if (read || read.error().code != Errc::InvalidData)
+        return read;
+    for (size_t at = 0; at < out.size();)
+    {
+        const auto length =
+            static_cast<size_t>(std::min<uint64_t>(kExtdataBlock - (offset + at) % kExtdataBlock, out.size() - at));
+        const MutableByteSpan block = out.subspan(at, length);
+        if (auto part = file.readAt(offset + at, block); !part)
+        {
+            if (part.error().code != Errc::InvalidData)
+                return part;
+            std::fill(block.begin(), block.end(), uint8_t{0});
+        }
+        at += length;
+    }
+    return {};
+}
+
 // Reads the slots of BadgeData.dat a block of consecutive badges at a time, since badges are read in order.
 class SlotReader
 {
@@ -608,7 +633,7 @@ public:
         {
             const uint32_t count = std::min<uint32_t>(kBlock, kMaxBadges - block * kBlock);
             buffer_.resize(count * size_);
-            TZ_CHECK(file_.readAt(offset_ + uint64_t{block} * kBlock * size_, buffer_));
+            TZ_CHECK(readWritten(file_, offset_ + uint64_t{block} * kBlock * size_, buffer_));
             block_ = block;
         }
         return buffer_.data() + (slot % kBlock) * size_;
@@ -720,7 +745,7 @@ Expected<void> copyFile(File& from, File& to, uint64_t size)
     for (uint64_t at = 0; at < size; at += kCopyChunk)
     {
         const MutableByteSpan chunk(buffer.data(), static_cast<size_t>(std::min<uint64_t>(kCopyChunk, size - at)));
-        TZ_CHECK(from.readAt(at, chunk));
+        TZ_CHECK(readWritten(from, at, chunk));
         TZ_CHECK(to.writeAt(at, chunk));
     }
     return to.flush();
@@ -900,7 +925,7 @@ Expected<InstallResult> install(FileSystem& sd, FileSystem& badgeExt, std::span<
     // A new manager file, except for the badges placed on the HOME Menu, which are the HOME Menu's to keep. The
     // count of placed badges (0xC) starts again from 0, as GYTB and Anemone3DS have always left it.
     Bytes manager = emptyManager(principalId);
-    TZ_CHECK(managerFile->readAt(kPlacedOffset, MutableByteSpan(manager).subspan(kPlacedOffset)));
+    TZ_CHECK(readWritten(*managerFile, kPlacedOffset, MutableByteSpan(manager).subspan(kPlacedOffset)));
 
     InstallResult result;
     BadgeWriter writer(*data);

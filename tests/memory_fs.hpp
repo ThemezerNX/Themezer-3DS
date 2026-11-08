@@ -17,8 +17,8 @@ namespace test
 class MemoryFs final : public tz::FileSystem
 {
 public:
-    // Like extdata: files keep the size they were created with, writes past the end fail, and OpenMode::Create
-    // is refused.
+    // Like extdata: files keep the size they were created with, writes past the end fail, OpenMode::Create is
+    // refused, and a 4 KiB block of a created file that was never written doesn't read back.
     explicit MemoryFs(bool fixedSize = false) : fixedSize_(fixedSize) {}
 
     tz::Expected<std::unique_ptr<tz::File>> open(std::string_view path, tz::OpenMode mode) override;
@@ -46,6 +46,8 @@ private:
     friend class MemoryFile;
     bool fixedSize_;
     std::map<std::string, std::shared_ptr<tz::Bytes>> files_;
+    // which blocks of a file created in extdata were written
+    std::map<const tz::Bytes*, std::vector<bool>> written_;
     std::set<std::string> directories_{"/"};
     std::map<std::string, uint64_t> times_;
     size_t writes_ = 0;
