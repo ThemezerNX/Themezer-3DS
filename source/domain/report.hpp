@@ -23,13 +23,14 @@ struct Report
     std::string version;  // of the app
     std::string device;   // "New 3DS XL"
     std::string region;   // "EUR"
-    std::string firmware; // "11.17.0"
+    std::string firmware; // the system version, "11.17.0-50E"
     Error error;
-    std::vector<std::string> log; // the last lines of the app's log
+    std::vector<std::string> log; // the app's log, oldest first
 };
 
-// The JSON the server takes: { "version", "device", "region", "firmware", "error": "invalid data" (errcName), "system": "E0E083F2",
-// "detail", "log": [ ... ] }. Valid UTF-8 whatever the texts hold, and no larger than a few KiB.
+// The JSON the server takes: { "version", "device", "region", "firmware", "error": "invalid data" (errcName()),
+// "system": "E0E083F2", "detail", "log": [ ... ] }. Valid UTF-8 whatever the texts hold; each text is cut at 512
+// characters, and every line of the log goes.
 std::string toJson(const Report& report);
 
 } // namespace tz::report

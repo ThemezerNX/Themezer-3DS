@@ -13,6 +13,7 @@
 #include "ui/overlays.hpp"
 
 #include <3ds.h>
+#include <cstdint>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -22,8 +23,6 @@ namespace tz::report
 
 namespace
 {
-
-constexpr size_t kLogLines = 20;
 
 const char* modelName(u8 model)
 {
@@ -47,11 +46,13 @@ Report collect(const Error& error)
     CFGU_SecureInfoGetRegion(&region);
     report.device = modelName(model);
     report.region = regionName(region);
-    const u32 firm = osGetFirmVersion();
-    report.firmware = std::to_string(GET_VERSION_MAJOR(firm)) + "." + std::to_string(GET_VERSION_MINOR(firm)) + "." +
-                      std::to_string(GET_VERSION_REVISION(firm));
+    // as System Settings shows it, "11.17.0-50E"
+    char version[32];
+    report.firmware = R_SUCCEEDED(osGetSystemVersionDataString(nullptr, nullptr, version, sizeof(version)))
+                          ? version
+                          : "unknown";
     report.error = error;
-    report.log = log::tail(kLogLines);
+    report.log = log::tail(SIZE_MAX); // all the kept lines
     return report;
 }
 
@@ -59,14 +60,17 @@ Report collect(const Error& error)
 
 void share(const Error& error)
 {
+    // collected now, on the main thread: the log as it was when the button was pressed, and the system version, which
+    // libctru reads by mounting the version title's RomFS (as ver:), better kept off the workers
+    std::string body = toJson(collect(error));
     jobs::async(
         Lane::Network,
-        [error](const CancelToken& token) -> Expected<void> {
+        [body = std::move(body)](const CancelToken& token) -> Expected<void> {
             net::Request request;
             request.url = std::string(themezer::kApiUrl) + "/reports";
             request.cancel = &token;
             std::unique_ptr<net::Client> client = net::takeClient();
-            Expected<net::Response> sent = client->post(request, toJson(collect(error)), "application/json");
+            Expected<net::Response> sent = client->post(request, body, "application/json");
             net::giveBack(std::move(client));
             if (!sent)
                 return fail(sent.error());

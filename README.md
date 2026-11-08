@@ -63,9 +63,9 @@ through its screens and takes screenshots.
 The app sends nothing about you or your console on its own. It talks to Themezer and ThemePlaza to list and download
 what you ask for, and to GitHub to check for updates. When something unexpected goes wrong (not a network or a full SD
 card), the error's dialog has a **Share error** button on Y. Only if you press it, the app sends Themezer the app's
-version, your console's model, region and firmware, the error, and the last lines of the app's log, which can include
-the names of files on your SD card. Nothing identifies you or your console, and Themezer only keeps it to look the error
-up. The code is in `source/services/reporter.cpp`.
+version, your console's model, region and system version, the error, and the app's log of this session, which can
+include the names of files on your SD card. The report holds no ID of you or your console, and Themezer only keeps it to
+look the error up. The code is in `source/services/reporter.cpp`.
 
 ## LLM use
 

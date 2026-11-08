@@ -5,7 +5,7 @@
 // offered, and nothing is ever sent otherwise). The report is
 //   POST <api>/reports   Content-Type: application/json   (the body is domain/report.hpp's toJson())
 // answered with any 2xx. Themezer only logs it, to look the error up later. It holds no ID of the console or the user:
-// the app's version, the console's model, region and firmware, the error and the last lines of the app's log.
+// the app's version, the console's model, region and system version, the error and the lines the app's log keeps.
 
 #pragma once
 

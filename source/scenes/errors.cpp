@@ -137,8 +137,8 @@ void showError(const ErrorInfo& info)
         ui::toast(info.title);
         return;
     }
-    // OK stays on A and B, as in any message: sharing is on Y, never by habit
-    std::vector<ui::DialogButton> buttons{{tr("OK"), nullptr}};
+    // OK stays on A and B, as in any message (two buttons would put the first on B): sharing is on Y, never by habit
+    std::vector<ui::DialogButton> buttons{{tr("OK"), nullptr, false, KEY_A | KEY_B}};
     if (info.report)
         buttons.insert(buttons.begin(),
                        {tr("Share error"), [error = *info.report] { report::share(error); }, false, KEY_Y});

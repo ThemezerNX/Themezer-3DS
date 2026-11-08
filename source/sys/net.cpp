@@ -909,7 +909,11 @@ Expected<Response> Client::get(const Request& request)
         headers = curl_slist_append(nullptr, accept.c_str());
     }
     if (!request.body.empty())
+    {
         headers = curl_slist_append(headers, ("Content-Type: " + request.bodyType).c_str());
+        // the body goes at once: no waiting up to a second for "100 Continue" first
+        headers = curl_slist_append(headers, "Expect:");
+    }
 
     const bool verify = !verificationOff.load(std::memory_order_relaxed);
     Expected<Response> result = [&] {

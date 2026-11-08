@@ -14,7 +14,6 @@ namespace
 {
 
 constexpr size_t kMaxText = 512;
-constexpr size_t kMaxLogLines = 24;
 
 // A JSON string: invalid UTF-8 becomes U+FFFD, and the text is cut at kMaxText code points.
 void appendString(std::string& out, std::string_view text)
@@ -103,10 +102,9 @@ std::string toJson(const Report& report)
     appendField(out, "system", system);
     appendField(out, "detail", report.error.detail);
     out += "\"log\":[";
-    const size_t first = report.log.size() > kMaxLogLines ? report.log.size() - kMaxLogLines : 0;
-    for (size_t i = first; i < report.log.size(); ++i)
+    for (size_t i = 0; i < report.log.size(); ++i)
     {
-        if (i > first)
+        if (i > 0)
             out += ',';
         appendString(out, report.log[i]);
     }

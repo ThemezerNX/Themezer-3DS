@@ -34,15 +34,14 @@ TEST(report_json)
 TEST(report_json_limits)
 {
     report::Report report;
-    // invalid UTF-8 becomes U+FFFD; texts are cut; only the last lines of the log go
+    // invalid UTF-8 becomes U+FFFD; texts are cut at 512 characters; every line of the log goes, in order
     report.error.detail = std::string("bad \xFF byte") + std::string(1000, 'x');
-    for (int i = 0; i < 100; ++i)
+    for (int i = 0; i < 128; ++i)
         report.log.push_back("line " + std::to_string(i));
     const std::string json = report::toJson(report);
     CHECK(json.find("bad \xEF\xBF\xBD byte") != std::string::npos);
-    CHECK(json.find(std::string(513, 'x')) == std::string::npos);
-    CHECK(json.find("\"line 75\"") == std::string::npos);
-    CHECK(json.find("\"line 76\"") != std::string::npos);
-    CHECK(json.find("\"line 99\"") != std::string::npos);
-    CHECK(json.size() < 8192);
+    CHECK(json.find(std::string(502, 'x')) != std::string::npos);
+    CHECK(json.find(std::string(503, 'x')) == std::string::npos);
+    CHECK(json.find("[\"line 0\",\"line 1\",") != std::string::npos);
+    CHECK(json.find(",\"line 127\"]}") != std::string::npos);
 }
