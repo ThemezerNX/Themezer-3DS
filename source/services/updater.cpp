@@ -204,8 +204,11 @@ Expected<void> installCia(net::Client& client, const Asset& asset, net::Progress
     Digest digest;
     uint64_t offset = 0;
     std::optional<Error> writeError;
-    net::Request request = assetRequest(asset, progress, cancel);
-    request.sink = [&](ByteSpan data) {
+    // AM refuses a write whose size isn't aligned (MISALIGNED_SIZE) unless it ends the CIA, while the network hands over
+    // any size: what doesn't fill a block waits for the next piece. The CIA's parts are 64-aligned.
+    constexpr size_t kBlock = 64;
+    Bytes pending;
+    const auto write = [&](ByteSpan data) {
         size_t done = 0;
         while (done < data.size())
         {
@@ -218,12 +221,24 @@ Expected<void> installCia(net::Client& client, const Asset& asset, net::Progress
             }
             done += written;
         }
-        digest.update(data);
         offset += data.size();
+        return true;
+    };
+    net::Request request = assetRequest(asset, progress, cancel);
+    request.sink = [&](ByteSpan data) {
+        digest.update(data);
+        pending.insert(pending.end(), data.begin(), data.end());
+        const size_t whole = pending.size() / kBlock * kBlock;
+        if (!write(ByteSpan(pending.data(), whole)))
+            return false;
+        pending.erase(pending.begin(), pending.begin() + whole);
         return true;
     };
 
     Expected<void> installed = downloadResult(client.get(request), writeError, digest, asset);
+    // the end of the CIA, which may be any size
+    if (installed && !pending.empty() && !write(pending))
+        installed = fail(*writeError);
     if (installed)
     {
         // either call closes the handle
