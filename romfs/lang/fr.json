@@ -209,6 +209,7 @@
   "Can't open the badge storage": "Stockage des badges inaccessible",
   "That's not a download": "Ce n'est pas un téléchargement",
   "The link doesn't lead to a zip file.": "Le lien ne mène pas à un fichier zip.",
+  "Share error": "Partager l'erreur",
   "Author": "Auteur",
   "File name": "Nom de fichier",
   "Most badges": "Plus de badges",
@@ -330,6 +331,8 @@
   "For example from themezer.net or themeplaza.art": "Par exemple depuis themezer.net ou themeplaza.art",
   "or": "ou",
   "Enter a Quick ID": "Saisir un Quick ID",
+  "Thanks, the error was shared": "Merci, l'erreur a été partagée",
+  "Couldn't share the error": "Impossible de partager l'erreur",
   "{} of {} MB": "{} sur {} Mo",
   "{} MB": "{} Mo",
   "Cancelling...": "Annulation..."

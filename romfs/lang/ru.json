@@ -217,6 +217,7 @@
   "Can't open the badge storage": "Не открыть хранилище значков",
   "That's not a download": "Это не загрузка",
   "The link doesn't lead to a zip file.": "Ссылка не ведёт к ZIP-файлу.",
+  "Share error": "Отправить ошибку",
   "Author": "Автор",
   "File name": "Имя файла",
   "Most badges": "Больше значков",
@@ -339,6 +340,8 @@
   "For example from themezer.net or themeplaza.art": "Например, с themezer.net или themeplaza.art",
   "or": "или",
   "Enter a Quick ID": "Введите Quick ID",
+  "Thanks, the error was shared": "Спасибо, ошибка отправлена",
+  "Couldn't share the error": "Не удалось отправить ошибку",
   "{} of {} MB": "{} из {} МБ",
   "{} MB": "{} МБ",
   "Cancelling...": "Отмена..."

@@ -209,6 +209,7 @@
   "Can't open the badge storage": "Impossibile aprire l'archivio delle spille",
   "That's not a download": "Non è un download",
   "The link doesn't lead to a zip file.": "Il link non porta a un file zip.",
+  "Share error": "Condividi errore",
   "Author": "Autore",
   "File name": "Nome file",
   "Most badges": "Più spille",
@@ -330,6 +331,8 @@
   "For example from themezer.net or themeplaza.art": "Ad esempio da themezer.net o themeplaza.art",
   "or": "o",
   "Enter a Quick ID": "Inserisci un Quick ID",
+  "Thanks, the error was shared": "Grazie, l'errore è stato condiviso",
+  "Couldn't share the error": "Impossibile condividere l'errore",
   "{} of {} MB": "{} di {} MB",
   "{} MB": "{} MB",
   "Cancelling...": "Annullamento..."

@@ -565,6 +565,12 @@ void configure(CURL* easy, Transfer& transfer, curl_slist* headers, char* errorT
     // GitHub's API refuses requests without one
     curl_easy_setopt(easy, CURLOPT_USERAGENT, APP_NAME "/" APP_VERSION);
     curl_easy_setopt(easy, CURLOPT_HTTPHEADER, headers);
+    if (!transfer.request.body.empty())
+    {
+        // not copied: the request outlives the transfer
+        curl_easy_setopt(easy, CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(transfer.request.body.size()));
+        curl_easy_setopt(easy, CURLOPT_POSTFIELDS, transfer.request.body.data());
+    }
     curl_easy_setopt(easy, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(easy, CURLOPT_PROTOCOLS_STR, protocols);
     curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION, 1L);
@@ -902,6 +908,8 @@ Expected<Response> Client::get(const Request& request)
         }
         headers = curl_slist_append(nullptr, accept.c_str());
     }
+    if (!request.body.empty())
+        headers = curl_slist_append(headers, ("Content-Type: " + request.bodyType).c_str());
 
     const bool verify = !verificationOff.load(std::memory_order_relaxed);
     Expected<Response> result = [&] {

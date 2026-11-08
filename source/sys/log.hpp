@@ -6,6 +6,8 @@
 #include "core/result.hpp"
 
 #include <cstdarg>
+#include <string>
+#include <vector>
 
 namespace tz::log
 {
@@ -17,6 +19,8 @@ void write(const char* level, const char* format, ...) __attribute__((format(pri
 void writeError(const char* what, const Error& error);
 // Writes the kept lines to the SD card.
 void save(const char* path);
+// The last count lines, oldest first.
+std::vector<std::string> tail(size_t count);
 // Whether an error has been written since the app started.
 bool hadErrors();
 // save(), for when the app is about to stop on a fatal error: it doesn't wait for a thread that may be stuck writing.

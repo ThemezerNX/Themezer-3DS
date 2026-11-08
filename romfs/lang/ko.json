@@ -201,6 +201,7 @@
   "Can't open the badge storage": "배지 저장소를 열 수 없어요",
   "That's not a download": "다운로드할 수 있는 것이 아니에요",
   "The link doesn't lead to a zip file.": "링크가 ZIP 파일로 이어지지 않아요.",
+  "Share error": "오류 공유",
   "Author": "제작자",
   "File name": "파일 이름",
   "Most badges": "배지 많은 순",
@@ -321,6 +322,8 @@
   "For example from themezer.net or themeplaza.art": "예: themezer.net 또는 themeplaza.art의 것",
   "or": "또는",
   "Enter a Quick ID": "Quick ID 입력",
+  "Thanks, the error was shared": "감사합니다, 오류를 공유했습니다",
+  "Couldn't share the error": "오류를 공유하지 못했습니다",
   "{} of {} MB": "{} / {} MB",
   "{} MB": "{} MB",
   "Cancelling...": "취소하는 중..."

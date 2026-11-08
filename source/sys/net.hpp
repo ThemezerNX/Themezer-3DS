@@ -40,6 +40,9 @@ struct Request
     Progress* progress = nullptr;
     // Takes the body as it arrives instead of collecting it in Response::body; returning false stops the download.
     std::function<bool(ByteSpan)> sink;
+    // A request with a body is a POST of it, as this content type.
+    std::string body;
+    std::string bodyType;
 };
 
 struct Response
@@ -64,6 +67,13 @@ public:
     Client& operator=(const Client&) = delete;
 
     Expected<Response> get(const Request& request);
+    // get() of a POST.
+    Expected<Response> post(Request request, std::string body, std::string bodyType)
+    {
+        request.body = std::move(body);
+        request.bodyType = std::move(bodyType);
+        return get(request);
+    }
 
     struct Impl;
 

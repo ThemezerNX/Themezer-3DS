@@ -7,6 +7,7 @@
 #include "sys/thread.hpp"
 
 #include <3ds.h>
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstdio>
@@ -76,6 +77,16 @@ void save(const char* path)
 {
     std::lock_guard lock(mutex);
     writeLines(path);
+}
+
+std::vector<std::string> tail(size_t wanted)
+{
+    std::lock_guard lock(mutex);
+    const size_t n = std::min(wanted, count);
+    std::vector<std::string> result;
+    for (size_t i = count - n; i < count; ++i)
+        result.push_back(lines[(next + kKeptLines - count + i) % kKeptLines]);
+    return result;
 }
 
 bool hadErrors()

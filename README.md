@@ -58,6 +58,15 @@ make preview  # opens the 3dsx in the Azahar emulator
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) has more: trying the app in an emulator, and the autopilot that walks
 through its screens and takes screenshots.
 
+## Privacy
+
+The app sends nothing about you or your console on its own. It talks to Themezer and ThemePlaza to list and download
+what you ask for, and to GitHub to check for updates. When something unexpected goes wrong (not a network or a full SD
+card), the error's dialog has a **Share error** button on Y. Only if you press it, the app sends Themezer the app's
+version, your console's model, region and firmware, the error, and the last lines of the app's log, which can include
+the names of files on your SD card. Nothing identifies you or your console, and Themezer only keeps it to look the error
+up. The code is in `source/services/reporter.cpp`.
+
 ## LLM use
 
 Themezer-3DS was programmed with the help of an LLM (Claude): most of the code and docs were written with it, then

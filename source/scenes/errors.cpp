@@ -5,7 +5,9 @@
 
 #include "app/app.hpp"
 #include "app/strings.hpp"
+#include "domain/report.hpp"
 #include "gfx/draw.hpp"
+#include "services/reporter.hpp"
 #include "sys/log.hpp"
 #include "sys/sfx.hpp"
 #include "ui/overlays.hpp"
@@ -26,9 +28,16 @@ std::string code(const Error& error)
     std::snprintf(text, sizeof(text), " (%08lX)", static_cast<unsigned long>(error.system));
     return text;
 }
-} // namespace
 
-ErrorInfo describe(const Error& error)
+// info, with the error to share when it is one the app is to blame for.
+ErrorInfo reportable(ErrorInfo info, const Error& error)
+{
+    if (report::shareable(error.code))
+        info.report = error;
+    return info;
+}
+
+ErrorInfo explain(const Error& error)
 {
     // cancelling is something the user did, not an error
     if (error.code != Errc::Cancelled)
@@ -69,6 +78,12 @@ ErrorInfo describe(const Error& error)
     }
     return {tr("Something went wrong"), tr("The SD card or the system storage gave an error.") + code(error)};
 }
+} // namespace
+
+ErrorInfo describe(const Error& error)
+{
+    return reportable(explain(error), error);
+}
 
 ErrorInfo installError(const Error& error, const std::string& name)
 {
@@ -91,9 +106,10 @@ ErrorInfo themeStorageError(const Error& error)
         return {tr("Themes aren't set up yet"),
                 tr("Open the HOME Menu's theme settings once and choose any theme, then come back.") + code(error)};
     if (error.code == Errc::InvalidData)
-        return {tr("The theme storage looks wrong"),
-                tr("Choose a theme in the HOME Menu's theme settings once, then come back.")};
-    return {tr("Can't open the theme storage"), tr("The system gave an error.") + code(error)};
+        return reportable({tr("The theme storage looks wrong"),
+                           tr("Choose a theme in the HOME Menu's theme settings once, then come back.")},
+                          error);
+    return reportable({tr("Can't open the theme storage"), tr("The system gave an error.") + code(error)}, error);
 }
 
 ErrorInfo badgeStorageError(const Error& error)
@@ -103,7 +119,7 @@ ErrorInfo badgeStorageError(const Error& error)
         return {tr("The HOME Menu is using its badges"),
                 tr("Started from the Homebrew Launcher, the app can't change them. Install the CIA version and start "
                    "Themezer from the HOME Menu.")};
-    return {tr("Can't open the badge storage"), describe(error).message};
+    return reportable({tr("Can't open the badge storage"), describe(error).message}, error);
 }
 
 ErrorInfo downloadError(const Error& error)
@@ -121,8 +137,13 @@ void showError(const ErrorInfo& info)
         ui::toast(info.title);
         return;
     }
+    // OK stays on A and B, as in any message: sharing is on Y, never by habit
+    std::vector<ui::DialogButton> buttons{{tr("OK"), nullptr}};
+    if (info.report)
+        buttons.insert(buttons.begin(),
+                       {tr("Share error"), [error = *info.report] { report::share(error); }, false, KEY_Y});
     App::get().scenes().emplace<ui::Dialog>(gfx::Icon::Warning, gfx::color::kWarning, info.title, info.message,
-                                            std::vector<ui::DialogButton>{{tr("OK"), nullptr}});
+                                            std::move(buttons));
     sfx::play(sfx::Sound::Error);
 }
 

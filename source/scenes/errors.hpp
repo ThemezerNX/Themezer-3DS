@@ -7,6 +7,7 @@
 
 #include "core/result.hpp"
 
+#include <optional>
 #include <string>
 
 namespace tz::scenes
@@ -16,6 +17,8 @@ struct ErrorInfo
 {
     std::string title;
     std::string message;
+    // The error, when the app is to blame for it (see report::shareable()): the dialog then offers to share it.
+    std::optional<Error> report;
 };
 
 // Any error, in general terms.
@@ -29,7 +32,7 @@ ErrorInfo downloadError(const Error& error);
 // Why the HOME Menu's badges can't be changed.
 ErrorInfo badgeStorageError(const Error& error);
 
-// Shows it in a dialog.
+// Shows it in a dialog, with a button to share the error when it has one to report.
 void showError(const ErrorInfo& info);
 
 } // namespace tz::scenes

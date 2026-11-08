@@ -209,6 +209,7 @@
   "Can't open the badge storage": "No se abre el almacenamiento de chapas",
   "That's not a download": "Eso no es una descarga",
   "The link doesn't lead to a zip file.": "El enlace no lleva a un archivo zip.",
+  "Share error": "Compartir error",
   "Author": "Autor",
   "File name": "Nombre de archivo",
   "Most badges": "Más chapas",
@@ -330,6 +331,8 @@
   "For example from themezer.net or themeplaza.art": "Por ejemplo, de themezer.net o themeplaza.art",
   "or": "o",
   "Enter a Quick ID": "Introduce un Quick ID",
+  "Thanks, the error was shared": "Gracias, se compartió el error",
+  "Couldn't share the error": "No se pudo compartir el error",
   "{} of {} MB": "{} de {} MB",
   "{} MB": "{} MB",
   "Cancelling...": "Cancelando..."

@@ -201,6 +201,7 @@
   "Can't open the badge storage": "バッジの保存領域を開けません",
   "That's not a download": "ダウンロードできるものではありません",
   "The link doesn't lead to a zip file.": "リンク先はZIPファイルではありません。",
+  "Share error": "エラーを共有",
   "Author": "作者順",
   "File name": "ファイル名順",
   "Most badges": "バッジが多い順",
@@ -321,6 +322,8 @@
   "For example from themezer.net or themeplaza.art": "例：themezer.net や themeplaza.art のもの",
   "or": "または",
   "Enter a Quick ID": "Quick IDを入力",
+  "Thanks, the error was shared": "ありがとう！エラーを共有しました",
+  "Couldn't share the error": "エラーを共有できませんでした",
   "{} of {} MB": "{} / {} MB",
   "{} MB": "{} MB",
   "Cancelling...": "キャンセル中..."

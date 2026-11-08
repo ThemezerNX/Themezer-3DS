@@ -209,6 +209,7 @@
   "Can't open the badge storage": "Não é possível abrir o armazenamento de crachás",
   "That's not a download": "Isso não é uma transferência",
   "The link doesn't lead to a zip file.": "A ligação não leva a um ficheiro zip.",
+  "Share error": "Partilhar erro",
   "Author": "Autor",
   "File name": "Nome do ficheiro",
   "Most badges": "Mais crachás",
@@ -330,6 +331,8 @@
   "For example from themezer.net or themeplaza.art": "Por exemplo, de themezer.net ou themeplaza.art",
   "or": "ou",
   "Enter a Quick ID": "Introduzir um Quick ID",
+  "Thanks, the error was shared": "Obrigado, o erro foi partilhado",
+  "Couldn't share the error": "Não foi possível partilhar o erro",
   "{} of {} MB": "{} de {} MB",
   "{} MB": "{} MB",
   "Cancelling...": "A cancelar..."

@@ -201,6 +201,7 @@
   "Can't open the badge storage": "无法打开徽章存储",
   "That's not a download": "这不是下载内容",
   "The link doesn't lead to a zip file.": "该链接指向的不是 ZIP 文件。",
+  "Share error": "分享错误",
   "Author": "作者",
   "File name": "文件名",
   "Most badges": "徽章最多",
@@ -321,6 +322,8 @@
   "For example from themezer.net or themeplaza.art": "例如来自 themezer.net 或 themeplaza.art",
   "or": "或",
   "Enter a Quick ID": "输入 Quick ID",
+  "Thanks, the error was shared": "谢谢，错误已分享",
+  "Couldn't share the error": "无法分享错误",
   "{} of {} MB": "{} / {} MB",
   "{} MB": "{} MB",
   "Cancelling...": "正在取消..."

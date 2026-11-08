@@ -209,6 +209,7 @@
   "Can't open the badge storage": "Kan de badgeopslag niet openen",
   "That's not a download": "Dat is geen download",
   "The link doesn't lead to a zip file.": "De link leidt niet naar een zipbestand.",
+  "Share error": "Fout delen",
   "Author": "Auteur",
   "File name": "Bestandsnaam",
   "Most badges": "Meeste badges",
@@ -330,6 +331,8 @@
   "For example from themezer.net or themeplaza.art": "Bijvoorbeeld van themezer.net of themeplaza.art",
   "or": "of",
   "Enter a Quick ID": "Voer een Quick ID in",
+  "Thanks, the error was shared": "Bedankt, de fout is gedeeld",
+  "Couldn't share the error": "Kon de fout niet delen",
   "{} of {} MB": "{} van {} MB",
   "{} MB": "{} MB",
   "Cancelling...": "Annuleren..."
