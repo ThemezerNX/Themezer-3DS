@@ -620,6 +620,36 @@ Expected<void> readWritten(File& file, uint64_t offset, MutableByteSpan out)
     return {};
 }
 
+// Writes zeros over every block of a badge file that was never written. The HOME Menu reads all of BadgeData.dat, not
+// only the badges in use, and when a block doesn't read back, it has no badges at all (while it still announces the
+// first one). Anemone3DS zeroes the whole file before every install; this writes only the blocks that need it, which
+// on a console that has used badges is none.
+Expected<void> fillUnwritten(File& file, uint64_t size)
+{
+    Bytes buffer(kCopyChunk);
+    const Bytes zeros(kExtdataBlock, 0);
+    for (uint64_t at = 0; at < size; at += kCopyChunk)
+    {
+        const auto length = static_cast<size_t>(std::min<uint64_t>(kCopyChunk, size - at));
+        auto read = file.readAt(at, MutableByteSpan(buffer.data(), length));
+        if (read)
+            continue;
+        if (read.error().code != Errc::InvalidData)
+            return read;
+        for (uint64_t block = at; block < at + length; block += kExtdataBlock)
+        {
+            const auto blockLength = static_cast<size_t>(std::min<uint64_t>(kExtdataBlock, at + length - block));
+            if (auto part = file.readAt(block, MutableByteSpan(buffer.data(), blockLength)); !part)
+            {
+                if (part.error().code != Errc::InvalidData)
+                    return part;
+                TZ_CHECK(file.writeAt(block, ByteSpan(zeros).first(blockLength)));
+            }
+        }
+    }
+    return {};
+}
+
 // Reads the slots of BadgeData.dat a block of consecutive badges at a time, since badges are read in order.
 class SlotReader
 {
@@ -921,6 +951,7 @@ Expected<InstallResult> install(FileSystem& sd, FileSystem& badgeExt, std::span<
             total += static_cast<int>(files->pictures.size());
 
     auto data = TZ_TRY(badgeExt.open(kDataPath, OpenMode::ReadWrite));
+    TZ_CHECK(fillUnwritten(*data, kDataSize));
     auto managerFile = TZ_TRY(badgeExt.open(kManagerPath, OpenMode::ReadWrite));
     // A new manager file, except for the badges placed on the HOME Menu, which are the HOME Menu's to keep. The
     // count of placed badges (0xC) starts again from 0, as GYTB and Anemone3DS have always left it.

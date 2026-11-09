@@ -631,6 +631,9 @@ void BadgesPage::installSets(std::vector<badges::SetSource> chosen)
             // the badge files carry the console's Nintendo Network ID; without one, what's there stays
             const auto principal = act::principalId();
             const uint32_t id = principal ? *principal : badges::storedPrincipalId(*archive);
+            if (!principal)
+                LOG_WARN("no NNID's principal ID (%s, %08lX): the badges keep %08lX", principal.error().detail.c_str(),
+                         static_cast<unsigned long>(principal.error().system), static_cast<unsigned long>(id));
             const Bytes icon = TZ_TRY(defaultSetIcon());
             progress.setStatus(tr("Writing the badges"));
             return badges::install(sd, *archive, chosen, id, icon, [&](int done, int total) {

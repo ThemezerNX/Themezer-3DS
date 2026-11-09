@@ -728,6 +728,13 @@ TEST(badges_unwritten_data)
     auto installed = b.installAll();
     REQUIRE(installed.has_value());
     CHECK_EQ(installed->badges, 10);
+    // the HOME Menu reads all of it, and finds no badges at all when a part doesn't read back
+    {
+        auto file = b.ext.open("/BadgeData.dat", OpenMode::Read);
+        REQUIRE(file.has_value());
+        Bytes all(badges::kDataSize);
+        CHECK((*file)->readAt(0, all).has_value());
+    }
     auto saved = badges::exportBadges(b.ext, b.sd, "/Export", {});
     REQUIRE(saved.has_value());
     CHECK_EQ(*saved, 10);
