@@ -4,6 +4,10 @@ A theme manager written from scratch for the Nintendo 3DS by [Themezer](https://
 screens and badges from your SD card, or find new ones on [Themezer](https://themezer.net/3ds) or
 [ThemePlaza](https://themeplaza.art). Supports filtering, searching, scanning QR codes, or using an item's Quick ID.
 
+[![Build Themezer-3DS](https://github.com/ThemezerNX/Themezer-3DS/actions/workflows/build.yml/badge.svg)](https://github.com/ThemezerNX/Themezer-3DS/actions)
+[![dlCount](https://img.shields.io/github/downloads/ThemezerNX/Themezer-3DS/total?color=blue)](https://github.com/ThemezerNX/Themezer-3DS/releases)
+[![version](https://img.shields.io/github/v/release/ThemezerNX/Themezer-3DS)](https://github.com/ThemezerNX/Themezer-3DS/releases)
+
 <p>
   <img src="docs/screenshots/themes.png" width="32%" alt="The themes on the SD card">
   <img src="docs/screenshots/splashes.png" width="32%" alt="The splash screens on the SD card">
