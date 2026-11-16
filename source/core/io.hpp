@@ -49,6 +49,8 @@ public:
     virtual Expected<size_t> read(MutableByteSpan out) = 0;
     // Skips ahead (or back, when the source allows). The default reads and drops.
     virtual Expected<void> seek(uint64_t position);
+    // Whether seek() goes back, cheaply: then music loops from the source instead of a copy of the loop.
+    virtual bool canSeekBack() const { return false; }
     virtual uint64_t position() const = 0;
     // From any thread: a read that waits (for a download) fails with Cancelled now, and every read from then on. Nothing
     // for sources that never wait.
@@ -66,6 +68,7 @@ public:
     uint64_t size() const override { return reader_->size(); }
     Expected<size_t> read(MutableByteSpan out) override;
     Expected<void> seek(uint64_t position) override;
+    bool canSeekBack() const override { return true; }
     uint64_t position() const override { return position_; }
 
 private:

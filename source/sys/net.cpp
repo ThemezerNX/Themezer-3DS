@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <deque>
 #include <curl/curl.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/x509_crt.h>
@@ -951,11 +952,13 @@ Mutex idleClientsMutex;
 std::vector<std::unique_ptr<Client>> idleClients;
 
 // A download on its own thread, kept whole in memory while it is read; or, forward only, only what's still to read,
-// the download waiting while that's kForwardAhead.
+// the download waiting while that's kForwardAhead. It's kept in pieces of kPiece bytes: a few MB in one block, again
+// and again for preview after preview, cut the heap up until a download no longer found room for its zip.
 class DownloadStream final : public StreamReader
 {
 public:
     static constexpr size_t kForwardAhead = 512 * 1024;
+    static constexpr size_t kPiece = 64 * 1024;
 
     DownloadStream(std::string url, uint64_t maxSize, bool forwardOnly) : maxSize_(maxSize), forwardOnly_(forwardOnly)
     {
@@ -998,21 +1001,24 @@ public:
         if (out.empty())
             return size_t{0};
         std::lock_guard lock(mutex_);
-        while (position_ >= data_.size() && !done_ && !cancel_.cancelled())
+        while (position_ >= received_ && !done_ && !cancel_.cancelled())
             changed_.wait(mutex_);
         if (cancel_.cancelled())
             return fail(Errc::Cancelled, "music stream stopped");
-        if (position_ < data_.size())
+        if (position_ < received_)
         {
-            const size_t length = static_cast<size_t>(std::min<uint64_t>(out.size(), data_.size() - position_));
-            std::copy_n(data_.begin() + static_cast<ptrdiff_t>(position_), length, out.begin());
+            // within one piece; readExactly() asks again for the rest
+            const size_t offset = static_cast<size_t>(position_ % kPiece);
+            const size_t length = static_cast<size_t>(
+                std::min<uint64_t>({out.size(), kPiece - offset, received_ - position_}));
+            std::memcpy(out.data(), pieces_[static_cast<size_t>((position_ - dropped_) / kPiece)].get() + offset,
+                        length);
             position_ += length;
-            if (forwardOnly_ && position_ >= kForwardAhead / 4)
+            if (forwardOnly_ && position_ - dropped_ >= kPiece)
             {
                 // what's read is forgotten, and the download may go on
-                data_.erase(data_.begin(), data_.begin() + static_cast<ptrdiff_t>(position_));
-                dropped_ += position_;
-                position_ = 0;
+                pieces_.pop_front();
+                dropped_ += kPiece;
                 changed_.notifyAll();
             }
             return length;
@@ -1028,11 +1034,11 @@ public:
         if (forwardOnly_)
             return StreamReader::seek(target);
         std::lock_guard lock(mutex_);
-        while (data_.size() < target && !done_ && !cancel_.cancelled())
+        while (received_ < target && !done_ && !cancel_.cancelled())
             changed_.wait(mutex_);
         if (cancel_.cancelled())
             return fail(Errc::Cancelled, "music stream stopped");
-        if (target <= data_.size())
+        if (target <= received_)
         {
             position_ = target;
             return {};
@@ -1042,7 +1048,8 @@ public:
         return fail(Errc::InvalidData, "seek past the end");
     }
 
-    uint64_t position() const override { return dropped_ + position_; }
+    bool canSeekBack() const override { return !forwardOnly_; }
+    uint64_t position() const override { return position_; }
 
 private:
     void download(const std::string& url)
@@ -1062,7 +1069,7 @@ private:
         if (!result && !error_)
             error_ = result.error();
         if (result && progress_.total.load(std::memory_order_relaxed) == 0)
-            progress_.total.store(data_.size(), std::memory_order_relaxed);
+            progress_.total.store(received_, std::memory_order_relaxed);
         done_ = true;
         changed_.notifyAll();
     }
@@ -1072,16 +1079,27 @@ private:
     {
         std::lock_guard lock(mutex_);
         // forward only, it waits for the reader to catch up (a reader that stops lets curl time the download out)
-        while (forwardOnly_ && data_.size() - position_ >= kForwardAhead && !cancel_.cancelled())
+        while (forwardOnly_ && received_ - position_ >= kForwardAhead && !cancel_.cancelled())
             changed_.waitFor(mutex_, 100 * 1000000LL);
         if (cancel_.cancelled())
             return false;
-        const uint64_t total = progress_.total.load(std::memory_order_relaxed);
-        const uint64_t room = forwardOnly_ ? data_.size() + kForwardAhead + data.size() : total;
-        if (!appendBytes(data_, data, forwardOnly_ ? room : total, forwardOnly_ ? room : maxSize_))
+        while (!data.empty())
         {
-            error_ = Error{Errc::OutOfMemory, 0, std::to_string(data_.size() + data.size()) + " bytes to stream"};
-            return false;
+            const size_t offset = static_cast<size_t>(received_ % kPiece);
+            if (offset == 0)
+            {
+                std::unique_ptr<uint8_t[]> piece(new (std::nothrow) uint8_t[kPiece]);
+                if (!piece)
+                {
+                    error_ = Error{Errc::OutOfMemory, 0, std::to_string(received_ + kPiece) + " bytes to stream"};
+                    return false;
+                }
+                pieces_.push_back(std::move(piece));
+            }
+            const size_t length = std::min(data.size(), kPiece - offset);
+            std::memcpy(pieces_.back().get() + offset, data.data(), length);
+            received_ += length;
+            data = data.subspan(length);
         }
         changed_.notifyAll();
         return true;
@@ -1095,13 +1113,13 @@ private:
     // shared with the download thread
     Mutex mutex_;
     ConditionVariable changed_;
-    Bytes data_;
+    std::deque<std::unique_ptr<uint8_t[]>> pieces_; // from byte dropped_ on
+    uint64_t received_ = 0;
+    uint64_t dropped_ = 0; // whole pieces, forward only
     bool done_ = false;
     std::optional<Error> error_;
 
-    // the reader's: in data_, after what was dropped from its front
-    uint64_t position_ = 0;
-    uint64_t dropped_ = 0;
+    uint64_t position_ = 0; // the reader's
 
     Thread thread_;
 };

@@ -8,6 +8,14 @@
 #include <cstdlib>
 #include <exception>
 
+// The linear heap (for the GPU and the DSP) gets 24 MB, and the heap the rest. libctru's default is 32 MB, of which the
+// app uses about 12 MB, and 22 MB with a full badge set's preview: in the HOME Menu's 64 MB, that left the heap only
+// about 29 MB, where downloads ran out of memory.
+extern "C"
+{
+u32 __ctru_linear_heap_size = 24 * 1024 * 1024;
+}
+
 namespace
 {
 

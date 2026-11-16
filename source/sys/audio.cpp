@@ -523,8 +523,9 @@ Expected<void> Playback::prepare()
     if (info_.encoding == bcstm::Encoding::DspAdpcm)
         loopFirst_ -= loopFirst_ % kAdpcmFrameSamples; // a wave buffer starts on a frame
 
-    // The background music's source is the whole file in memory (FileInMemory), where going back costs nothing.
-    seekable_ = shared_.background;
+    // The background music's whole file in memory (FileInMemory), a file on the SD card or a preview's download (kept
+    // whole while it plays) go back for nothing: a copy of the loop would only take a second loop's worth of memory.
+    seekable_ = source_->canSeekBack();
 
     loops_ = info_.looping;
     if (loops_ && !seekable_)
@@ -921,6 +922,7 @@ public:
         return {};
     }
 
+    bool canSeekBack() const override { return true; }
     uint64_t position() const override { return position_; }
 
 private:
