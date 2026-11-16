@@ -102,7 +102,7 @@ std::string toJson(const Report& report)
                   static_cast<unsigned long>(report.heap), static_cast<unsigned long>(report.heapUsed),
                   static_cast<unsigned long>(report.linear), static_cast<unsigned long>(report.linearFree));
     out += memory;
-    appendField(out, "error", errcName(report.error.code));
+    appendField(out, "error", report.errorName.empty() ? errcName(report.error.code) : report.errorName);
     char system[16];
     std::snprintf(system, sizeof(system), "%08X", static_cast<unsigned>(report.error.system));
     appendField(out, "system", system);

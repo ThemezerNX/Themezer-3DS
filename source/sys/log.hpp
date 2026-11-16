@@ -22,6 +22,12 @@ void writeError(const char* what, const Error& error);
 void save(const char* path);
 // The last count lines, oldest first.
 std::vector<std::string> tail(size_t count);
+// tail(), for when the app is about to stop on a fatal error: without the lock when another thread holds it.
+std::vector<std::string> tailNow();
+// How many lines have been written: a new number means new lines.
+uint32_t changes();
+// Called after each line is written, from the thread that wrote it (sys/session's, to save it at once).
+void setListener(void (*listener)());
 // Whether an error has been written since the app started.
 bool hadErrors();
 // save(), for when the app is about to stop on a fatal error: it doesn't wait for a thread that may be stuck writing.

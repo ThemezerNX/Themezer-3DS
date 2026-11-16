@@ -11,11 +11,15 @@
 #pragma once
 
 #include "core/result.hpp"
+#include "domain/report.hpp"
 
 namespace tz::report
 {
 
 // Sends the error in the background, and says in a toast how it went.
 void share(const Error& error);
+// The same for a session that ended badly (sys/session): report holds what that session left (its version, memory,
+// log, errorName and detail); this console's model, region, system version and launcher are filled in.
+void shareLastSession(Report report);
 
 } // namespace tz::report

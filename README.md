@@ -65,7 +65,9 @@ what you ask for, and to GitHub to check for updates. When something unexpected 
 card or a damaged file from another site), the error's dialog has a **Share error** button on Y. Only if you press it, the app sends Themezer the app's
 version, your console's model, region and system version, whether the app was started from the HOME Menu or the
 Homebrew Launcher, how much of its memory is in use, the error, and the app's log of this session, which can include
-the names of files on your SD card, the links of what you downloaded and what you searched for. The report holds no ID of you or your console, and Themezer only keeps it to
+the names of files on your SD card, the links of what you downloaded and what you searched for. When the app crashed,
+froze or stopped on an error the last time, it asks the same way when it starts, and sends the same about that time
+(where it crashed instead of the error); it keeps that time's log in `/3ds/themezer-3ds/last-session.txt`. The report holds no ID of you or your console, and Themezer only keeps it to
 look the error up. The code is in `source/services/reporter.cpp`.
 
 ## LLM use

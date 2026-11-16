@@ -4,6 +4,7 @@
 #pragma once
 
 #include "app/config.hpp"
+#include "domain/report.hpp"
 #include "domain/themes.hpp"
 #include "services/updater.hpp"
 #include "sys/fs.hpp"
@@ -88,6 +89,7 @@ private:
     void checkForUpdates();
     void updateHome();
     void updateStatus();
+    void offerLastSession();
 
     std::unique_ptr<Archive> sd_;
     std::unique_ptr<Archive> badgeArchive_;
@@ -110,6 +112,7 @@ private:
         Restart,
     } afterExit_ = AfterExit::Nothing;
     std::optional<update::Release> update_;
+    std::optional<report::Report> lastSession_; // how the last session ended badly, to offer to share
     Status status_;
     u64 nextStatus_ = 0;
     uint32_t folderGenerations_[3] = {};

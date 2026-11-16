@@ -62,6 +62,8 @@ A script has one command a line; `#` starts a comment. Times are in frames, 60 a
 | `savelog` | the app's last log lines, as `log.txt` |
 | `quit` | closes the app |
 | `mem` | a line in the log with the memory in use and free, and the most of the GPU's command buffer a frame used |
+| `freeze` | stops the main loop for good, as a freeze would: after 10 s the next start offers to share it (`sys/session`) |
+| `crash` | writes to address 0xC, a data abort: Luma3DS shows its screen and keeps a dump for the next start to read |
 | `type zelda`, `type -` | the next answer of the system keyboard (or cancelling it), which then doesn't open |
 | `repeat 20` ... `end` | the lines in between, 20 times |
 | `monkey 18000 [seed] [keys]` | random presses, taps and drags for 18000 frames, with the keys given (A+B+...) or all but HOME |

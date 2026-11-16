@@ -37,6 +37,16 @@ TEST(report_json)
                          "\"detail\":\"a \\\"quoted\\\"\\nline\\\\ \\u0001\",\"log\":[\"first\",\"tab\\there\"]}"));
 }
 
+TEST(report_json_session_ending)
+{
+    report::Report report;
+    report.errorName = "crash";
+    report.error.detail = "data abort at PC 00119C5C";
+    const std::string json = report::toJson(report);
+    CHECK(json.find("\"error\":\"crash\",\"system\":\"00000000\",\"detail\":\"data abort at PC 00119C5C\"") !=
+          std::string::npos);
+}
+
 TEST(report_json_limits)
 {
     report::Report report;

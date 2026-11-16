@@ -116,6 +116,15 @@ kept lines (128 at most, of under 512 bytes each) and no files, with the launche
 memory in use. A diagnostic worth having in a report belongs in the `Error`'s `detail`, or in a log line just before
 it: a download logs its URL and what came back, an install its file, and an out-of-memory error shown the memory left.
 
+What the app can't show a dialog for, it offers on the next start. `sys/session` keeps `session.txt` in the app's folder
+current from a thread on the system core (the log, the memory, how long the main loop has stopped while the app is in
+front) and removes it when the app closes normally. When the app starts and finds one, `domain/session` tells how that
+session ended: a crash when Luma3DS's newest ARM11 dump (`/luma/dumps/arm11`) came after it started and has the app's
+title ID, a freeze when the main loop had stopped for 10 s or more, a fatal error when the log ends with
+`onTerminate()`'s line; else (the power went) it says nothing. `App::offerLastSession()` asks whether to share it, as
+a report with `error` set to `crash`, `freeze` or `fatal error` and the crash's registers in `detail`; the file stays
+as `last-session.txt`. A crash's PC and LR are the release's: look them up in its `.map` or with `addr2line` on its ELF.
+
 ## Testing
 
 `make test` runs the unit tests on your computer. The rest is tried in the Azahar emulator (`make preview`) and on a

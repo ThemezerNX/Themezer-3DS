@@ -32,6 +32,8 @@ struct Report
     uint32_t linear = 0;
     uint32_t linearFree = 0;
     Error error;
+    // instead of errcName(error.code), for how a session ended: "crash", "freeze", "fatal error" (domain/session)
+    std::string errorName;
     std::vector<std::string> log; // the app's log, oldest first
 };
 

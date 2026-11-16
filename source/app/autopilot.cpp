@@ -46,6 +46,8 @@ struct Step
         Monkey,
         Memory,
         Type,
+        Freeze,
+        Crash,
     };
     Kind kind = Kind::Wait;
     int frames = 0; // 0 for the steps that take no time
@@ -260,6 +262,17 @@ bool parse(std::string_view line, std::vector<Step>& out)
         out.push_back({Step::Kind::Memory});
         return true;
     }
+    // what sys/session is to notice on the next start
+    if (command == "freeze" && w.size() == 1)
+    {
+        out.push_back({Step::Kind::Freeze});
+        return true;
+    }
+    if (command == "crash" && w.size() == 1)
+    {
+        out.push_back({Step::Kind::Crash});
+        return true;
+    }
     if (command == "monkey" && w.size() >= 2 && w.size() <= 4)
     {
         // monkey <frames> [seed] [keys]: random presses, taps and drags
@@ -459,6 +472,18 @@ void run(const Step& step)
     case Step::Kind::Memory:
         logMemory();
         break;
+    case Step::Kind::Freeze:
+        LOG_INFO("autopilot: freezing the main loop");
+        for (;;)
+            svcSleepThread(1000000000LL);
+    case Step::Kind::Crash:
+    {
+        LOG_INFO("autopilot: crashing");
+        // through a volatile, or the compiler sees the null pointer's field and warns
+        volatile uintptr_t nowhere = 0xC;
+        *reinterpret_cast<volatile uint32_t*>(nowhere) = 1;
+        break;
+    }
     case Step::Kind::Type:
         typed.push_back(step.text == "-" ? std::nullopt : std::optional<std::string>(step.text));
         break;

@@ -36,10 +36,9 @@ const char* regionName(u8 region)
     return region < std::size(kNames) ? kNames[region] : "unknown";
 }
 
-Report collect(const Error& error)
+// The console's side of a report: its model, region, system version, and how the app was started.
+void collectConsole(Report& report)
 {
-    Report report;
-    report.version = APP_VERSION;
     u8 model = 0xFF;
     u8 region = 0xFF;
     CFGU_GetSystemModel(&model);
@@ -52,6 +51,13 @@ Report collect(const Error& error)
                           ? version
                           : "unknown";
     report.launcher = envIsHomebrew() ? "3dsx" : "cia";
+}
+
+Report collect(const Error& error)
+{
+    Report report;
+    report.version = APP_VERSION;
+    collectConsole(report);
     const log::Memory memory = log::memory();
     report.heap = memory.heap;
     report.heapUsed = memory.heapUsed;
@@ -62,13 +68,9 @@ Report collect(const Error& error)
     return report;
 }
 
-} // namespace
-
-void share(const Error& error)
+// In the background, saying in a toast how it went.
+void send(std::string body)
 {
-    // collected now, on the main thread: the log as it was when the button was pressed, and the system version, which
-    // libctru reads by mounting the version title's RomFS (as ver:), better kept off the workers
-    std::string body = toJson(collect(error));
     jobs::async(
         Lane::Network,
         [body = std::move(body)](const CancelToken& token) -> Expected<void> {
@@ -92,6 +94,21 @@ void share(const Error& error)
             LOG_WARN("sharing the error failed: %s", sent.error().detail.c_str());
             ui::toast(tr("Couldn't share the error"), ui::ToastKind::Warning);
         });
+}
+
+} // namespace
+
+void share(const Error& error)
+{
+    // collected now, on the main thread: the log as it was when the button was pressed, and the system version, which
+    // libctru reads by mounting the version title's RomFS (as ver:), better kept off the workers
+    send(toJson(collect(error)));
+}
+
+void shareLastSession(Report report)
+{
+    collectConsole(report);
+    send(toJson(report));
 }
 
 } // namespace tz::report

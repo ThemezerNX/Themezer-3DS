@@ -3,6 +3,8 @@
 
 #include "ui/keyboard.hpp"
 
+#include "sys/session.hpp"
+
 #include <3ds.h>
 #include <vector>
 
@@ -38,7 +40,10 @@ std::optional<std::string> keyboard(const std::string& hint, const std::string& 
     swkbdSetFeatures(&state, SWKBD_PREDICTIVE_INPUT);
     // the UTF-8 result can take up to four bytes for each character
     std::vector<char> text(static_cast<size_t>(maxLength) * 4 + 1, '\0');
+    // the main loop waits for the keyboard: not a freeze
+    session::holdWatch(true);
     const SwkbdButton button = swkbdInputText(&state, text.data(), text.size());
+    session::holdWatch(false);
     if (button != SWKBD_BUTTON_CONFIRM)
         return std::nullopt;
     return std::string(text.data());

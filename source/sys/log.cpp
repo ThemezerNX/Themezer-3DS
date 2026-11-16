@@ -26,6 +26,17 @@ std::array<std::string, kKeptLines> lines;
 size_t next = 0;
 size_t count = 0;
 std::atomic<bool> errors{false};
+std::atomic<uint32_t> written{0};
+std::atomic<void (*)()> listener{nullptr};
+
+std::vector<std::string> keptLines()
+{
+    std::vector<std::string> result;
+    result.reserve(count);
+    for (size_t i = 0; i < count; ++i)
+        result.push_back(lines[(next + kKeptLines - count + i) % kKeptLines]);
+    return result;
+}
 
 void writeLines(const char* path)
 {
@@ -61,11 +72,16 @@ void write(const char* level, const char* format, ...)
     if (level[0] == 'E')
         errors = true;
 
-    std::lock_guard lock(mutex);
-    lines[next] = text;
-    next = (next + 1) % kKeptLines;
-    if (count < kKeptLines)
-        ++count;
+    {
+        std::lock_guard lock(mutex);
+        lines[next] = text;
+        next = (next + 1) % kKeptLines;
+        if (count < kKeptLines)
+            ++count;
+        ++written;
+    }
+    if (void (*const notify)() = listener)
+        notify();
 }
 
 void writeError(const char* what, const Error& error)
@@ -104,6 +120,25 @@ std::vector<std::string> tail(size_t wanted)
     for (size_t i = count - n; i < count; ++i)
         result.push_back(lines[(next + kKeptLines - count + i) % kKeptLines]);
     return result;
+}
+
+std::vector<std::string> tailNow()
+{
+    const bool locked = mutex.try_lock();
+    std::vector<std::string> result = keptLines();
+    if (locked)
+        mutex.unlock();
+    return result;
+}
+
+uint32_t changes()
+{
+    return written;
+}
+
+void setListener(void (*notify)())
+{
+    listener = notify;
 }
 
 bool hadErrors()

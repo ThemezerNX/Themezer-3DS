@@ -12,10 +12,12 @@
 #include "gfx/renderer.hpp"
 #include "scenes/home.hpp"
 #include "services/qr.hpp"
+#include "services/reporter.hpp"
 #include "sys/audio.hpp"
 #include "sys/jobs.hpp"
 #include "sys/log.hpp"
 #include "sys/net.hpp"
+#include "sys/session.hpp"
 #include "sys/sfx.hpp"
 #include "ui/overlays.hpp"
 
@@ -98,6 +100,8 @@ bool App::init(int argc, char** argv)
     sd_ = std::move(*sd);
     moveOldAppFolder(*sd_);
     (void)sd_->createDirectories(kAppFolder);
+    lastSession_ = session::takeLastSession(*sd_, kAppFolder);
+    session::begin(*sd_, kAppFolder);
     (void)sd_->removeFile(kInstallOncePath);
     config_ = Config::load(*sd_);
 
@@ -310,6 +314,25 @@ void App::requestExit()
     }
 }
 
+// The last session crashed, froze, stopped on a fatal error or just didn't close: asks once whether to share what it
+// left.
+void App::offerLastSession()
+{
+    if (!lastSession_)
+        return;
+    const report::Report report = std::move(*lastSession_);
+    lastSession_.reset();
+    // short: a dialog's title is one line
+    const char* title = report.errorName == "crash"         ? tr("Themezer crashed")
+                        : report.errorName == "freeze"      ? tr("Themezer froze")
+                        : report.errorName == "fatal error" ? tr("Themezer stopped on an error")
+                                                            : tr("Themezer closed unexpectedly");
+    scenes_.emplace<ui::Dialog>(
+        gfx::Icon::Warning, gfx::color::kPrimaryLight, title,
+        tr("Do you want to share with the developers what happened last time?"),
+        std::vector<ui::DialogButton>{{tr("Not now"), nullptr}, {tr("Share"), [report] { report::shareLastSession(report); }}});
+}
+
 void App::updateHome()
 {
     // HOME is held off while a task writes the system's files, and while a change waits to show: going to the HOME
@@ -364,6 +387,8 @@ void App::shutdown()
     net::exit();
     badgeArchive_.reset();
     homeStorage_ = HomeStorage();
+    // last: a close that hangs is a freeze too
+    session::end();
     sd_.reset();
     gfx::freeIcons();
     gfx::exit();
@@ -387,6 +412,7 @@ int App::run(int argc, char** argv)
     }
 
     scenes_.push(scenes::makeHome());
+    offerLastSession();
     autopilot::start();
     ui::InputReader reader;
     u64 last = osGetTime();
@@ -395,6 +421,7 @@ int App::run(int argc, char** argv)
         const u64 now = osGetTime();
         const float dt = std::clamp(static_cast<float>(now - last) / 1000.0f, 0.0f, 0.1f);
         last = now;
+        session::frame();
         updateHome();
 
         ui::RawInput raw = ui::readHardware();

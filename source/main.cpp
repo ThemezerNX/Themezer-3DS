@@ -3,6 +3,7 @@
 
 #include "app/app.hpp"
 #include "sys/log.hpp"
+#include "sys/session.hpp"
 
 #include <3ds.h>
 #include <cstdlib>
@@ -24,6 +25,7 @@ namespace
 [[noreturn]] void onTerminate()
 {
     LOG_ERROR("the app stopped on a fatal error (%s)", tz::log::describe(tz::log::memory()).c_str());
+    tz::session::saveNow(); // the next start offers to share it
     tz::log::saveNow(tz::kLogPath);
     std::abort();
 }
