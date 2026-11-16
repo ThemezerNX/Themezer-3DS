@@ -4,10 +4,9 @@
 #include "core/image.hpp"
 #include "core/utf.hpp"
 #include "domain/badges.hpp"
+#include "fixtures.hpp"
 #include "memory_fs.hpp"
 #include "test.hpp"
-
-#include <zlib.h>
 
 #include <algorithm>
 #include <cstring>
@@ -79,68 +78,6 @@ Image sheet(int columns, int rows, std::initializer_list<Colour> colours)
 Bytes png(const Image& image)
 {
     return encodePng(image).value();
-}
-
-void put16(Bytes& out, uint16_t v)
-{
-    out.push_back(static_cast<uint8_t>(v));
-    out.push_back(static_cast<uint8_t>(v >> 8));
-}
-
-void put32(Bytes& out, uint32_t v)
-{
-    put16(out, static_cast<uint16_t>(v));
-    put16(out, static_cast<uint16_t>(v >> 16));
-}
-
-// A zip of stored files.
-Bytes zip(const std::vector<std::pair<std::string, Bytes>>& files)
-{
-    Bytes out;
-    Bytes directory;
-    for (const auto& [name, data] : files)
-    {
-        const auto crc = static_cast<uint32_t>(::crc32(0, data.data(), static_cast<uInt>(data.size())));
-        const auto offset = static_cast<uint32_t>(out.size());
-        put32(out, 0x04034B50);
-        put16(out, 20);
-        put16(out, 0);
-        put16(out, 0);
-        put32(out, 0);
-        put32(out, crc);
-        put32(out, static_cast<uint32_t>(data.size()));
-        put32(out, static_cast<uint32_t>(data.size()));
-        put16(out, static_cast<uint16_t>(name.size()));
-        put16(out, 0);
-        out.insert(out.end(), name.begin(), name.end());
-        out.insert(out.end(), data.begin(), data.end());
-
-        put32(directory, 0x02014B50);
-        put16(directory, 20);
-        put16(directory, 20);
-        put16(directory, 0);
-        put16(directory, 0);
-        put32(directory, 0);
-        put32(directory, crc);
-        put32(directory, static_cast<uint32_t>(data.size()));
-        put32(directory, static_cast<uint32_t>(data.size()));
-        put16(directory, static_cast<uint16_t>(name.size()));
-        put32(directory, 0);
-        put32(directory, 0);
-        put32(directory, 0);
-        put32(directory, offset);
-        directory.insert(directory.end(), name.begin(), name.end());
-    }
-    const auto directoryOffset = static_cast<uint32_t>(out.size());
-    out.insert(out.end(), directory.begin(), directory.end());
-    put32(out, 0x06054B50);
-    put32(out, 0);
-    put16(out, static_cast<uint16_t>(files.size()));
-    put16(out, static_cast<uint16_t>(files.size()));
-    put32(out, static_cast<uint32_t>(directory.size()));
-    put32(out, directoryOffset);
-    put16(out, 0);
-    return out;
 }
 
 struct Badges
@@ -240,17 +177,17 @@ void addScenario(test::MemoryFs& sd)
     sd.put("/Badges/Animals/bad.png", png(solid(65, 64, kRed)));
     sd.put("/Badges/Animals/notes.txt", {'h', 'i'});
     sd.put("/Badges/Animals/broken.zip", {'P', 'K', 3, 4, 'n', 'o', 't', ' ', 'a', ' ', 'z', 'i', 'p'});
-    sd.put("/Badges/Animals/sub.zip", zip({
+    sd.put("/Badges/Animals/sub.zip", test::storedZip({
                                           {"inner/fox.png", png(solid(64, 64, kOrange))},
                                           {"_seticon.png", png(solid(48, 48, kBlue))},
                                           {"__MACOSX/inner/._fox.png", {1, 2, 3}},
                                       }));
-    sd.put("/Badges/Animals.zip", zip({
+    sd.put("/Badges/Animals.zip", test::storedZip({
                                       {"zebra.png", png(solid(64, 64, kGrey))},
                                       {"_seticon.png", png(solid(48, 48, kPurple))},
                                       {"preview.png", png(solid(400, 480, kWhite))}, // not a badge: left out
                                   }));
-    sd.put("/Badges/Plants.zip", zip({
+    sd.put("/Badges/Plants.zip", test::storedZip({
                                      {"Plants/", {}},
                                      {"Plants/_seticon.png", png(solid(48, 48, kGreen))},
                                      {"Plants/rose.png", png(sheet(2, 2, {kRed, kGreen, kBlue, kWhite}))},
@@ -297,9 +234,9 @@ TEST(badges_find_sets)
 {
     test::MemoryFs sd;
     sd.put("/Badges/Zeta/a.png", png(solid(64, 64, kRed)));
-    sd.put("/Badges/alpha.zip", zip({{"b.png", png(solid(64, 64, kRed))}}));
+    sd.put("/Badges/alpha.zip", test::storedZip({{"b.png", png(solid(64, 64, kRed))}}));
     sd.put("/Badges/Alpha/c.png", png(solid(64, 64, kRed)));
-    sd.put("/Badges/Mid.zip", zip({}));
+    sd.put("/Badges/Mid.zip", test::storedZip({}));
     sd.put("/Badges/.hidden/d.png", png(solid(64, 64, kRed)));
     sd.put("/Badges/__MACOSX/e.png", png(solid(64, 64, kRed)));
     sd.put("/Badges/loose2.png", png(solid(64, 64, kRed)));

@@ -43,7 +43,6 @@ constexpr uint64_t kMaxPreviewSize = 4 * 1024 * 1024;
 constexpr int kMaxShuffle = home::kShuffleSlots;
 // how long the info reader holds the SD card worker before what else waits for it goes first
 constexpr u64 kInfoTurnMs = 100;
-constexpr float kSearchLineHeight = 22; // the search, above what it finds
 
 // the order of ThemeMode
 enum InstallMode
@@ -55,14 +54,7 @@ enum InstallMode
 
 uint64_t keyOf(const std::string& path)
 {
-    // FNV-1a: stable, and the same item keeps its icon slot after the list is sorted again
-    uint64_t hash = 1469598103934665603ULL;
-    for (unsigned char c : path)
-    {
-        hash ^= c;
-        hash *= 1099511628211ULL;
-    }
-    return hash ? hash : 1;
+    return iconKey(path);
 }
 
 std::string cachePath(library::Kind kind)
@@ -742,14 +734,7 @@ void LibraryPage::drawBottom(float top, float bottom)
         drawEmpty(top, bottom);
         return;
     }
-    // what's searched for, above what it finds
-    if (!query_.empty())
-    {
-        const float middle = top + kSearchLineHeight / 2;
-        icon(Icon::Search, 14, std::round(middle - metric::kIcon / 2), metric::kIcon, color::kTextDim);
-        drawText(query_, 14 + metric::kIcon + 6, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText,
-                 Align::Left, metric::kBottomWidth - 48);
-    }
+    drawSearchLine(query_, top);
     if (shown_ == 0)
     {
         drawEmptyState(Icon::SearchEmpty, accent().light, trf("Nothing found for \"{}\"", query_),

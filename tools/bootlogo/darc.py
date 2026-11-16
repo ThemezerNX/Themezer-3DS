@@ -3,33 +3,7 @@
 # Unpacks an LZ11-compressed DARC (3DS logo.bin) and lists its files.
 # usage: darc.py <logo.bin>  -> <logo.bin>.darc
 import struct, sys
-def lz11_decompress(data):
-    assert data[0] == 0x11
-    size = data[1] | data[2] << 8 | data[3] << 16
-    pos = 4
-    if size == 0:
-        size = struct.unpack_from('<I', data, 4)[0]; pos = 8
-    out = bytearray()
-    while len(out) < size:
-        flags = data[pos]; pos += 1
-        for bit in range(8):
-            if len(out) >= size: break
-            if flags & (0x80 >> bit):
-                b = data[pos] >> 4
-                if b == 0:
-                    length = (((data[pos] & 0xF) << 4) | (data[pos+1] >> 4)) + 0x11
-                    disp = (((data[pos+1] & 0xF) << 8) | data[pos+2]) + 1; pos += 3
-                elif b == 1:
-                    length = (((data[pos] & 0xF) << 12) | (data[pos+1] << 4) | (data[pos+2] >> 4)) + 0x111
-                    disp = (((data[pos+2] & 0xF) << 8) | data[pos+3]) + 1; pos += 4
-                else:
-                    length = b + 1
-                    disp = (((data[pos] & 0xF) << 8) | data[pos+1]) + 1; pos += 2
-                for _ in range(length):
-                    out.append(out[-disp])
-            else:
-                out.append(data[pos]); pos += 1
-    return bytes(out)
+from lz11 import lz11_decompress
 def darc_files(d):
     assert d[:4] == b'darc'
     hdr_len = struct.unpack_from('<H', d, 6)[0]

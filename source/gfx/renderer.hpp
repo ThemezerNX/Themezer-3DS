@@ -27,7 +27,6 @@ void beginFrame();
 void beginScreen(Screen screen, Color clear = color::kBackground);
 void endFrame();
 
-Screen currentScreen();
 float screenWidth();
 
 // Drawing outside the rectangle is cut off until popClip. Clips nest (each is cut to the one before).

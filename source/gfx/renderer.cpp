@@ -157,11 +157,6 @@ float opacity()
     return layerOpacity;
 }
 
-Screen currentScreen()
-{
-    return screen;
-}
-
 float screenWidth()
 {
     return screen == Screen::Top ? metric::kTopWidth : metric::kBottomWidth;

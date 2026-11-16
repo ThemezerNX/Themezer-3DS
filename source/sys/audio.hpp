@@ -78,6 +78,5 @@ public:
 };
 // Stops it and frees it.
 void stopBackgroundMusic();
-bool backgroundMusicRunning();
 
 } // namespace tz::audio

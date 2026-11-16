@@ -72,13 +72,10 @@ float brandHeight(Brand which);
 
 void rect(float x, float y, float w, float h, Color color);
 void gradientV(float x, float y, float w, float h, Color top, Color bottom);
-void gradientH(float x, float y, float w, float h, Color left, Color right);
 void roundedRect(float x, float y, float w, float h, float radius, Color color);
 void circle(float cx, float cy, float radius, Color color);
 void line(float x0, float y0, float x1, float y1, float width, Color color);
 
-// A soft shadow around a rectangle.
-void shadow(float x, float y, float w, float h, float size);
 // A turning arc, for things that are loading.
 // shown below 1: that much of it, from the top round, standing still, as for a pull that isn't far enough yet
 void spinner(float cx, float cy, float radius, Color color, float shown = 1);

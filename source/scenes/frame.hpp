@@ -10,11 +10,26 @@
 #include "gfx/palette.hpp"
 #include "gfx/texture.hpp"
 
+#include <cstdint>
 #include <memory>
 #include <string_view>
 
 namespace tz::scenes
 {
+
+// A list item's key in the icon atlas, FNV-1a of what names it: stable, so an item keeps its icon slot after the list
+// is sorted again.
+constexpr uint64_t kIconKeySeed = 1469598103934665603ULL;
+inline uint64_t iconKey(std::string_view name, uint64_t seed = kIconKeySeed)
+{
+    uint64_t hash = seed;
+    for (unsigned char c : name)
+    {
+        hash ^= c;
+        hash *= 1099511628211ULL;
+    }
+    return hash ? hash : 1;
+}
 
 // A soft blur of the selected item's picture (its preview, else its icon) behind both screens, fading from one item to the next, as the Themezer
 // website shows behind its pages. Without a picture, a dark wash of the page's accent.
@@ -41,6 +56,10 @@ private:
     Layer previous_;
     float fade_ = 1; // 0 shows the previous layer, 1 the current one
 };
+
+// What's searched for, in a line of kSearchLineHeight above what it finds; nothing when query is empty.
+constexpr float kSearchLineHeight = 22;
+void drawSearchLine(std::string_view query, float top);
 
 // The top screen's bar: Themezer's logo on the left, the time, Wi-Fi and battery on the right. Left out while a
 // preview fills the top screen, since a theme's preview has the HOME Menu's own bar.

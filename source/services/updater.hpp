@@ -43,8 +43,8 @@ enum class InstallKind : uint8_t
 InstallKind installKind(const char* appPath);
 
 // The latest release, when it is newer than this build and has the file this kind of install needs (any, for one that
-// can't update itself: the menu says where to get it). Development builds (with "-dev" in their version) are never
-// offered updates.
+// can't update itself: the menu says where to get it). A development build ("-dev" in its version) counts as the
+// release it's named after, so only a later release updates it.
 Expected<std::optional<Release>> check(net::Client& client, InstallKind kind, const CancelToken& cancel);
 
 // Downloads the asset for this kind of install, checks its size and digest, and installs it: a CIA is streamed

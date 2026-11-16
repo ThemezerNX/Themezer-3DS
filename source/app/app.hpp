@@ -50,7 +50,6 @@ public:
 
     // The HOME Menu's theme has changed. It shows after the HOME Menu reloads, or after a restart when needed.
     void themeChanged(bool needsRestart);
-    bool themeChangePending() const { return themeChanged_; }
     // The HOME Menu's badges have changed. It shows them once it reloads, as for a theme (see requestExit()).
     void badgesChanged() { badgesChanged_ = true; }
 

@@ -33,14 +33,12 @@ namespace color
 {
 // The page under everything: stone 950, which the website's frosted cards are made of too.
 constexpr Color kBackground = rgba(12, 10, 9);
-// Frosted surfaces over the blurred picture: the website's cards (stone 950 at 32 %) and its denser panels.
-constexpr Color kFrosted = rgba(12, 10, 9, 82);
+// A frosted surface over the blurred picture: the website's denser panels (stone 950 at 64 %).
 constexpr Color kSurface = rgba(12, 10, 9, 163);
 constexpr Color kSurfaceSolid = rgba(28, 25, 23);   // stone 900
 constexpr Color kSurfaceRaised = rgba(41, 37, 36);  // stone 800
 constexpr Color kSurfaceHigh = rgba(68, 64, 60);    // stone 700
 constexpr Color kDivider = rgba(255, 255, 255, 20);
-constexpr Color kSelection = rgba(255, 255, 255, 30); // a selected row or segment, as on the website
 
 constexpr Color kText = rgba(255, 255, 255);
 constexpr Color kTextDim = rgba(168, 162, 158);   // stone 400, the website's muted text
@@ -59,7 +57,6 @@ constexpr Color kDanger = rgba(239, 68, 68);
 constexpr Color kWarning = rgba(251, 191, 36);
 
 constexpr Color kScrim = rgba(12, 10, 9, 170); // behind dialogs
-constexpr Color kShadow = rgba(0, 0, 0, 100);
 } // namespace color
 
 // Each kind of content has the accent the website gives it (CONTENT_KIND_ACCENTS in the webapp): themes the primary
@@ -89,9 +86,7 @@ constexpr float kStatusBarHeight = 26; // the top screen's bar, with the logo
 constexpr float kTabBarHeight = 30;
 constexpr float kHintBarHeight = 26;
 constexpr float kRowHeight = 44;
-constexpr float kPadding = 8;
 constexpr float kRadius = 8; // cards
-constexpr float kRadiusSmall = 5;
 
 // Icons are drawn at their own pixel size, next to text, or large on empty pages and in messages.
 constexpr float kIcon = 16;

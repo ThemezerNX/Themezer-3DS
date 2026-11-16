@@ -1150,10 +1150,4 @@ void stopBackgroundMusic()
     // destroyed here, outside the lock
 }
 
-bool backgroundMusicRunning()
-{
-    std::lock_guard lock(backgroundMutex);
-    return backgroundPlayer && backgroundPlayer->state() != State::Failed;
-}
-
 } // namespace tz::audio

@@ -20,7 +20,6 @@ class Package
 public:
     static Expected<Package> open(FileSystem& sd, std::string path, bool zip);
 
-    bool isZip() const { return zip_.has_value(); }
     const std::string& path() const { return path_; }
 
     bool has(std::string_view name) const;

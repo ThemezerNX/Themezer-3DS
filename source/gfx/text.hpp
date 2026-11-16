@@ -72,8 +72,6 @@ constexpr const char* kDpadLeft = "\uE07B";
 constexpr const char* kDpadRight = "\uE07C";
 constexpr const char* kDpadUpDown = "\uE07D";
 constexpr const char* kDpadLeftRight = "\uE07E";
-constexpr const char* kCirclePad = "\uE077";
-constexpr const char* kHome = "\uE073";
 } // namespace glyph
 
 } // namespace tz::gfx

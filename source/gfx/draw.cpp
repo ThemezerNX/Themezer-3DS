@@ -205,13 +205,6 @@ void gradientV(float x, float y, float w, float h, Color top, Color bottom)
     C2D_DrawRectangle(x, y, 0, w, h, top, top, bottom, bottom);
 }
 
-void gradientH(float x, float y, float w, float h, Color left, Color right)
-{
-    left = faded(left);
-    right = faded(right);
-    C2D_DrawRectangle(x, y, 0, w, h, left, right, left, right);
-}
-
 void roundedRect(float x, float y, float w, float h, float radius, Color color)
 {
     radius = std::min({radius, w / 2, h / 2});
@@ -240,16 +233,6 @@ void line(float x0, float y0, float x1, float y1, float width, Color color)
 {
     color = faded(color);
     C2D_DrawLine(x0, y0, color, x1, y1, color, width, 0);
-}
-
-void shadow(float x, float y, float w, float h, float size)
-{
-    const Color dark = color::kShadow;
-    const Color clear = withAlpha(color::kShadow, 0);
-    gradientV(x, y - size, w, size, clear, dark);
-    gradientV(x, y + h, w, size, dark, clear);
-    gradientH(x - size, y, size, h, clear, dark);
-    gradientH(x + w, y, size, h, dark, clear);
 }
 
 void spinner(float cx, float cy, float radius, Color color, float shown)

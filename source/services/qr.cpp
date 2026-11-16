@@ -112,7 +112,7 @@ struct QrScanner::Impl
 
     Expected<void> open();
 
-    // The camera thread: starts the driver, captures until the stop signal, stops the driver.
+    // The camera thread: starts the driver (once; stopDriver() ends it), captures until the stop signal.
     void capture();
     // False if capturing ended without the stop signal: it didn't start, or the camera stopped.
     bool captureFrames();

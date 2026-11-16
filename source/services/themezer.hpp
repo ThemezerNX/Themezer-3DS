@@ -19,7 +19,6 @@ namespace tz::themezer
 {
 
 constexpr const char* kApiUrl = "https://3ds.themezer.net/app/v1";
-constexpr const char* kWebsite = "https://themezer.net";
 
 std::string pageUrl(catalog::Kind kind, int page, std::string_view query, catalog::Order order);
 // Items without an id or a download URL are left out. InvalidData for anything that isn't such a page.

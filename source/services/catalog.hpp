@@ -31,8 +31,6 @@ enum class Kind : uint8_t
     Badges,
 };
 
-constexpr int kPageSize = 24;
-
 struct Item
 {
     std::string id; // Themezer's quick ID ("T1ED69"), ThemePlaza's number ("152151")

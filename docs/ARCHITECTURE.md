@@ -83,7 +83,8 @@ the CIA in each language is `APP_DESCRIPTIONS` in the Makefile: the Themezer web
 The screens are small (400x240 and 320x240) and their pixels large, so the look keeps to a few rules:
 
 - **Readable text.** The console's font at `metric::kTextNormal` for most text and `kTextSmall` for second lines and
-  hints; nothing smaller. When something doesn't fit, it's shortened or left out, not shrunk.
+  hints; nothing smaller. When something doesn't fit, it's shortened or left out; only hint and button labels drop to
+  `kTextSmall` first.
 - **Sharp edges.** Text and icons are drawn from whole pixels. Icons are Lucide's, drawn at the size they're shown
   (`metric::kIcon`, or `kIconLarge` on empty pages and in messages), never scaled.
 - **Lined up.** Text in a box or next to an icon is placed with `textTop(middle, size)`, which puts the middle of its

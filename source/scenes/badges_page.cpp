@@ -36,17 +36,10 @@ constexpr int kPreviewColumns = 7;
 constexpr int kPreviewRows = 3;
 constexpr int kPreviewBadge = 48;
 constexpr int kPreviewGap = 6;
-constexpr float kSearchLineHeight = 22; // the search, above what it finds
 
 uint64_t keyOf(const badges::SetSource& set)
 {
-    uint64_t hash = 1469598103934665603ULL;
-    for (unsigned char c : set.name + "|" + set.folderPath + "|" + set.zipPath)
-    {
-        hash ^= c;
-        hash *= 1099511628211ULL;
-    }
-    return hash ? hash : 1;
+    return iconKey(set.name + "|" + set.folderPath + "|" + set.zipPath);
 }
 
 // A screen's picture: stone 900, a little lighter towards the top.
@@ -416,14 +409,7 @@ void BadgesPage::drawBottom(float top, float bottom)
                        tr("Find some on the Themezer tab, or put folders or zips of PNGs in /Badges."), top, bottom);
         return;
     }
-    // what's searched for, above what it finds
-    if (!query_.empty())
-    {
-        const float middle = top + kSearchLineHeight / 2;
-        icon(Icon::Search, 14, std::round(middle - metric::kIcon / 2), metric::kIcon, color::kTextDim);
-        drawText(query_, 14 + metric::kIcon + 6, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText,
-                 Align::Left, metric::kBottomWidth - 48);
-    }
+    drawSearchLine(query_, top);
     if (shown_ == 0)
     {
         drawEmptyState(Icon::SearchEmpty, accent().light, trf("Nothing found for \"{}\"", query_),

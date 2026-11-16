@@ -38,7 +38,6 @@ public:
     void want(uint64_t key, Loader loader, Lane lane = Lane::Io, std::shared_ptr<const library::Icon> icon = nullptr);
     // nullptr until it has loaded.
     const PreviewPictures* get(uint64_t key);
-    bool loading(uint64_t key) const { return loadingKey_ == key && job_.active(); }
     void clear();
 
 private:

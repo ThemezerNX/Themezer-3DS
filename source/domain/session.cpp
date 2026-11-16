@@ -14,12 +14,6 @@ namespace
 
 constexpr std::string_view kMagic = "Themezer-3DS session";
 
-uint32_t readU32(ByteSpan data, size_t at)
-{
-    return uint32_t(data[at]) | uint32_t(data[at + 1]) << 8 | uint32_t(data[at + 2]) << 16 |
-           uint32_t(data[at + 3]) << 24;
-}
-
 template <typename T> bool number(std::string_view text, T& out, int base = 10)
 {
     const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), out, base);

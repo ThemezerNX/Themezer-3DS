@@ -40,7 +40,6 @@ using catalog::Source;
 namespace
 {
 
-constexpr float kSearchLineHeight = 22;
 // the sub-tabs: the three kinds, then the QR code scanner
 constexpr int kQrTab = 3;
 // how near the end of the list the next page starts loading
@@ -61,13 +60,7 @@ constexpr uint8_t kDetailsTries = 3;
 
 uint64_t keyOf(Source source, Kind kind, const std::string& id)
 {
-    uint64_t hash = 1469598103934665603ULL ^ (static_cast<uint64_t>(source) << 8 | static_cast<uint64_t>(kind));
-    for (unsigned char c : id)
-    {
-        hash ^= c;
-        hash *= 1099511628211ULL;
-    }
-    return hash ? hash : 1;
+    return iconKey(id, kIconKeySeed ^ (static_cast<uint64_t>(source) << 8 | static_cast<uint64_t>(kind)));
 }
 
 const char* folderOf(Kind kind)
@@ -750,14 +743,7 @@ void BrowsePage::drawBottom(float top, float bottom)
         return;
     }
 
-    // what's searched for, above the results
-    if (!query_.empty())
-    {
-        const float middle = top + kSearchLineHeight / 2;
-        icon(Icon::Search, 14, std::round(middle - metric::kIcon / 2), metric::kIcon, color::kTextDim);
-        drawText(query_, 14 + metric::kIcon + 6, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText,
-                 Align::Left, metric::kBottomWidth - 48);
-    }
+    drawSearchLine(query_, top);
 
     const float listTop = this->listTop(top);
     const std::string site = catalog::sourceName(source_);

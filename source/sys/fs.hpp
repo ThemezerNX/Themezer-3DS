@@ -35,7 +35,6 @@ public:
     // When a file on the SD card was last changed, in milliseconds since 2000; 0 when unknown.
     uint64_t modifiedTime(std::string_view path) override;
 
-    FS_Archive handle() const { return archive_; }
 
 private:
     explicit Archive(FS_Archive archive, bool sdmc) : archive_(archive), sdmc_(sdmc) {}

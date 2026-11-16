@@ -124,6 +124,16 @@ void drawStatusBar(float alpha)
     drawText(clock, x - 6, textTop(middle, metric::kTextSmall), metric::kTextSmall, text, Align::Right);
 }
 
+void drawSearchLine(std::string_view query, float top)
+{
+    if (query.empty())
+        return;
+    const float middle = top + kSearchLineHeight / 2;
+    icon(Icon::Search, 14, std::round(middle - metric::kIcon / 2), metric::kIcon, color::kTextDim);
+    drawText(query, 14 + metric::kIcon + 6, textTop(middle, metric::kTextSmall), metric::kTextSmall, color::kText,
+             Align::Left, metric::kBottomWidth - 48);
+}
+
 namespace row
 {
 

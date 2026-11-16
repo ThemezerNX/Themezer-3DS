@@ -65,11 +65,6 @@ inline uint32_t readU32(ByteSpan data, size_t offset)
     return offset + 4 <= data.size() ? readU32(data.data() + offset) : 0;
 }
 
-inline uint8_t readU8(ByteSpan data, size_t offset)
-{
-    return offset < data.size() ? data[offset] : 0;
-}
-
 inline bool startsWith(ByteSpan data, const char* magic)
 {
     const size_t length = std::strlen(magic);

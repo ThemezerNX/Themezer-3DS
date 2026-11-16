@@ -118,7 +118,6 @@ public:
         pos_ += n;
         return true;
     }
-    bool atEnd() const { return pos_ >= data_.size(); }
 
 private:
     bool need(size_t n)
