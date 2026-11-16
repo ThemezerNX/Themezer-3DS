@@ -171,6 +171,19 @@ Error inflateError(int status)
     return Error{Errc::InvalidData, status, "corrupt deflate data"};
 }
 
+// Bytes for an error's detail, "504B0304".
+std::string hex(ByteSpan bytes)
+{
+    constexpr char kDigits[] = "0123456789ABCDEF";
+    std::string text;
+    for (const uint8_t byte : bytes)
+    {
+        text += kDigits[byte >> 4];
+        text += kDigits[byte & 0xF];
+    }
+    return text;
+}
+
 // Where an entry's data starts: after its local header, whose name and extra field can differ in length from the
 // central directory's.
 Expected<uint64_t> dataOffset(Reader& reader, const ZipEntry& entry)
@@ -184,7 +197,9 @@ Expected<uint64_t> dataOffset(Reader& reader, const ZipEntry& entry)
     uint8_t header[kLocalSize];
     TZ_CHECK(reader.readAt(entry.localHeaderOffset, MutableByteSpan(header, sizeof(header))));
     if (readU32(header) != kLocalSignature)
-        return fail(Errc::InvalidData, "no local header for " + entry.name);
+        return fail(Errc::InvalidData, "no local header for " + entry.name + " at " +
+                                           std::to_string(entry.localHeaderOffset) + " of " + std::to_string(fileSize) +
+                                           " bytes, found " + hex(ByteSpan(header, 4)));
     if (readU16(header + 6) & kFlagEncrypted)
         return fail(Errc::Unsupported, "encrypted zip entry");
 
@@ -382,7 +397,14 @@ Expected<EndRecord> readEndRecord(Reader& reader, Bytes& tail, uint64_t& tailSta
             break;
     }
     if (found == SIZE_MAX)
-        return fail(Errc::InvalidData, "no zip end of central directory");
+    {
+        // what it starts with tells a cut-off zip (504B0304) from something else (3C21444F: an HTML page)
+        uint8_t start[4] = {};
+        const ByteSpan first(start, static_cast<size_t>(std::min<uint64_t>(fileSize, sizeof(start))));
+        TZ_CHECK(reader.readAt(0, MutableByteSpan(start, first.size())));
+        return fail(Errc::InvalidData, "no zip end of central directory in " + std::to_string(fileSize) +
+                                           " bytes starting " + hex(first));
+    }
 
     const uint8_t* end = tail.data() + found;
     uint32_t disk = readU16(end + 4);

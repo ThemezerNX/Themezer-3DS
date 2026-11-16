@@ -9,6 +9,7 @@
 #include "core/zip.hpp"
 #include "gfx/draw.hpp"
 #include "scenes/errors.hpp"
+#include "sys/log.hpp"
 #include "sys/net.hpp"
 #include "sys/sfx.hpp"
 #include "ui/overlays.hpp"
@@ -110,10 +111,13 @@ void fetch(std::string url, std::string title, std::string name, std::string fal
             request.maxSize = kMaxDownload;
             request.cancel = &token;
             request.progress = &task.download;
+            // for an error report; without the query, which a scanned code's link could carry a token in
+            LOG_INFO("download: %s", url.substr(0, url.find('?')).c_str());
             std::unique_ptr<net::Client> client = net::takeClient();
             Expected<net::Response> got = client->get(request);
             net::giveBack(std::move(client));
             net::Response response = TZ_TRY(std::move(got));
+            LOG_INFO("download: %zu bytes, %s", response.body.size(), response.contentType.c_str());
 
             auto reader = std::make_shared<MemoryReader>(std::move(response.body));
             const ZipArchive zip = TZ_TRY(ZipArchive::open(reader));

@@ -96,6 +96,12 @@ std::string toJson(const Report& report)
     appendField(out, "device", report.device);
     appendField(out, "region", report.region);
     appendField(out, "firmware", report.firmware);
+    appendField(out, "launcher", report.launcher);
+    char memory[128];
+    std::snprintf(memory, sizeof(memory), "\"memory\":{\"heap\":%lu,\"heapUsed\":%lu,\"linear\":%lu,\"linearFree\":%lu},",
+                  static_cast<unsigned long>(report.heap), static_cast<unsigned long>(report.heapUsed),
+                  static_cast<unsigned long>(report.linear), static_cast<unsigned long>(report.linearFree));
+    out += memory;
     appendField(out, "error", errcName(report.error.code));
     char system[16];
     std::snprintf(system, sizeof(system), "%08X", static_cast<unsigned>(report.error.system));

@@ -514,9 +514,21 @@ TEST(zip_unsupported)
 TEST(zip_broken)
 {
     CHECK(openZip({}).error().code == Errc::InvalidData);
-    CHECK(openZip(text("PK\x03\x04 this is no zip at all, just text")).error().code == Errc::InvalidData);
+    const Bytes notZip = text("PK\x03\x04 this is no zip at all, just text");
+    const Error noEnd = openZip(notZip).error();
+    CHECK(noEnd.code == Errc::InvalidData);
+    // for a report: the size, and what it starts with
+    CHECK_EQ(noEnd.detail, "no zip end of central directory in " + std::to_string(notZip.size()) +
+                               " bytes starting 504B0304");
 
     const Bytes good = makeZip({{"a.txt", compressible(5000, 2)}, {"b.txt", text("b"), false}});
+    // the directory points at something else than a local header: where, and what's there
+    Bytes moved = good;
+    moved[0] = 0;
+    auto listed = openZip(moved);
+    REQUIRE(listed.has_value());
+    const Error noHeader = listed->read(listed->entries()[0], 10000).error();
+    CHECK_EQ(noHeader.detail, "no local header for a.txt at 0 of " + std::to_string(good.size()) + " bytes, found 004B0304");
     // the end cut off
     CHECK(!openZip(Bytes(good.begin(), good.end() - 30)).has_value());
 

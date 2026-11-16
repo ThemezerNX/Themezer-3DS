@@ -16,7 +16,6 @@
 #include <3ds.h>
 #include <cctype>
 #include <charconv>
-#include <malloc.h>
 #include <optional>
 #include <string>
 #include <vector>
@@ -297,11 +296,7 @@ bool parse(std::string_view line, std::vector<Step>& out)
 
 void logMemory()
 {
-    const struct mallinfo heap = mallinfo();
-    LOG_INFO("autopilot: memory: heap %u KB in use, %u KB free in the arena; linear %lu KB free; GPU commands at most "
-             "%d%%",
-             static_cast<unsigned>(heap.uordblks / 1024), static_cast<unsigned>(heap.fordblks / 1024),
-             static_cast<unsigned long>(linearSpaceFree() / 1024),
+    LOG_INFO("autopilot: memory: %s; GPU commands at most %d%%", log::describe(log::memory()).c_str(),
              static_cast<int>(gfx::takePeakCommandUse() * 100));
 }
 

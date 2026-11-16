@@ -8,6 +8,7 @@
 
 #include "core/result.hpp"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -24,11 +25,18 @@ struct Report
     std::string device;   // "New 3DS XL"
     std::string region;   // "EUR"
     std::string firmware; // the system version, "11.17.0-50E"
+    std::string launcher; // "cia" from the HOME Menu, "3dsx" from the Homebrew Launcher: their memory differs
+    // in KB, when the report was made: in use against the heap's size tells a leak from one big request
+    uint32_t heap = 0;
+    uint32_t heapUsed = 0;
+    uint32_t linear = 0;
+    uint32_t linearFree = 0;
     Error error;
     std::vector<std::string> log; // the app's log, oldest first
 };
 
-// The JSON the server takes: { "version", "device", "region", "firmware", "error": "invalid data" (errcName()),
+// The JSON the server takes: { "version", "device", "region", "firmware", "launcher",
+// "memory": { "heap", "heapUsed", "linear", "linearFree" } (numbers), "error": "invalid data" (errcName()),
 // "system": "E0E083F2", "detail", "log": [ ... ] }. Valid UTF-8 whatever the texts hold; each text is cut at 512
 // characters, and every line of the log goes.
 std::string toJson(const Report& report);

@@ -419,6 +419,7 @@ private:
 
     bool seekable_ = false; // loops by seeking back in the source instead of keeping the loop in memory
     bool loops_ = false;
+    uint64_t loopNotKept_ = 0; // the bytes a loop needed that there was no memory for
     uint32_t loopBlock_ = 0; // the block holding the loop start
     uint32_t loopFirst_ = 0; // the loop start within it, on a frame for DSP-ADPCM
 
@@ -472,9 +473,15 @@ Expected<void> Playback::run()
     info_ = TZ_TRY(bcstm::parse(header_));
     TZ_CHECK(prepare());
     TZ_CHECK(openChannels());
-    LOG_INFO("music: %s, %u channel(s), %u Hz, %s", encodingName(info_.encoding), unsigned(info_.channels),
-             unsigned(info_.sampleRate),
-             !loops_ ? "once" : seekable_ ? "looping from the source" : "looping from memory");
+    // one line a preview, so that browsing doesn't push the rest out of the log an error report sends
+    if (loopNotKept_ > 0)
+        LOG_WARN("music: %s, %u channel(s), %u Hz, once: no memory to keep its loop (%llu bytes)",
+                 encodingName(info_.encoding), unsigned(info_.channels), unsigned(info_.sampleRate),
+                 static_cast<unsigned long long>(loopNotKept_));
+    else
+        LOG_INFO("music: %s, %u channel(s), %u Hz, %s", encodingName(info_.encoding), unsigned(info_.channels),
+                 unsigned(info_.sampleRate),
+                 !loops_ ? "once" : seekable_ ? "looping from the source" : "looping from memory");
 
     while (!shared_.stopping)
     {
@@ -528,8 +535,7 @@ Expected<void> Playback::prepare()
             cache_.reset(new (std::nothrow) uint8_t[static_cast<size_t>(size)]);
         if (!cache_)
         {
-            LOG_WARN("music: no memory to keep its loop (%llu bytes), so it plays once",
-                     static_cast<unsigned long long>(size));
+            loopNotKept_ = size;
             loops_ = false;
         }
     }

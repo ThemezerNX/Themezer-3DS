@@ -23,11 +23,17 @@ TEST(report_json)
     report.device = "New 3DS XL";
     report.region = "EUR";
     report.firmware = "11.17.0";
+    report.launcher = "cia";
+    report.heap = 65536;
+    report.heapUsed = 40000;
+    report.linear = 32768;
+    report.linearFree = 900;
     report.error = Error{Errc::InvalidData, static_cast<int32_t>(0xE0E083F2), "a \"quoted\"\nline\\ \x01"};
     report.log = {"first", "tab\there"};
     CHECK_EQ(report::toJson(report),
              std::string("{\"version\":\"1.2.0\",\"device\":\"New 3DS XL\",\"region\":\"EUR\",\"firmware\":\"11.17.0\","
-                         "\"error\":\"invalid data\",\"system\":\"E0E083F2\","
+                         "\"launcher\":\"cia\",\"memory\":{\"heap\":65536,\"heapUsed\":40000,\"linear\":32768,"
+                         "\"linearFree\":900},\"error\":\"invalid data\",\"system\":\"E0E083F2\","
                          "\"detail\":\"a \\\"quoted\\\"\\nline\\\\ \\u0001\",\"log\":[\"first\",\"tab\\there\"]}"));
 }
 

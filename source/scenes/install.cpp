@@ -11,6 +11,7 @@
 #include "domain/package.hpp"
 #include "domain/themes.hpp"
 #include "scenes/errors.hpp"
+#include "sys/log.hpp"
 #include "ui/overlays.hpp"
 
 #include <algorithm>
@@ -27,6 +28,7 @@ constexpr const char* kMusicName = "bgm.bcstm";
 void installTheme(const library::Source& source, const std::string& name, ThemeMode mode,
                   std::function<void(bool, library::FileId)> done)
 {
+    LOG_INFO("install: %s (%llu bytes)", source.path.c_str(), static_cast<unsigned long long>(source.size));
     HomeStorage& storage = App::get().homeStorage();
     if (!storage.ready)
     {
@@ -107,6 +109,7 @@ void installTheme(const library::Source& source, const std::string& name, ThemeM
 void installSplash(const library::Source& source, const std::string& name, splashes::Screens screens,
                    std::function<void(bool)> done)
 {
+    LOG_INFO("install: %s (%llu bytes)", source.path.c_str(), static_cast<unsigned long long>(source.size));
     App::get().scenes().push(ui::ProgressOverlay::start<Expected<bool>>(
         {trf("Installing {}", name), Lane::Io, false, false, gfx::accent::kSplashes.solid},
         [source, screens](ui::TaskProgress& progress, const CancelToken&) -> Expected<bool> {

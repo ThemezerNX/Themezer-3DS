@@ -11,6 +11,7 @@
 #include <array>
 #include <atomic>
 #include <cstdio>
+#include <malloc.h>
 #include <mutex>
 #include <string>
 
@@ -71,6 +72,22 @@ void writeError(const char* what, const Error& error)
 {
     write("E", "%s: %s (%08lX) %s", what, errcName(error.code), static_cast<unsigned long>(error.system),
           error.detail.c_str());
+}
+
+Memory memory()
+{
+    const struct mallinfo heap = mallinfo();
+    return {static_cast<uint32_t>(envGetHeapSize() / 1024), static_cast<uint32_t>(heap.uordblks / 1024),
+            static_cast<uint32_t>(envGetLinearHeapSize() / 1024), static_cast<uint32_t>(linearSpaceFree() / 1024)};
+}
+
+std::string describe(const Memory& memory)
+{
+    char text[96];
+    std::snprintf(text, sizeof(text), "heap %lu of %lu KB in use, linear %lu of %lu KB free",
+                  static_cast<unsigned long>(memory.heapUsed), static_cast<unsigned long>(memory.heap),
+                  static_cast<unsigned long>(memory.linearFree), static_cast<unsigned long>(memory.linear));
+    return text;
 }
 
 void save(const char* path)

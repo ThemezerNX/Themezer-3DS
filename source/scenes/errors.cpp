@@ -42,6 +42,9 @@ ErrorInfo explain(const Error& error)
     // cancelling is something the user did, not an error
     if (error.code != Errc::Cancelled)
         log::writeError("shown", error);
+    // the memory left, for a report: running out after a while (a leak) reads differently from one big request
+    if (error.code == Errc::OutOfMemory)
+        LOG_INFO("memory: %s", log::describe(log::memory()).c_str());
     switch (error.code)
     {
     case Errc::NotFound:

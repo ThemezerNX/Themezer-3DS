@@ -51,6 +51,12 @@ Report collect(const Error& error)
     report.firmware = R_SUCCEEDED(osGetSystemVersionDataString(nullptr, nullptr, version, sizeof(version)))
                           ? version
                           : "unknown";
+    report.launcher = envIsHomebrew() ? "3dsx" : "cia";
+    const log::Memory memory = log::memory();
+    report.heap = memory.heap;
+    report.heapUsed = memory.heapUsed;
+    report.linear = memory.linear;
+    report.linearFree = memory.linearFree;
     report.error = error;
     report.log = log::tail(SIZE_MAX); // all the kept lines
     return report;

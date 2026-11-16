@@ -6,6 +6,7 @@
 #include "core/result.hpp"
 
 #include <cstdarg>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,18 @@ std::vector<std::string> tail(size_t count);
 bool hadErrors();
 // save(), for when the app is about to stop on a fatal error: it doesn't wait for a thread that may be stuck writing.
 void saveNow(const char* path);
+
+// The app's memory, in KB: the heap malloc() takes from, and the linear heap the GPU and the DSP read.
+struct Memory
+{
+    uint32_t heap = 0;
+    uint32_t heapUsed = 0;
+    uint32_t linear = 0;
+    uint32_t linearFree = 0;
+};
+Memory memory();
+// "heap 41000 of 64000 KB in use, linear 900 of 32768 KB free"
+std::string describe(const Memory& memory);
 
 } // namespace tz::log
 

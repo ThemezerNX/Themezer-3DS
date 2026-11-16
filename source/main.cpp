@@ -7,7 +7,6 @@
 #include <3ds.h>
 #include <cstdlib>
 #include <exception>
-#include <malloc.h>
 
 namespace
 {
@@ -16,10 +15,7 @@ namespace
 // bug report before the app stops.
 [[noreturn]] void onTerminate()
 {
-    const struct mallinfo heap = mallinfo();
-    LOG_ERROR("the app stopped on a fatal error (heap %u KB in use, %u KB free; linear %lu KB free)",
-              static_cast<unsigned>(heap.uordblks / 1024), static_cast<unsigned>(heap.fordblks / 1024),
-              static_cast<unsigned long>(linearSpaceFree() / 1024));
+    LOG_ERROR("the app stopped on a fatal error (%s)", tz::log::describe(tz::log::memory()).c_str());
     tz::log::saveNow(tz::kLogPath);
     std::abort();
 }
