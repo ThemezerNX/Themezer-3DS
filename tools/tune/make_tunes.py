@@ -463,37 +463,39 @@ TUNES = {
         (12, 'Eb5', .34, 'musicbox'), (12.5, 'Ab5', .36, 'musicbox'), (13, 'Bb5', .38, 'musicbox'), (13.5, 'C6', .44, 'musicbox')]),
 }
 
-out_dir = sys.argv[1]
-os.makedirs(out_dir, exist_ok=True)
-# with --lower, bloom and themezer one, two and three octaves down as well
-jobs = [(name, spec, 0) for name, spec in TUNES.items()]
-if '--lower' in sys.argv:
-    jobs = [(name, TUNES[name], k) for name in ('bloom', 'themezer') for k in (1, 2, 3)]
-# with --instruments, bloom and themezer on each instrument other than the piano (the music box an octave up)
-if '--instruments' in sys.argv:
-    jobs = [(name, TUNES[name], inst) for name in ('themezer', 'bloom') for inst in ALTERNATIVES]
+# run as a script (tools/music/make_tracks.py imports the instruments)
+if __name__ == '__main__':
+    out_dir = sys.argv[1]
+    os.makedirs(out_dir, exist_ok=True)
+    # with --lower, bloom and themezer one, two and three octaves down as well
+    jobs = [(name, spec, 0) for name, spec in TUNES.items()]
+    if '--lower' in sys.argv:
+        jobs = [(name, TUNES[name], k) for name in ('bloom', 'themezer') for k in (1, 2, 3)]
+    # with --instruments, bloom and themezer on each instrument other than the piano (the music box an octave up)
+    if '--instruments' in sys.argv:
+        jobs = [(name, TUNES[name], inst) for name in ('themezer', 'bloom') for inst in ALTERNATIVES]
 
 
-def stem(name, var):
-    return f'{name}-{var}' if isinstance(var, str) else name + (f'-down{var}' if var else '')
+    def stem(name, var):
+        return f'{name}-{var}' if isinstance(var, str) else name + (f'-down{var}' if var else '')
 
 
-# with --only, the one tune of that name from any of the lists above (any tune, octave or instrument)
-if '--only' in sys.argv:
-    want = sys.argv[sys.argv.index('--only') + 1]
-    every = [(name, spec, var) for name, spec in TUNES.items()
-             for var in (0, 1, 2, 3, *ALTERNATIVES)]
-    jobs = [job for job in every if stem(job[0], job[2]) == want]
-    if not jobs:
-        sys.exit(f'no tune called {want}')
-for name, spec, var in jobs:
-    if isinstance(var, str):
-        mix = render(**spec, instrument=var)
-    else:
-        mix = render(**spec, transpose=-12 * var)
-    path = os.path.join(out_dir, f'tune-{stem(name, var)}.wav')
-    pcm = np.round(mix * 32767).astype('<i2')
-    with wave.open(path, 'wb') as w:
-        w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm.tobytes())
-    rms = 20 * np.log10(np.sqrt((mix ** 2).mean()))
-    print(f'{path}: {LENGTH} s, rms {rms:.1f} dBFS')
+    # with --only, the one tune of that name from any of the lists above (any tune, octave or instrument)
+    if '--only' in sys.argv:
+        want = sys.argv[sys.argv.index('--only') + 1]
+        every = [(name, spec, var) for name, spec in TUNES.items()
+                 for var in (0, 1, 2, 3, *ALTERNATIVES)]
+        jobs = [job for job in every if stem(job[0], job[2]) == want]
+        if not jobs:
+            sys.exit(f'no tune called {want}')
+    for name, spec, var in jobs:
+        if isinstance(var, str):
+            mix = render(**spec, instrument=var)
+        else:
+            mix = render(**spec, transpose=-12 * var)
+        path = os.path.join(out_dir, f'tune-{stem(name, var)}.wav')
+        pcm = np.round(mix * 32767).astype('<i2')
+        with wave.open(path, 'wb') as w:
+            w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm.tobytes())
+        rms = 20 * np.log10(np.sqrt((mix ** 2).mean()))
+        print(f'{path}: {LENGTH} s, rms {rms:.1f} dBFS')
