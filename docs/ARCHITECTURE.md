@@ -125,7 +125,8 @@ session ended: a crash when Luma3DS's newest ARM11 dump (`/luma/dumps/arm11`) ca
 title ID, a freeze when the main loop had stopped for 10 s or more, a fatal error when the log ends with
 `onTerminate()`'s line; else (the power went) it says nothing. `App::offerLastSession()` asks whether to share it, as
 a report with `error` set to `crash`, `freeze` or `fatal error` and the crash's registers in `detail`; the file stays
-as `last-session.txt`. A crash's PC and LR are the release's: look them up in its `.map` or with `addr2line` on its ELF.
+as `last-session.txt`. A crash's PC and LR are the release's: each release has its ELF as `themezer-3ds.elf.zip`,
+for `arm-none-eabi-addr2line -f -C -e themezer-3ds.elf <PC> <LR>`.
 
 ## Testing
 

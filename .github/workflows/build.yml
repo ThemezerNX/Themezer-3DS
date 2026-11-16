@@ -69,6 +69,7 @@ jobs:
           path: |
             out/themezer-3ds.3dsx
             out/themezer-3ds.cia
+            out/themezer-3ds.elf
 
   release:
     name: Release
@@ -81,11 +82,15 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: themezer-3ds-${{ github.sha }}
+      # the ELF with its debug info, for looking up a crash report's PC and LR (addr2line -f -C -e themezer-3ds.elf)
+      - name: Zip the ELF
+        run: zip -9 -j themezer-3ds.elf.zip themezer-3ds.elf
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             themezer-3ds.3dsx
             themezer-3ds.cia
+            themezer-3ds.elf.zip
           generate_release_notes: true
           # v1.1.0-beta.1 and the like: the app's update check skips pre-releases
           prerelease: ${{ contains(github.ref_name, '-') }}
