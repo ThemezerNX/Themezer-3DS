@@ -6,12 +6,14 @@
 #include "core/path.hpp"
 #include "core/smdh.hpp"
 #include "core/zip.hpp"
+#include "domain/item_ids.hpp"
 #include "domain/package.hpp"
 #include "domain/splashes.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <span>
 
 namespace tz::library
 {
@@ -150,73 +152,36 @@ const char* root(Kind kind)
 namespace
 {
 
-// " (<digits>)" at the end: the number, else nothing.
-std::optional<std::string_view> trailingNumber(std::string_view stem)
+// After an ID's tag, only what a second copy gets: nothing, or " (2)".
+bool endsAfter(std::string_view stem, size_t tagEnd)
 {
-    const size_t open = stem.rfind(" (");
-    if (open == std::string_view::npos || !stem.ends_with(')'))
-        return std::nullopt;
-    const std::string_view number = stem.substr(open + 2, stem.size() - open - 3);
-    if (number.empty() || number.find_first_not_of("0123456789") != std::string_view::npos)
-        return std::nullopt;
-    return number;
-}
-
-std::string_view withoutTrailingNumber(std::string_view stem)
-{
-    const auto number = trailingNumber(stem);
-    return number ? stem.substr(0, stem.size() - number->size() - 3) : stem;
-}
-
-std::optional<DownloadName> parseThemezerName(std::string_view stem)
-{
-    // "... (Themezer-T1ED6C)" at the end
-    constexpr std::string_view kTag = " (Themezer-";
-    const size_t tag = stem.rfind(kTag);
-    if (tag == std::string_view::npos || !stem.ends_with(')'))
-        return std::nullopt;
-    const std::string_view id = stem.substr(tag + kTag.size(), stem.size() - 1 - tag - kTag.size());
-    if (id.empty() || id.find_first_of(" ()") != std::string_view::npos)
-        return std::nullopt;
-    const std::string_view rest = stem.substr(0, tag);
-    // "<name> <kind> by <author>": the last " by " after a kind's word
-    for (const std::string_view kind : {" Theme by ", " Splash by ", " Badge Set by "})
-    {
-        const size_t at = rest.rfind(kind);
-        if (at == std::string_view::npos || at == 0)
-            continue;
-        DownloadName parts{std::string(rest.substr(0, at)), std::string(rest.substr(at + kind.size()))};
-        if (parts.author.empty())
-            return std::nullopt;
-        return parts;
-    }
-    return std::nullopt;
-}
-
-std::optional<DownloadName> parseThemePlazaName(std::string_view stem)
-{
-    // "<name> by <author> (<id>)": the number is the id, unless another one comes before it (a copy)
-    if (const std::string_view first = withoutTrailingNumber(stem); first != stem && trailingNumber(first))
-        stem = first;
-    if (!trailingNumber(stem))
-        return std::nullopt;
-    const std::string_view rest = withoutTrailingNumber(stem);
-    const size_t by = rest.rfind(" by ");
-    if (by == std::string_view::npos || by == 0 || by + 4 == rest.size())
-        return std::nullopt;
-    return DownloadName{std::string(rest.substr(0, by)), std::string(rest.substr(by + 4))};
+    const std::string_view after = stem.substr(tagEnd);
+    return after.empty() || (after.starts_with(" (") && after.ends_with(')') && after.size() > 3 &&
+                             after.substr(2, after.size() - 3).find_first_not_of("0123456789") == std::string_view::npos);
 }
 
 } // namespace
 
 std::optional<DownloadName> parseDownloadName(std::string_view stem)
 {
-    // a second download of the same file is saved as "... (2)"
-    if (auto themezer = parseThemezerName(withoutTrailingNumber(stem)))
-        return themezer;
-    if (stem.find(" (Themezer-") != std::string_view::npos)
+    // the ID as everywhere else (ids::idInFileName()), at the end; before it "<name> by <author>", with Themezer's kind
+    // word before its " by ": "<name> Theme by <author>"
+    const auto id = ids::idInFileName(stem);
+    if (!id || id->start == 0 || stem[id->start - 1] != ' ' || !endsAfter(stem, id->end))
         return std::nullopt;
-    return parseThemePlazaName(stem);
+    const std::string_view rest = stem.substr(0, id->start - 1);
+    static constexpr std::string_view kThemezerBys[] = {" Theme by ", " Splash by ", " Badge Set by "};
+    static constexpr std::string_view kThemePlazaBys[] = {" by "};
+    const std::span<const std::string_view> bys =
+        id->site == ids::Site::Themezer ? std::span<const std::string_view>(kThemezerBys) : kThemePlazaBys;
+    for (const std::string_view by : bys)
+    {
+        const size_t at = rest.rfind(by);
+        if (at == std::string_view::npos || at == 0 || at + by.size() == rest.size())
+            continue;
+        return DownloadName{std::string(rest.substr(0, at)), std::string(rest.substr(at + by.size()))};
+    }
+    return std::nullopt;
 }
 
 std::string Item::displayName() const

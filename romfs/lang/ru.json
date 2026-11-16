@@ -202,6 +202,8 @@
   "Something went wrong": "Что-то пошло не так",
   "The SD card or the system storage gave an error.": "SD-карта или системная память вернула ошибку.",
   "{} wasn't installed": "Не удалось установить: {}",
+  "Its files from ThemePlaza are damaged or incomplete. Download it again, and if it still doesn't install, tell ThemePlaza about it.": "Файлы с ThemePlaza повреждены или неполные. Скачайте заново, а если всё равно не устанавливается, сообщите об этом ThemePlaza.",
+  "Its files are damaged or incomplete. It isn't from Themezer: get it again from where it came from, or tell whoever made it.": "Файлы повреждены или неполные. Это не с Themezer: возьмите их заново там, откуда они, или сообщите автору.",
   "Its files are damaged or incomplete. Try downloading it again.": "Файлы повреждены или неполные. Скачайте заново.",
   "Its files are bigger than the HOME Menu can take.": "Файлы больше, чем может принять меню HOME.",
   "This console has no themes": "На этой консоли нет тем",

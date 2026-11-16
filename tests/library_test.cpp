@@ -230,13 +230,22 @@ TEST(library_download_names)
     REQUIRE(plazaCopy.has_value());
     CHECK_EQ(plazaCopy->name, std::string("Disney Tsum Tsum"));
     CHECK_EQ(plazaCopy->author, std::string("s4turnmms"));
-    auto plazaBy = library::parseDownloadName("Stand by Me by someone (12)");
+    auto plazaBy = library::parseDownloadName("Stand by Me by someone (152151)");
     REQUIRE(plazaBy.has_value());
     CHECK_EQ(plazaBy->name, std::string("Stand by Me"));
     CHECK(!library::parseDownloadName("Theme by (152151)").has_value());
     CHECK(!library::parseDownloadName("Theme by  (152151)").has_value());
     CHECK(!library::parseDownloadName("Theme (152151)").has_value());
     CHECK(!library::parseDownloadName("Theme by someone (Themezer-T1) (2)").has_value());
+    // the ID as ids::idInFileName() reads it: Themezer's tag in any case; not a copy's number, nor a tag in the middle
+    auto lower = library::parseDownloadName("Korn Theme by isaac-rizzi (themezer-t1ed6c)");
+    REQUIRE(lower.has_value());
+    CHECK_EQ(lower->name, std::string("Korn"));
+    CHECK(!library::parseDownloadName("Stand by Me by someone (12)").has_value());
+    CHECK(!library::parseDownloadName("Mario by mira (152151) remastered").has_value());
+    auto year = library::parseDownloadName("Pokemon (2023) by someone (152151)");
+    REQUIRE(year.has_value());
+    CHECK_EQ(year->name, std::string("Pokemon (2023)"));
 
     library::Item item;
     item.source = {"/Themes/Korn Theme by isaac-rizzi (Themezer-T1ED6C).zip",

@@ -83,7 +83,7 @@ void installTheme(const library::Source& source, const std::string& name, ThemeM
             progress.set(3, 3);
             return outcome;
         },
-        [name, mode, done](Expected<Outcome> result) {
+        [name, mode, done, site = ids::siteOfFileName(source.fileName)](Expected<Outcome> result) {
             if (!result)
             {
                 if (result.error().code == Errc::NotFound && mode == ThemeMode::MusicOnly)
@@ -91,7 +91,7 @@ void installTheme(const library::Source& source, const std::string& name, ThemeM
                                tr("The music can only go with a theme installed by this app or another theme "
                                   "manager. Install a theme first.")});
                 else
-                    showError(installError(result.error(), name));
+                    showError(installError(result.error(), name, site));
                 done(false, {});
                 return;
             }
@@ -125,10 +125,10 @@ void installSplash(const library::Source& source, const std::string& name, splas
             TZ_CHECK(splashes::install(sd, top, bottom, screens));
             return splashes::turnOnInLuma(sd);
         },
-        [name, done](Expected<bool> turnedOn) {
+        [name, done, site = ids::siteOfFileName(source.fileName)](Expected<bool> turnedOn) {
             if (!turnedOn)
             {
-                showError(installError(turnedOn.error(), name));
+                showError(installError(turnedOn.error(), name, site));
                 done(false);
                 return;
             }

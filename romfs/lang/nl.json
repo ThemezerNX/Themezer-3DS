@@ -194,6 +194,8 @@
   "Something went wrong": "Er ging iets mis",
   "The SD card or the system storage gave an error.": "De SD-kaart of het systeemgeheugen gaf een fout.",
   "{} wasn't installed": "Installatie van {} mislukt",
+  "Its files from ThemePlaza are damaged or incomplete. Download it again, and if it still doesn't install, tell ThemePlaza about it.": "De bestanden van ThemePlaza zijn beschadigd of onvolledig. Download het opnieuw, en als het dan nog steeds niet installeert, meld het bij ThemePlaza.",
+  "Its files are damaged or incomplete. It isn't from Themezer: get it again from where it came from, or tell whoever made it.": "De bestanden zijn beschadigd of onvolledig. Het komt niet van Themezer: haal het opnieuw op waar het vandaan kwam, of laat het de maker weten.",
   "Its files are damaged or incomplete. Try downloading it again.": "De bestanden zijn beschadigd of onvolledig. Probeer opnieuw te downloaden.",
   "Its files are bigger than the HOME Menu can take.": "De bestanden zijn groter dan het HOME-menu aankan.",
   "This console has no themes": "Deze console heeft geen thema's",

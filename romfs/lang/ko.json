@@ -186,6 +186,8 @@
   "Something went wrong": "문제가 생겼어요",
   "The SD card or the system storage gave an error.": "SD 카드나 본체 저장 메모리에서 오류가 났어요.",
   "{} wasn't installed": "{} 설치에 실패했어요",
+  "Its files from ThemePlaza are damaged or incomplete. Download it again, and if it still doesn't install, tell ThemePlaza about it.": "ThemePlaza의 파일이 손상되었거나 불완전해요. 다시 다운로드해 보고, 그래도 설치되지 않으면 ThemePlaza에 알려 주세요.",
+  "Its files are damaged or incomplete. It isn't from Themezer: get it again from where it came from, or tell whoever made it.": "파일이 손상되었거나 불완전해요. Themezer의 파일이 아니에요. 받은 곳에서 다시 받거나 만든 사람에게 알려 주세요.",
   "Its files are damaged or incomplete. Try downloading it again.": "파일이 손상되었거나 불완전해요. 다시 다운로드해 보세요.",
   "Its files are bigger than the HOME Menu can take.": "파일이 HOME 메뉴가 받을 수 있는 크기를 넘어요.",
   "This console has no themes": "이 본체에는 테마가 없어요",

@@ -93,17 +93,53 @@ std::optional<std::string> themePlazaIdInLink(std::string_view url)
     return std::nullopt;
 }
 
+std::optional<IdInName> idInFileName(std::string_view fileName)
+{
+    constexpr std::string_view kThemezerTag = "themezer-";
+    constexpr size_t kMinThemePlazaDigits = 3; // shortcut: not a copy's "(2)", nor ThemePlaza's first 99 items
+    std::optional<IdInName> themezer;
+    std::optional<IdInName> themePlaza;
+    for (size_t open = fileName.find('('); open != std::string_view::npos; open = fileName.find('(', open + 1))
+    {
+        const size_t close = fileName.find(')', open);
+        if (close == std::string_view::npos)
+            break;
+        const std::string_view inside = fileName.substr(open + 1, close - open - 1);
+        if (inside.size() > kThemezerTag.size() &&
+            path::equalsIgnoreCase(inside.substr(0, kThemezerTag.size()), kThemezerTag))
+        {
+            // a quick ID ("T1ED69"), or the plain hexadecimal one without its kind's letters ("1ED69")
+            const std::string_view written = inside.substr(kThemezerTag.size());
+            std::optional<std::string> id = themezerQuickId(written);
+            if (!id && written.size() <= kMaxQuickIdLength &&
+                written.find_first_not_of("0123456789ABCDEFabcdef") == std::string_view::npos)
+            {
+                id = std::string(written);
+                std::transform(id->begin(), id->end(), id->begin(),
+                               [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+            }
+            if (id && path::equalsIgnoreCase(*id, written))
+                themezer = IdInName{Site::Themezer, std::move(*id), open, close + 1};
+        }
+        else if (inside.size() >= kMinThemePlazaDigits && !inside.starts_with('0'))
+        {
+            if (auto id = themePlazaId(inside); id && *id == inside)
+                themePlaza = IdInName{Site::ThemePlaza, std::move(*id), open, close + 1};
+        }
+    }
+    return themezer ? themezer : themePlaza;
+}
+
 bool fileNameHasId(std::string_view fileName, std::string_view id)
 {
-    if (id.empty())
-        return false;
-    const auto contains = [fileName](const std::string& tag) {
-        for (size_t at = 0; at + tag.size() <= fileName.size(); ++at)
-            if (path::equalsIgnoreCase(fileName.substr(at, tag.size()), tag))
-                return true;
-        return false;
-    };
-    return contains("(Themezer-" + std::string(id) + ")") || contains("(" + std::string(id) + ")");
+    const auto found = idInFileName(fileName);
+    return found && !id.empty() && path::equalsIgnoreCase(found->id, id);
+}
+
+Site siteOfFileName(std::string_view fileName)
+{
+    const auto found = idInFileName(fileName);
+    return found ? found->site : Site::Elsewhere;
 }
 
 } // namespace tz::ids

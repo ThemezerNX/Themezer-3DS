@@ -54,3 +54,49 @@ TEST(item_ids_in_file_names)
     CHECK(!ids::fileNameHasId("Mario (1521510)", "152151"));
     CHECK(!ids::fileNameHasId("Mario (Themezer-T1ED69)", ""));
 }
+
+TEST(item_ids_site_of_file_name)
+{
+    // the names the sites give their downloads
+    CHECK(ids::siteOfFileName("Korn Theme by isaac-rizzi (Themezer-T1ED6C).zip") == ids::Site::Themezer);
+    CHECK(ids::siteOfFileName("korn (THEMEZER-t1ed6c).zip") == ids::Site::Themezer);
+    CHECK(ids::siteOfFileName("Sasuke eyes by tvpiv (144651).zip") == ids::Site::ThemePlaza);
+    // anything else, as far as the app can tell
+    CHECK(ids::siteOfFileName("download.zip") == ids::Site::Elsewhere);
+    CHECK(ids::siteOfFileName("Mario (2).zip") == ids::Site::Elsewhere); // a copy's number, not an ID
+    CHECK(ids::siteOfFileName("Mario (#144651).zip") == ids::Site::Elsewhere);
+    CHECK(ids::siteOfFileName("Mario (v2).zip") == ids::Site::Elsewhere);
+    CHECK(ids::siteOfFileName("Mario (.zip") == ids::Site::Elsewhere);
+}
+
+TEST(item_ids_id_in_file_name)
+{
+    // where it is, so that the name and the author can be read from before it
+    const auto themezer = ids::idInFileName("Korn Theme by isaac-rizzi (themezer-t1ed6c) (2)");
+    REQUIRE(themezer.has_value());
+    CHECK(themezer->site == ids::Site::Themezer);
+    CHECK_EQ(themezer->id, std::string("T1ED6C"));
+    CHECK_EQ(themezer->start, size_t(26));
+    CHECK_EQ(themezer->end, size_t(43));
+    // the last number of ThemePlaza's size, after one in the name and before a copy's
+    const auto plaza = ids::idInFileName("Pokemon (2023) by someone (152151) (2)");
+    REQUIRE(plaza.has_value());
+    CHECK(plaza->site == ids::Site::ThemePlaza);
+    CHECK_EQ(plaza->id, std::string("152151"));
+    // Themezer's tag over a number in the name
+    const auto song = ids::idInFileName("Song (2023) Theme by x (Themezer-T1ED69)");
+    REQUIRE(song.has_value());
+    CHECK_EQ(song->id, std::string("T1ED69"));
+    // Themezer's plain hexadecimal ID, without its kind's letters
+    const auto plain = ids::idInFileName("Korn Theme by isaac-rizzi (Themezer-1ed6c)");
+    REQUIRE(plain.has_value());
+    CHECK(plain->site == ids::Site::Themezer);
+    CHECK_EQ(plain->id, std::string("1ED6C"));
+    CHECK(ids::fileNameHasId("Korn Theme by isaac-rizzi (Themezer-1ED6C)", "1ed6c"));
+    CHECK(ids::siteOfFileName("Korn (Themezer-123456).zip") == ids::Site::Themezer);
+    // not an ID: a bad quick ID, padding, a leading zero, too few or too many digits
+    for (const char* name : {"Mario (Themezer-)", "Mario (Themezer-T1ED6G)", "Mario (Themezer-1ED6G)",
+                             "Mario (Themezer- T1)", "Mario (Themezer-THEME)", "Mario (0152151)",
+                             "Mario (12)", "Mario (1234567890)", "Mario ( 152151)", "Mario"})
+        CHECK(!ids::idInFileName(name).has_value());
+}

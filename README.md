@@ -61,8 +61,8 @@ through its screens and takes screenshots.
 ## Privacy
 
 The app sends nothing about you or your console on its own. It talks to Themezer and ThemePlaza to list and download
-what you ask for, and to GitHub to check for updates. When something unexpected goes wrong (not a network or a full SD
-card), the error's dialog has a **Share error** button on Y. Only if you press it, the app sends Themezer the app's
+what you ask for, and to GitHub to check for updates. When something unexpected goes wrong (not a network, a full SD
+card or a damaged file from another site), the error's dialog has a **Share error** button on Y. Only if you press it, the app sends Themezer the app's
 version, your console's model, region and system version, whether the app was started from the HOME Menu or the
 Homebrew Launcher, how much of its memory is in use, the error, and the app's log of this session, which can include
 the names of files on your SD card, the links of what you downloaded and what you searched for. The report holds no ID of you or your console, and Themezer only keeps it to

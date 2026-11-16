@@ -186,6 +186,8 @@
   "Something went wrong": "問題が発生しました",
   "The SD card or the system storage gave an error.": "SDカードか本体保存メモリーでエラーが発生しました。",
   "{} wasn't installed": "{}をインストールできませんでした",
+  "Its files from ThemePlaza are damaged or incomplete. Download it again, and if it still doesn't install, tell ThemePlaza about it.": "ThemePlazaのファイルが壊れているか不完全です。もう一度ダウンロードして、それでもインストールできない場合はThemePlazaに報告してください。",
+  "Its files are damaged or incomplete. It isn't from Themezer: get it again from where it came from, or tell whoever made it.": "ファイルが壊れているか不完全です。Themezerのものではありません。入手元からもう一度入手するか、作成者に知らせてください。",
   "Its files are damaged or incomplete. Try downloading it again.": "ファイルが壊れているか不完全です。もう一度ダウンロードしてください。",
   "Its files are bigger than the HOME Menu can take.": "ファイルがHOMEメニューで扱えるサイズを超えています。",
   "This console has no themes": "この本体にはテーマ機能がありません",

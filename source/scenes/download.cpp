@@ -54,13 +54,19 @@ struct Fetched
     bool taken = false;                    // a file of its name is
 };
 
-// Over the file of the same name. The new one is written beside it first, so that a write that fails (the SD card is
-// full) leaves the old one.
-Expected<void> replaceFile(FileSystem& sd, const std::string& path, ByteSpan data)
+// Written beside it first and renamed when complete, over a file of the same name if there is one: a write that fails
+// (the SD card is full, or taken out) leaves no damaged zip behind, and the old one in place. writeFile() makes a file
+// its full size before it writes, so a write cut short would leave one that looks whole.
+Expected<void> saveFile(FileSystem& sd, const std::string& path, ByteSpan data)
 {
     const std::string part = path + ".part";
-    TZ_CHECK(sd.writeFile(part, data));
-    TZ_CHECK(sd.removeFile(path));
+    if (Expected<void> written = sd.writeFile(part, data); !written)
+    {
+        (void)sd.removeFile(part);
+        return written;
+    }
+    if (sd.exists(path))
+        TZ_CHECK(sd.removeFile(path));
     return sd.rename(part, path);
 }
 
@@ -82,7 +88,7 @@ void askToReplace(const Saved& saved, std::shared_ptr<MemoryReader> unsaved, std
                  App::get().scenes().push(ui::ProgressOverlay::start<Expected<void>>(
                      {tr("Saving it to the SD card"), Lane::Io, false, false, gfx::color::kPrimary},
                      [saved, unsaved](ui::TaskProgress&, const CancelToken&) {
-                         return replaceFile(App::get().sd(), saved.path, unsaved->bytes());
+                         return saveFile(App::get().sd(), saved.path, unsaved->bytes());
                      },
                      [saved, done](Expected<void> replaced) {
                          if (!replaced)
@@ -145,7 +151,7 @@ void fetch(std::string url, std::string title, std::string name, std::string fal
             TZ_CHECK(sd.createDirectories(folder));
             // from the download's own buffer: a copy would need its size again, and the app closes when it can't
             // have it
-            TZ_CHECK(sd.writeFile(fetched.saved.path, reader->bytes()));
+            TZ_CHECK(saveFile(sd, fetched.saved.path, reader->bytes()));
             return fetched;
         },
         [done](Expected<Fetched> fetched) {
@@ -177,7 +183,7 @@ void save(const Fetched& fetched, std::function<void(Saved)> done)
         [saved, data](ui::TaskProgress&, const CancelToken&) -> Expected<void> {
             FileSystem& sd = App::get().sd();
             TZ_CHECK(sd.createDirectories(std::string(path::parent(saved.path))));
-            return sd.writeFile(saved.path, data->bytes());
+            return saveFile(sd, saved.path, data->bytes());
         },
         [saved, done](Expected<void> written) {
             if (!written)
@@ -189,10 +195,13 @@ void save(const Fetched& fetched, std::function<void(Saved)> done)
         }));
 }
 
-// Installs a saved theme or splash as a whole; after() once that's over, however it went.
-void install(const Saved& saved, const std::string& name, std::function<void()> after)
+// Installs a saved theme or splash as a whole; after() once that's over, however it went. fileName is the download's,
+// which tells the site it's from (ids::siteOfFileName()).
+void install(const Saved& saved, const std::string& name, std::function<void()> after, std::string fileName = {})
 {
-    const library::Source source{saved.path, std::string(path::filename(saved.path)), true, saved.size};
+    if (fileName.empty())
+        fileName = path::filename(saved.path);
+    const library::Source source{saved.path, std::move(fileName), true, saved.size};
     if (saved.kind == ContentKind::Theme)
         installTheme(source, name, ThemeMode::Full, [after](bool, library::FileId) {
             if (after)
@@ -219,7 +228,7 @@ void installOnce(const Fetched& fetched, const std::string& name)
         [data](ui::TaskProgress&, const CancelToken&) {
             return App::get().sd().writeFile(kInstallOncePath, data->bytes());
         },
-        [once, name, remove](Expected<void> written) {
+        [once, name, remove, fileName = std::string(path::filename(fetched.saved.path))](Expected<void> written) {
             if (!written)
             {
                 // a write that failed can leave the file, full size
@@ -227,7 +236,7 @@ void installOnce(const Fetched& fetched, const std::string& name)
                 showError(downloadError(written.error()));
                 return;
             }
-            install(once, name, remove);
+            install(once, name, remove, fileName);
         }));
 }
 

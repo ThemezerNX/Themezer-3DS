@@ -107,7 +107,9 @@ The screens are small (400x240 and 320x240) and their pixels large, so the look 
 
 An error dialog offers to share the error (Y) when the app is to blame for it: `ErrorInfo::report` is set by `describe()`
 and the storage errors in `scenes/errors.cpp` for the codes `report::shareable()` (`domain/report`) names, and not for
-the network, a full SD card, cancelling, files too big for the HOME Menu or what the HOME Menu has in use. Pressing
+the network, a full SD card, cancelling, files too big for the HOME Menu or what the HOME Menu has in use. Nor for a
+damaged or unsupported file of an item that isn't from Themezer (`installError()`, by `ids::siteOfFileName()`): its
+dialog names ThemePlaza, or says it's from elsewhere. Pressing
 the button has `services/reporter` send `domain/report`'s JSON to `POST <api>/reports` in the background; nothing is
 ever sent otherwise. Themezer's side only logs the report, which is how it is looked up later. It is text: the log's
 kept lines (128 at most, of under 512 bytes each) and no files, with the launcher (CIA or 3dsx) and the heap and linear

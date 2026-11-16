@@ -88,14 +88,22 @@ ErrorInfo describe(const Error& error)
     return reportable(explain(error), error);
 }
 
-ErrorInfo installError(const Error& error, const std::string& name)
+ErrorInfo installError(const Error& error, const std::string& name, ids::Site site)
 {
     ErrorInfo info = describe(error);
     info.title = trf("{} wasn't installed", name);
     if (error.code == Errc::InvalidData)
-        info.message = tr("Its files are damaged or incomplete. Try downloading it again.");
+        info.message = site == ids::Site::ThemePlaza
+                           ? tr("Its files from ThemePlaza are damaged or incomplete. Download it again, and if it "
+                                "still doesn't install, tell ThemePlaza about it.")
+                       : site == ids::Site::Elsewhere
+                           ? tr("Its files are damaged or incomplete. It isn't from Themezer: get it again from where "
+                                "it came from, or tell whoever made it.")
+                           : tr("Its files are damaged or incomplete. Try downloading it again.");
     else if (error.code == Errc::TooLarge)
         info.message = tr("Its files are bigger than the HOME Menu can take.");
+    if (site != ids::Site::Themezer && (error.code == Errc::InvalidData || error.code == Errc::Unsupported))
+        info.report.reset();
     return info;
 }
 

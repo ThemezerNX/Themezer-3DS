@@ -70,7 +70,7 @@ struct Info
 
 // Themezer names its downloads "<name> Theme by <author> (Themezer-<id>)", or Splash or Badge Set for the others,
 // ThemePlaza "<name> by <author> (<id>)", and a second copy gets " (2)" after that: the name and the author in such a
-// file name (without .zip), for items whose files don't name them.
+// file name (without .zip), for items whose files don't name them. The ID is read as ids::idInFileName() reads it.
 struct DownloadName
 {
     std::string name;

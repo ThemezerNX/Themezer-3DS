@@ -194,6 +194,8 @@
   "Something went wrong": "Algo correu mal",
   "The SD card or the system storage gave an error.": "O cartão SD ou o armazenamento do sistema deu um erro.",
   "{} wasn't installed": "Não foi possível instalar {}",
+  "Its files from ThemePlaza are damaged or incomplete. Download it again, and if it still doesn't install, tell ThemePlaza about it.": "Os ficheiros do ThemePlaza estão danificados ou incompletos. Transfira-o de novo e, se mesmo assim não instalar, avise o ThemePlaza.",
+  "Its files are damaged or incomplete. It isn't from Themezer: get it again from where it came from, or tell whoever made it.": "Os ficheiros estão danificados ou incompletos. Não é do Themezer: obtenha-o de novo de onde veio ou avise quem o criou.",
   "Its files are damaged or incomplete. Try downloading it again.": "Os ficheiros estão danificados ou incompletos. Tente transferi-lo de novo.",
   "Its files are bigger than the HOME Menu can take.": "Os ficheiros são maiores do que o Menu HOME aceita.",
   "This console has no themes": "Esta consola não tem temas",

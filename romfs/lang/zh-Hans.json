@@ -186,6 +186,8 @@
   "Something went wrong": "出错了",
   "The SD card or the system storage gave an error.": "SD卡或系统存储出现错误。",
   "{} wasn't installed": "{} 未能安装",
+  "Its files from ThemePlaza are damaged or incomplete. Download it again, and if it still doesn't install, tell ThemePlaza about it.": "来自 ThemePlaza 的文件已损坏或不完整。请重新下载；如果仍无法安装，请告知 ThemePlaza。",
+  "Its files are damaged or incomplete. It isn't from Themezer: get it again from where it came from, or tell whoever made it.": "文件已损坏或不完整。它不是来自 Themezer：请从原来的地方重新获取，或告知制作者。",
   "Its files are damaged or incomplete. Try downloading it again.": "文件已损坏或不完整。请重新下载。",
   "Its files are bigger than the HOME Menu can take.": "文件超出了HOME菜单能处理的大小。",
   "This console has no themes": "这台主机没有主题功能",
