@@ -71,6 +71,14 @@ Report collect(const Error& error)
 // In the background, saying in a toast how it went.
 void send(std::string body)
 {
+    // only releases send: a development build's errors are the developer's own (the toast is English, as only they see
+    // it)
+    if (std::string_view(APP_VERSION).contains("-dev"))
+    {
+        LOG_INFO("a development build doesn't send the report (%zu bytes)", body.size());
+        ui::toast("Not sent: development builds don't share errors", ui::ToastKind::Info);
+        return;
+    }
     jobs::async(
         Lane::Network,
         [body = std::move(body)](const CancelToken& token) -> Expected<void> {

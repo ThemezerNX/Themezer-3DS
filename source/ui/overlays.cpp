@@ -272,9 +272,23 @@ u32 Dialog::keyOf(size_t button) const
     return button == 0 ? KEY_B : KEY_A;
 }
 
+void Dialog::setTopText(std::string heading, std::string text)
+{
+    topHeading_ = std::move(heading);
+    std::erase(text, '\r'); // GitHub's line ends
+    topText_ = std::move(text);
+}
+
 void Dialog::update(Input& input, float dt)
 {
     approach(appear_, 1, dt, 12);
+    if (!topText_.empty())
+    {
+        if (input.repeated(KEY_UP))
+            topLine_ = std::max(0, topLine_ - 1);
+        if (input.repeated(KEY_DOWN))
+            topLine_ = std::min(topLastLine_, topLine_ + 1);
+    }
     for (size_t i = 0; i < buttons_.size(); ++i)
     {
         if (input.pressed(keyOf(i)))
@@ -300,7 +314,33 @@ void Dialog::update(Input& input, float dt)
 
 void Dialog::drawTop()
 {
-    fill(withAlpha(color::kScrim, 0.45f * appear_));
+    if (topText_.empty())
+    {
+        fill(withAlpha(color::kScrim, 0.45f * appear_));
+        return;
+    }
+    fill(withAlpha(color::kBackground, appear_));
+    constexpr float kMargin = 16;
+    const float width = metric::kTopWidth - 2 * kMargin;
+    drawText(topHeading_, kMargin, 14, metric::kTextLarge, withAlpha(color::kText, appear_), Align::Left, width);
+    const float top = 14 + lineHeight(metric::kTextLarge) + 8;
+    const float step = lineHeight(metric::kTextNormal);
+    const auto lines = wrap(topText_, width - 8, metric::kTextNormal);
+    const int shown = std::max(1, static_cast<int>((metric::kHeight - 12 - top) / step));
+    const int count = static_cast<int>(lines.size());
+    topLastLine_ = std::max(0, count - shown);
+    topLine_ = std::min(topLine_, topLastLine_);
+    for (int i = 0; i < shown && topLine_ + i < count; ++i)
+        drawText(lines[topLine_ + i], kMargin, top + i * step, metric::kTextNormal, withAlpha(color::kTextDim, appear_),
+                 Align::Left, width - 8);
+    // a scroll bar when it doesn't all fit
+    if (topLastLine_ > 0)
+    {
+        const float track = shown * step;
+        const float thumb = std::max(12.0f, track * shown / count);
+        const float at = top + (track - thumb) * topLine_ / topLastLine_;
+        roundedRect(metric::kTopWidth - kMargin + 4, at, 3, thumb, 1.5f, withAlpha(color::kTextFaint, appear_));
+    }
 }
 
 void Dialog::drawBottom()

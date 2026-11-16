@@ -117,6 +117,8 @@ private:
     float appear_ = 0;
 };
 
+void startUpdate(const update::Release& copy, update::InstallKind kind, const char* appPath);
+
 void installUpdate()
 {
     const auto& release = App::get().availableUpdate();
@@ -131,6 +133,17 @@ void installUpdate()
     }
     const update::Release copy = *release;
     const char* appPath = App::get().appPath();
+    auto& dialog = App::get().scenes().emplace<ui::Dialog>(
+        Icon::Update, color::kPrimaryLight, trf("Version {} is available", copy.version),
+        trf("You have version {}", APP_VERSION),
+        std::vector<ui::DialogButton>{{tr("Not now"), nullptr},
+                                      {tr("Install"), [copy, kind, appPath] { startUpdate(copy, kind, appPath); }}});
+    if (!copy.notes.empty())
+        dialog.setTopText(trf("Version {}", copy.version), copy.notes);
+}
+
+void startUpdate(const update::Release& copy, update::InstallKind kind, const char* appPath)
+{
     App::get().scenes().push(ui::ProgressOverlay::start<Expected<void>>(
         {trf("Updating to version {}", copy.version), Lane::Network, true, kind == update::InstallKind::Cia,
          color::kPrimary},

@@ -84,6 +84,8 @@ public:
     // each with its key: [0] still B, the last one A and wide, under the others.
     Dialog(gfx::Icon icon, gfx::Color iconColor, std::string title, std::string message,
            std::vector<DialogButton> buttons);
+    // Text the top screen shows instead of the page under the dialog, under its heading, scrolled with up and down.
+    void setTopText(std::string heading, std::string text);
     void update(Input& input, float dt) override;
     void drawTop() override;
     void drawBottom() override;
@@ -97,6 +99,10 @@ private:
     std::string title_;
     std::string message_;
     std::vector<DialogButton> buttons_;
+    std::string topHeading_;
+    std::string topText_;
+    int topLine_ = 0;     // the first line the top screen shows
+    int topLastLine_ = 0; // the most topLine_ can be, from the last draw
     float appear_ = 0;
     struct Box
     {
