@@ -52,6 +52,11 @@ jobs:
           # the 64-bit build: the container can't run the 32-bit one next to it
           install -m 755 /tmp/bannertool/linux-x86_64/bannertool /usr/local/bin/bannertool
 
+      - name: Check the licence notices are up to date
+        run: |
+          python3 tools/make_licenses.py
+          git diff --exit-code -- THIRD_PARTY_NOTICES.md
+
       - name: Take the latest CA certificates
         run: |
           curl -fsSL --retry 3 -o /tmp/cacert.pem https://curl.se/ca/cacert.pem
