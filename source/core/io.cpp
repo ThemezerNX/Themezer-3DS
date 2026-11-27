@@ -51,7 +51,10 @@ Expected<Bytes> Reader::readAll(uint64_t maxSize)
     const uint64_t length = size();
     if (length > maxSize)
         return fail(Errc::TooLarge, "file of " + std::to_string(length) + " bytes");
-    Bytes data(static_cast<size_t>(length));
+    Bytes data;
+    if (!reserveBytes(data, length))
+        return fail(Errc::OutOfMemory, "no " + std::to_string(length) + " bytes for the file");
+    data.resize(static_cast<size_t>(length));
     TZ_CHECK(readAt(0, data));
     return data;
 }

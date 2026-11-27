@@ -37,11 +37,15 @@ FileId fileId(const Package& package, std::string_view name)
     return FileId{static_cast<uint32_t>(*size), package.knownCrc(name).value_or(0)};
 }
 
-// A small writer and reader for the cache file.
+// A small writer and reader for the cache file. The writer fills what reserve() made room for and never grows: a
+// cache of 1800 themes is 9 MB, and growing it by doubling asked for a block that size with the old one still held.
 class Writer
 {
 public:
-    void u8(uint8_t v) { data_.push_back(v); }
+    bool reserve(size_t size) { return reserveBytes(data_, size); }
+    // false when something didn't fit in the room reserved
+    bool ok() const { return ok_; }
+    void u8(uint8_t v) { raw(&v, 1); }
     void u16(uint16_t v)
     {
         u8(static_cast<uint8_t>(v));
@@ -61,10 +65,15 @@ public:
     {
         const size_t length = std::min<size_t>(s.size(), 0xFFFF);
         u16(static_cast<uint16_t>(length));
-        data_.insert(data_.end(), s.begin(), s.begin() + static_cast<ptrdiff_t>(length));
+        raw(s.data(), length);
     }
     void raw(const void* p, size_t n)
     {
+        if (n > data_.capacity() - data_.size())
+        {
+            ok_ = false;
+            return;
+        }
         const auto* bytes = static_cast<const uint8_t*>(p);
         data_.insert(data_.end(), bytes, bytes + n);
     }
@@ -72,6 +81,7 @@ public:
 
 private:
     Bytes data_;
+    bool ok_ = true;
 };
 
 class Parser
@@ -322,7 +332,18 @@ std::vector<std::pair<Source, Info>> loadCache(FileSystem& sd, std::string_view 
 
 Expected<void> saveCache(FileSystem& sd, std::string_view cachePath, Kind kind, const std::vector<Item>& items)
 {
+    // what the loop below writes, so that the buffer is allocated once, at its size
+    const auto textSize = [](std::string_view s) { return 2 + std::min<size_t>(s.size(), 0xFFFF); };
+    size_t size = 12;
+    for (const Item& item : items)
+    {
+        if (item.info)
+            size += textSize(item.source.path) + 10 + textSize(item.info->name) + textSize(item.info->author) +
+                    textSize(item.info->description) + 24 + (item.info->icon ? sizeof(Icon) : 0);
+    }
     Writer out;
+    if (!out.reserve(size))
+        return fail(Errc::OutOfMemory, "no " + std::to_string(size) + " bytes for the cache");
     out.raw(kCacheMagic, 4);
     out.u16(kCacheVersion);
     out.u8(static_cast<uint8_t>(kind));
@@ -353,6 +374,8 @@ Expected<void> saveCache(FileSystem& sd, std::string_view cachePath, Kind kind, 
             out.raw(info.icon->data(), sizeof(Icon));
         ++count;
     }
+    if (!out.ok())
+        return fail(Errc::InvalidData, "the cache came out larger than " + std::to_string(size) + " bytes");
     writeU32(out.data().data() + countAt, count);
 
     TZ_CHECK(sd.createDirectories(path::parent(cachePath)));

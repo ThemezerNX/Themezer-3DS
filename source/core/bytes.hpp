@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <span>
 #include <vector>
@@ -15,6 +16,23 @@ namespace tz
 using Bytes = std::vector<uint8_t>;
 using ByteSpan = std::span<const uint8_t>;
 using MutableByteSpan = std::span<uint8_t>;
+
+// Grows a buffer. Without exceptions a failed allocation ends the app, so this checks that the memory is there first;
+// false when it isn't.
+inline bool reserveBytes(Bytes& bytes, uint64_t capacity)
+{
+    if (capacity <= bytes.capacity())
+        return true;
+    if (capacity > SIZE_MAX)
+        return false;
+    // volatile, or the compiler drops an allocation that is freed unused, and the check with it
+    void* volatile probe = std::malloc(static_cast<size_t>(capacity));
+    if (!probe)
+        return false;
+    std::free(probe);
+    bytes.reserve(static_cast<size_t>(capacity));
+    return true;
+}
 
 // Little endian reads and writes; every 3DS file format here is little endian.
 

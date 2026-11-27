@@ -112,11 +112,18 @@ TEST(library_cache_round_trip)
     item.info = info;
     library::Item unloaded;
     unloaded.source = {"/Themes/B", "B", false, 0};
+    // without an icon: the cache's buffer is sized to what is written, and saving fails when it's too small
+    library::Item plain;
+    plain.source = {"/Themes/C.zip", "C.zip", true, 5};
+    plain.info = library::Info{};
+    plain.info->name = "C";
 
-    REQUIRE(library::saveCache(sd, "/3ds/Themezer/cache/themes.bin", library::Kind::Theme, {item, unloaded})
+    REQUIRE(library::saveCache(sd, "/3ds/Themezer/cache/themes.bin", library::Kind::Theme, {item, unloaded, plain})
                 .has_value());
     auto entries = library::loadCache(sd, "/3ds/Themezer/cache/themes.bin", library::Kind::Theme);
-    REQUIRE(entries.size() == 1);
+    REQUIRE(entries.size() == 2);
+    CHECK_EQ(entries[1].second.name, std::string("C"));
+    CHECK(entries[1].second.icon == nullptr);
     CHECK(entries[0].first == item.source);
     CHECK_EQ(entries[0].second.name, std::string("A theme"));
     CHECK_EQ(entries[0].second.body.crc, uint32_t(0xDEADBEEF));

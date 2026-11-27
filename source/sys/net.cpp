@@ -296,23 +296,6 @@ std::string downloadFilename(std::string_view disposition, std::string_view url)
     return {};
 }
 
-// Grows a download's buffer. Without exceptions a failed allocation ends the app, so this checks that the memory is
-// there first; false when it isn't.
-bool reserveBytes(Bytes& bytes, uint64_t capacity)
-{
-    if (capacity <= bytes.capacity())
-        return true;
-    if (capacity > SIZE_MAX)
-        return false;
-    // volatile, or the compiler drops an allocation that is freed unused, and the check with it
-    void* volatile probe = std::malloc(static_cast<size_t>(capacity));
-    if (!probe)
-        return false;
-    std::free(probe);
-    bytes.reserve(static_cast<size_t>(capacity));
-    return true;
-}
-
 // Appends to a download's buffer: room for all of it at once when its size is known, else in doubling steps.
 bool appendBytes(Bytes& bytes, ByteSpan data, uint64_t expectedSize, uint64_t maxSize)
 {
