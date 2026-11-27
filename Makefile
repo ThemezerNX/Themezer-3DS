@@ -171,6 +171,8 @@ $(BUILD)/third_party/%.o: CFLAGS += -w
 ZXING_FLAGS := -fexceptions -DZXING_INTERNAL -I$(CURDIR)/third_party/zxing-cpp
 $(BUILD)/third_party/zxing-cpp/%.o: CXXFLAGS += -w $(ZXING_FLAGS)
 $(BUILD)/source/services/qr_zxing.o: CXXFLAGS += $(ZXING_FLAGS)
+# onTerminate() rethrows the exception that stopped the app, to log what it was
+$(BUILD)/source/main.o: CXXFLAGS += -fexceptions
 
 $(VERSION_H): FORCE
 	@mkdir -p $(@D)
